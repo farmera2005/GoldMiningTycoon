@@ -1,0 +1,3 @@
+const L = require('./lib'); const E = require('./est');
+for (let s = 1; s < 400; s++) { const cl = L.genClaim(s); if (cl.barren) continue; const t = E.truthOz(cl); const deep = cl.blocks.filter(b => b.OB + b.Tg > 22).length; const pk = cl.blocks.some(b => b.pocket);
+  if (t > 1300 && t < 2600 && deep >= 3 && deep <= 8 && !pk && cl.blocks[0].perm > 0.5) console.log(s, t.toFixed(0), 'deep', deep, 'coarse', (cl.blocks.reduce((a, b) => a + b.mix[0] * b.f, 0) / cl.blocks.reduce((a, b) => a + b.f, 0)).toFixed(2), 'hist', cl.histGrade.toFixed(4), 'f', cl.blocks.slice(0,4).map(b=>b.f.toFixed(1)).join('/')); }

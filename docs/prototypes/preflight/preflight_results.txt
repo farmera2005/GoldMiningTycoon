@@ -1,0 +1,454 @@
+GOLD MINING TYCOON — PREFLIGHT ECONOMIC MODEL
+seed 20261004; districts per template 40; MC games per cell 500 (2 years), 300 (5 years); sweeps 200
+world generated: north 2356 parcels, arid 2295 parcels (3s); held parcels with a true plan stub: north 4.6%, arid 4.1%
+  listing-pool share with true plan authority (steady-state weights): north 4.8%, arid 4.3% (§3 3.11 / §5 5.20 gate: ≥ 8 % north)
+
+====================================================================================================
+PART A. WORLD: CLAIM-QUALITY DISTRIBUTION (§3 generator, simplified network; 40 districts per template)
+====================================================================================================
+
+A1. §3 yardstick classes (refEconomics: sluice-only, $4,200, strip $2.50/$2.20, wash $12/$14 (+0.40 × permafrost), dev $150k+$8k/ac). Brief/§3 band for the listing pool: 60-72 / 18-30 / 5-10 / 0.7-2.5
+tpl   | population   | n    | unecon % | marginal % | good % | excellent % | §3.7 stated                 
+------+--------------+------+----------+------------+--------+-------------+-----------------------------
+north | all parcels  | 2356 | 66.5     | 22.0       | 9.5    | 2.0         |                             
+north | held         | 1657 | 58.7     | 26.2       | 12.4   | 2.7         |                             
+north | open ground  | 699  | 85.1     | 12.2       | 2.6    | 0.1         |                             
+north | LISTING POOL | -    | 64.0     | 25.4       | 9.1    | 1.5         | 73.1/20.5/5.6/0.8 (§3 claim)
+arid  | all parcels  | 2295 | 67.2     | 23.1       | 8.6    | 1.0         |                             
+arid  | held         | 1255 | 57.8     | 27.3       | 13.0   | 1.8         |                             
+arid  | open ground  | 1040 | 78.6     | 18.0       | 3.4    | 0.1         |                             
+arid  | LISTING POOL | -    | 63.1     | 26.5       | 9.5    | 1.0         | 64.8/26.1/8.3/0.8 (§3 claim)
+
+A2. Grade, stripping and contained gold (held claims).  §3.7 stated (north): 0.0013/0.0030/0.0057/0.0094/0.0145; mined 0.010/0.016/0.034/0.086; strip claim 1.9/4.1/10.3, mined 1.7/3.2/7.6; oz 620/1,790/3,550
+tpl   | median paystreak-block grade per claim p10/25/50/75/90 | mined-block grade (bcy-wtd) p10/50/90/99 | strip claim p10/50/90 | strip mined p10/50/90 | contained oz mined: marg/good/exc (median) | PS blocks 0.005-0.03 | PS blocks > 0.1 (pockets)
+------+--------------------------------------------------------+------------------------------------------+-----------------------+-----------------------+--------------------------------------------+----------------------+--------------------------
+north | 0.0012 / 0.0031 / 0.0064 / 0.0111 / 0.0172             | 0.010 / 0.018 / 0.038 / 0.082            | 0.0 / 4.2 / 10.7      | 1.6 / 3.6 / 8.1       | 662 / 1,950 / 4,373                        | 52%                  | 0.11%                    
+arid  | 0.0011 / 0.0026 / 0.0045 / 0.0074 / 0.0113             | 0.010 / 0.015 / 0.036 / 0.092            | 0.6 / 2.0 / 5.2       | 0.7 / 1.5 / 3.7       | 462 / 1,332 / 4,377                        | 41%                  | 0.19%                    
+
+A3. Op-specific economic test at $4,200 (EconTest docstring: block margin = engine season cost/volume at the block's strip ratio and permafrost, recovery of the op's circuit, sale netback, typical lease royalty; CDV after dev cost)
+economic test (listing pool, truth)                             | season opex C | capital K/yr | dev D | unecon % | marginal % | good % | excellent % | econ share 20 ac | econ share >=80 ac
+----------------------------------------------------------------+---------------+--------------+-------+----------+------------+--------+-------------+------------------+-------------------
+Bootstrapper mini fleet (P1 local buyer, lease 10 %)            | 697k          | 27k          | 30k   | 56.9     | 33.8       | 8.1    | 1.3         | 38%              | 61%               
+refSmallNorth fixture (P1 local, lease 10 %)                    | 1,144k        | 189k         | 57k   | 67.8     | 24.7       | 6.6    | 0.9         | 29%              | 46%               
+Mature 2-shift 240 bcy/hr (refinery, centrifuge, lease 12 %)    | 4,206k        | 937k         | 142k  | 66.6     | 22.8       | 8.9    | 1.8         | 30%              | 47%               
+Arid mini fleet + centrifuge, median well (P1 local, lease 6 %) | 1,187k        | 37k          | 27k   | 51.8     | 39.9       | 7.7    | 0.6         | 44%              | 67%               
+
+A4. Arid listing-pool sensitivity to geology gMed (§3 yardstick)
+arid gMed     | unecon % | marginal % | good % | excellent %
+--------------+----------+------------+--------+------------
+0.0062 (×1.0) | 62.9     | 28.6       | 7.6    | 0.9        
+0.0056 (×0.9) | 66.6     | 25.8       | 6.9    | 0.7        
+0.0050 (×0.8) | 70.0     | 23.3       | 6.4    | 0.2        
+
+====================================================================================================
+PART B. REFERENCE FIXTURES: SEASON ECONOMICS (engine §7/§8/§9, mean calendar, no sub-block noise)
+====================================================================================================
+
+B1. Season economics.  Reference claims: north 0.012 raw oz/bcy in the pay column, 15 ft frozen muck (p 0.8), 5 ft pay + 1.5 ft bedrock; arid fan 0.010, 4 ft OB, finer gold (10/30/40/20), fineness 0.78.  (c) uses 0.010 on 6 ft pay, p 0.7.  Year 2 is an established season (strip-ahead and overwinter thaw).  Revenue is net sale proceeds (local buyer ≈ 0.87 of true value; refinery ≈ 0.99).
+fixture                                                                             | yr | bcy washed | bcy/hr run | main bottleneck             | raw oz | fine oz | revenue | site opex | fuel+wages | royalty value | debt svc | cash $/oz | AISC $/oz | AIC $/oz | book profit | cash after debt
+------------------------------------------------------------------------------------+----+------------+------------+-----------------------------+--------+---------+---------+-----------+------------+---------------+----------+-----------+-----------+----------+-------------+----------------
+(a) starterNorth: Bootstrapper mini fleet, lease 7 %, P1                            | 1  | 31,076     | 34         | plant                       | 252    | 208     | 708k    | 707k      | 65%        | 61k           | 0k       | 3,704     | 3,783     | 4,745    | -46k        | -31k           
+                                                                                    | 2  | 42,771     | 36         | plant                       | 346    | 285     | 972k    | 727k      | 65%        | 84k           | 0k       | 2,852     | 2,931     | 2,931    | 228k        | 243k           
+                                                                                    |    | capex      | 169k       | transport+mob               | 30k    |         |         |           |            |               |          |           |           |          |             |                
+(a4) Bootstrapper P4: bigger used fleet, $250k loan @ 19 %                          | 1  | 41,842     | 57         | dig (frozen pay)            | 340    | 281     | 957k    | 1,055k    | 66%        | 83k           | 90k      | 4,149     | 4,268     | 6,226    | -273k       | -279k          
+                                                                                    | 2  | 54,924     | 58         | dig (frozen pay)            | 447    | 369     | 1,258k  | 1,102k    | 65%        | 108k          | 90k      | 3,354     | 3,464     | 3,556    | 43k         | 28k            
+                                                                                    |    | capex      | 453k       | transport+mob               | 53k    |         |         |           |            |               |          |           |           |          |             |                
+(b) refSmallNorth: owned claim, local buyer, P1                                     | 1  | 49,771     | 63         | dig (frozen pay)            | 405    | 334     | 1,225k  | 1,171k    | 65%        | 0k            | 0k       | 3,506     | 3,587     | 6,793    | -102k       | -4k            
+                                                                                    | 2  | 61,494     | 63         | dig (frozen pay)            | 500    | 413     | 1,514k  | 1,195k    | 64%        | 0k            | 0k       | 2,894     | 2,972     | 2,972    | 221k        | 319k           
+                                                                                    |    | capex      | 1,014k     | transport+mob               | 57k    |         |         |           |            |               |          |           |           |          |             |                
+(b-R) refSmallNorthRoyalty: lease 11 % + 10 % investor royalty, P1                  | 1  | 49,771     | 63         | dig (frozen pay)            | 405    | 334     | 981k    | 1,171k    | 65%        | 279k          | 0k       | 4,363     | 4,443     | 7,649    | -353k       | -255k          
+                                                                                    | 2  | 61,494     | 63         | dig (frozen pay)            | 500    | 413     | 1,213k  | 1,195k    | 64%        | 345k          | 0k       | 3,747     | 3,825     | 3,825    | -88k        | 11k            
+                                                                                    |    | capex      | 1,014k     | transport+mob               | 57k    |         |         |           |            |               |          |           |           |          |             |                
+(b-D) refSmallNorthDebt: $900k @ 10 %/60, lease 10 %, refinery, P4                  | 1  | 49,771     | 63         | dig (frozen pay)            | 405    | 334     | 1,241k  | 1,151k    | 64%        | 140k          | 229k     | 3,964     | 4,224     | 7,680    | -242k       | -290k          
+                                                                                    | 2  | 61,494     | 63         | dig (frozen pay)            | 500    | 413     | 1,536k  | 1,175k    | 64%        | 173k          | 229k     | 3,344     | 3,568     | 3,733    | 102k        | 39k            
+                                                                                    |    | capex      | 1,014k     | transport+mob               | 57k    |         |         |           |            |               |          |           |           |          |             |                
+(c) matureNorth: 2-shift, $3.0M @ 10 %, lease 12 %, refinery                        | 1  | 322,084    | 240        | strip/thaw (no exposed pay) | 2,243  | 1,856   | 6,817k  | 4,509k    | 66%        | 935k          | 765k     | 3,008     | 3,165     | 6,152    | 1,112k      | 1,142k         
+                                                                                    | 2  | 326,957    | 242        | strip/thaw (no exposed pay) | 2,278  | 1,885   | 6,923k  | 4,519k    | 66%        | 950k          | 765k     | 2,975     | 3,131     | 3,251    | 1,402k      | 1,381k         
+                                                                                    |    | capex      | 5,124k     | transport+mob               | 142k   |         |         |           |            |               |          |           |           |          |             |                
+(d) starterArid: median well (120 gpm) + 1 water truck, P1                          | 1  | 86,908     | 39         | water                       | 534    | 400     | 1,408k  | 1,580k    | 47%        | 67k           | 0k       | 4,124     | 4,240     | 5,610    | -259k       | -201k          
+                                                                                    | 2  | 87,887     | 39         | water                       | 540    | 404     | 1,423k  | 1,576k    | 47%        | 68k           | 0k       | 4,070     | 4,186     | 4,186    | -212k       | -155k          
+                                                                                    |    | capex      | 521k       | transport+mob               | 27k    |         |         |           |            |               |          |           |           |          |             |                
+(d1) starterArid on the median well alone                                           | 1  | 62,949     | 28         | water                       | 409    | 306     | 1,077k  | 1,121k    | 66%        | 51k           | 0k       | 3,837     | 3,946     | 5,737    | -130k       | -72k           
+                                                                                    | 2  | 63,619     | 28         | water                       | 413    | 309     | 1,088k  | 1,114k    | 66%        | 52k           | 0k       | 3,778     | 3,887     | 3,887    | -86k        | -28k           
+                                                                                    |    | capex      | 521k       | transport+mob               | 27k    |         |         |           |            |               |          |           |           |          |             |                
+(d2) starterArid, 300-gpm well, no truck                                            | 1  | 90,064     | 40         | plant                       | 547    | 409     | 1,441k  | 1,146k    | 65%        | 69k           | 0k       | 2,972     | 3,088     | 4,427    | 209k        | 267k           
+                                                                                    | 2  | 91,088     | 40         | plant                       | 553    | 414     | 1,457k  | 1,142k    | 65%        | 70k           | 0k       | 2,931     | 3,048     | 3,048    | 256k        | 313k           
+                                                                                    |    | capex      | 521k       | transport+mob               | 27k    |         |         |           |            |               |          |           |           |          |             |                
+(e) inheritorNorth: inherited fleet, 2 pre-stripped blocks, $320k seasonal note, P1 | 1  | 45,768     | 36         | plant                       | 369    | 304     | 1,116k  | 912k      | 65%        | 0k            | 62k      | 2,995     | 3,075     | 3,163    | 178k        | 143k           
+                                                                                    | 2  | 45,768     | 36         | plant                       | 369    | 304     | 1,116k  | 914k      | 65%        | 0k            | 62k      | 3,003     | 3,083     | 3,161    | 178k        | 140k           
+                                                                                    |    | capex      | 0k         | transport+mob               | 0k     |         |         |           |            |               |          |           |           |          |             |                
+
+B2. Cost breakdown
+fixture                                                                             | yr | wages+burden | fuel | maintenance | camp | consum.+site | water trucks | mob/winterize | insurance | G&A  | fuel gal | recovery | head grade | wages/fuel/R&M % of site opex
+------------------------------------------------------------------------------------+----+--------------+------+-------------+------+--------------+--------------+---------------+-----------+------+----------+----------+------------+------------------------------
+(a) starterNorth: Bootstrapper mini fleet, lease 7 %, P1                            | 1  | 371k         | 89k  | 165k        | 38k  | 37k          | 0k           | 6k            | 0k        | 0k   | 20,261   | 0.763    | 0.0103     | 53/13/23                     
+                                                                                    | 2  | 373k         | 98k  | 169k        | 38k  | 42k          | 0k           | 6k            | 0k        | 0k   | 22,466   | 0.760    | 0.0103     | 51/14/23                     
+(a4) Bootstrapper P4: bigger used fleet, $250k loan @ 19 %                          | 1  | 548k         | 146k | 259k        | 54k  | 42k          | 0k           | 6k            | 25k       | 11k  | 33,346   | 0.765    | 0.0103     | 52/14/25                     
+                                                                                    | 2  | 551k         | 168k | 275k        | 54k  | 49k          | 0k           | 6k            | 25k       | 11k  | 38,373   | 0.765    | 0.0103     | 50/15/25                     
+(b) refSmallNorth: owned claim, local buyer, P1                                     | 1  | 570k         | 188k | 305k        | 54k  | 48k          | 0k           | 6k            | 0k        | 0k   | 43,011   | 0.765    | 0.0103     | 49/16/26                     
+                                                                                    | 2  | 571k         | 200k | 312k        | 54k  | 54k          | 0k           | 6k            | 0k        | 0k   | 45,558   | 0.765    | 0.0103     | 48/17/26                     
+(b-R) refSmallNorthRoyalty: lease 11 % + 10 % investor royalty, P1                  | 1  | 570k         | 188k | 305k        | 54k  | 48k          | 0k           | 6k            | 0k        | 0k   | 43,011   | 0.765    | 0.0103     | 49/16/26                     
+                                                                                    | 2  | 571k         | 200k | 312k        | 54k  | 54k          | 0k           | 6k            | 0k        | 0k   | 45,558   | 0.765    | 0.0103     | 48/17/26                     
+(b-D) refSmallNorthDebt: $900k @ 10 %/60, lease 10 %, refinery, P4                  | 1  | 550k         | 188k | 305k        | 54k  | 48k          | 0k           | 6k            | 33k       | 60k  | 43,011   | 0.765    | 0.0103     | 48/16/27                     
+                                                                                    | 2  | 551k         | 200k | 312k        | 54k  | 54k          | 0k           | 6k            | 33k       | 60k  | 45,558   | 0.765    | 0.0103     | 47/17/27                     
+(c) matureNorth: 2-shift, $3.0M @ 10 %, lease 12 %, refinery                        | 1  | 2,018k       | 965k | 1,018k      | 301k | 203k         | 0k           | 6k            | 89k       | 120k | 220,306  | 0.780    | 0.0087     | 45/21/23                     
+                                                                                    | 2  | 2,018k       | 969k | 1,020k      | 301k | 206k         | 0k           | 6k            | 89k       | 120k | 221,315  | 0.780    | 0.0087     | 45/21/23                     
+(d) starterArid: median well (120 gpm) + 1 water truck, P1                          | 1  | 591k         | 157k | 234k        | 80k  | 80k          | 437k         | 0k            | 0k        | 0k   | 37,975   | 0.840    | 0.0072     | 37/10/15                     
+                                                                                    | 2  | 591k         | 156k | 232k        | 80k  | 81k          | 437k         | 0k            | 0k        | 0k   | 37,616   | 0.840    | 0.0072     | 38/10/15                     
+(d1) starterArid on the median well alone                                           | 1  | 591k         | 152k | 228k        | 80k  | 69k          | 0k           | 0k            | 0k        | 0k   | 36,679   | 0.889    | 0.0072     | 53/14/20                     
+                                                                                    | 2  | 591k         | 150k | 225k        | 80k  | 69k          | 0k           | 0k            | 0k        | 0k   | 36,119   | 0.889    | 0.0072     | 53/13/20                     
+(d2) starterArid, 300-gpm well, no truck                                            | 1  | 591k         | 158k | 235k        | 80k  | 82k          | 0k           | 0k            | 0k        | 0k   | 38,078   | 0.829    | 0.0072     | 52/14/21                     
+                                                                                    | 2  | 591k         | 156k | 232k        | 80k  | 82k          | 0k           | 0k            | 0k        | 0k   | 37,738   | 0.829    | 0.0072     | 52/14/20                     
+(e) inheritorNorth: inherited fleet, 2 pre-stripped blocks, $320k seasonal note, P1 | 1  | 470k         | 123k | 223k        | 46k  | 43k          | 0k           | 6k            | 0k        | 0k   | 28,189   | 0.758    | 0.0103     | 52/14/24                     
+                                                                                    | 2  | 470k         | 125k | 224k        | 46k  | 44k          | 0k           | 6k            | 0k        | 0k   | 28,444   | 0.758    | 0.0103     | 51/14/25                     
+
+====================================================================================================
+PART C. CANONICAL SEASONAL CASH CURVES AND THE FIRST-SEASON THAW CONSTRAINT
+====================================================================================================
+
+C1. (a) Bootstrapper P1 (cash $400k + personal $120k): weekly COMPANY cash before any owner injection ($k); W=washed bcy; G=gold sold $k.
+  y1w01     181                  | y1w02     181                  | y1w03     181                  | y1w04     181                 
+  y1w05     181                  | y1w06     181                  | y1w07     181                  | y1w08     181                 
+  y1w09     181                  | y1w10     181                  | y1w11     181                  | y1w12     181                 
+  y1w13     181                  | y1w14     181                  | y1w15     181                  | y1w16     181                 
+  y1w17     181                  | y1w18     181                  | y1w19     158                  | y1w20     132                 
+  y1w21     107                  | y1w22      82                  | y1w23      57                  | y1w24      31                 
+  y1w25       4 W0.7k G  0       | y1w26      29 W1.6k G 55       | y1w27      -0 W1.7k G  0       | y1w28      52 W1.9k G 82      
+  y1w29      23 W1.8k G  0       | y1w30      76 W1.8k G 84       | y1w31      47 W2.0k G  0       | y1w32     107 W2.0k G 90      
+  y1w33      78 W2.0k G  0       | y1w34     138 W2.0k G 90       | y1w35     109 W1.9k G  0       | y1w36     157 W1.4k G 77      
+  y1w37     128 W1.5k G  0       | y1w38     170 W1.6k G 70       | y1w39     142 W1.6k G  0       | y1w40     184 W1.6k G 71      
+  y1w41     156 W1.6k G  0       | y1w42     190 W1.2k G 63       | y1w43     187 W1.2k G 26       | y1w44     180                 
+  y1w45     180                  | y1w46     180                  | y1w47     180                  | y1w48     180                 
+  y1w49     180                  | y1w50     180                  | y1w51     180                  | y1w52     180                 
+  y2w01     180                  | y2w02     180                  | y2w03     178                  | y2w04     178                 
+  y2w05     178                  | y2w06     178                  | y2w07     178                  | y2w08     178                 
+  y2w09     178                  | y2w10     178                  | y2w11     178                  | y2w12     178                 
+  y2w13     178                  | y2w14     178                  | y2w15     178                  | y2w16     178                 
+  y2w17     178                  | y2w18     178                  | y2w19     155                  | y2w20     126 W1.9k G  0      
+  y2w21     184 W2.0k G 88       | y2w22     155 W2.0k G  0       | y2w23     215 W2.0k G 90       | y2w24     186 W2.0k G  0      
+  y2w25     246 W1.9k G 89       | y2w26     216 W1.8k G  0       | y2w27     273 W2.0k G 87       | y2w28     244 W2.0k G  0      
+  y2w29     304 W2.0k G 90       | y2w30     276 W2.0k G  0       | y2w31     335 W2.0k G 90       | y2w32     306 W1.8k G  0      
+  y2w33     363 W2.0k G 87       | y2w34     334 W2.0k G  0       | y2w35     394 W2.0k G 90       | y2w36     367 W1.6k G  0      
+  y2w37     408 W1.5k G 70       | y2w38     380 W1.5k G  0       | y2w39     416 W1.4k G 66       | y2w40     388 W1.6k G  0      
+  y2w41     430 W1.6k G 71       | y2w42     402 W1.2k G  0       | y2w43     427 W1.2k G 54       | y2w44     420                 
+  y2w45     420                  | y2w46     420                  | y2w47     420                  | y2w48     420                 
+  y2w49     420                  | y2w50     420                  | y2w51     420                  | y2w52     420                 
+  minimum company cash: $-0k at year 1 week 27 (owner injection needed: $0k of $120k personal); end of year 2 cash $420k
+
+C1. (b) Backed equity (cash $1.5M, refSmallNorth fleet, lease 11 %): weekly COMPANY cash before any owner injection ($k); W=washed bcy; G=gold sold $k.
+  y1w01     400                  | y1w02     400                  | y1w03     400                  | y1w04     400                 
+  y1w05     400                  | y1w06     400                  | y1w07     400                  | y1w08     400                 
+  y1w09     400                  | y1w10     400                  | y1w11     400                  | y1w12     400                 
+  y1w13     400                  | y1w14     400                  | y1w15     400                  | y1w16     400                 
+  y1w17     400                  | y1w18     400                  | y1w19     363                  | y1w20     322                 
+  y1w21     282                  | y1w22     239 W0.6k G  0       | y1w23     247 W2.0k G 56       | y1w24     200 W2.0k G  0      
+  y1w25     243 W2.1k G 91       | y1w26     196 W2.2k G  0       | y1w27     246 W2.3k G 98       | y1w28     199 W2.4k G  0      
+  y1w29     258 W2.5k G107       | y1w30     210 W2.3k G  0       | y1w31     263 W2.2k G100       | y1w32     215 W2.3k G  0      
+  y1w33     285 W3.1k G119       | y1w34     238 W2.7k G  0       | y1w35     298 W2.3k G109       | y1w36     251 W2.1k G  0      
+  y1w37     306 W2.6k G104       | y1w38     258 W2.9k G  0       | y1w39     325 W2.4k G115       | y1w40     278 W2.2k G  0      
+  y1w41     324 W2.1k G 94       | y1w42     276 W2.2k G  0       | y1w43     322 W2.2k G 95       | y1w44     315                 
+  y1w45     315                  | y1w46     315                  | y1w47     315                  | y1w48     315                 
+  y1w49     315                  | y1w50     315                  | y1w51     315                  | y1w52     315                 
+  y2w01     315                  | y2w02     315                  | y2w03     303                  | y2w04     303                 
+  y2w05     303                  | y2w06     303                  | y2w07     303                  | y2w08     303                 
+  y2w09     303                  | y2w10     303                  | y2w11     303                  | y2w12     303                 
+  y2w13     303                  | y2w14     303                  | y2w15     303                  | y2w16     303                 
+  y2w17     303                  | y2w18     303                  | y2w19     265                  | y2w20     216 W3.7k G  0      
+  y2w21     302 W2.4k G134       | y2w22     254 W2.3k G  0       | y2w23     328 W3.1k G120       | y2w24     280 W2.7k G  0      
+  y2w25     341 W2.3k G109       | y2w26     294 W2.2k G  0       | y2w27     352 W2.7k G107       | y2w28     304 W3.1k G  0      
+  y2w29     379 W2.5k G123       | y2w30     332 W2.2k G  0       | y2w31     381 W2.2k G 98       | y2w32     333 W3.1k G  0      
+  y2w33     413 W2.8k G129       | y2w34     366 W2.3k G  0       | y2w35     417 W2.2k G100       | y2w36     370 W2.5k G  0      
+  y2w37     440 W2.9k G119       | y2w38     393 W2.6k G  0       | y2w39     450 W2.2k G105       | y2w40     403 W2.1k G  0      
+  y2w41     461 W2.8k G107       | y2w42     413 W2.2k G  0       | y2w43     459 W2.2k G 95       | y2w44     452                 
+  y2w45     452                  | y2w46     452                  | y2w47     452                  | y2w48     452                 
+  y2w49     452                  | y2w50     452                  | y2w51     452                  | y2w52     452                 
+  minimum company cash: $196k at year 1 week 26 (owner injection needed: $0k of $50k personal); end of year 2 cash $452k
+
+C1. (e) Inheritor P1 (cash $250k + personal $40k, 2 pre-stripped blocks, seasonal note): weekly COMPANY cash before any owner injection ($k); W=washed bcy; G=gold sold $k.
+  y1w01     228                  | y1w02     228                  | y1w03     228                  | y1w04     228                 
+  y1w05     228                  | y1w06     228                  | y1w07     228                  | y1w08     228                 
+  y1w09     228                  | y1w10     228                  | y1w11     228                  | y1w12     228                 
+  y1w13     228                  | y1w14     228                  | y1w15     228                  | y1w16     228                 
+  y1w17     228                  | y1w18     228                  | y1w19     200                  | y1w20     164 W2.1k G  0      
+  y1w21     228 W2.1k G102       | y1w22     192 W2.1k G  0       | y1w23     256 W2.1k G102       | y1w24     219 W2.1k G  0      
+  y1w25     283 W2.1k G102       | y1w26     236 W2.1k G  0       | y1w27     301 W2.1k G102       | y1w28     264 W2.1k G  0      
+  y1w29     329 W2.1k G102       | y1w30     292 W2.1k G  0       | y1w31     346 W2.1k G102       | y1w32     310 W2.1k G  0      
+  y1w33     374 W2.1k G102       | y1w34     337 W2.1k G  0       | y1w35     391 W2.1k G102       | y1w36     355 W1.7k G  0      
+  y1w37     400 W1.7k G 81       | y1w38     364 W1.7k G  0       | y1w39     399 W1.7k G 81       | y1w40     364 W1.7k G  0      
+  y1w41     408 W1.7k G 81       | y1w42     372 W1.2k G  0       | y1w43     396 W1.2k G 60       | y1w44     378                 
+  y1w45     378                  | y1w46     378                  | y1w47     378                  | y1w48     368                 
+  y1w49     368                  | y1w50     368                  | y1w51     368                  | y1w52     368                 
+  y2w01     368                  | y2w02     368                  | y2w03     368                  | y2w04     368                 
+  y2w05     368                  | y2w06     368                  | y2w07     368                  | y2w08     368                 
+  y2w09     368                  | y2w10     368                  | y2w11     368                  | y2w12     368                 
+  y2w13     368                  | y2w14     368                  | y2w15     368                  | y2w16     368                 
+  y2w17     368                  | y2w18     368                  | y2w19     340                  | y2w20     303 W2.1k G  0      
+  y2w21     367 W2.1k G102       | y2w22     331 W2.1k G  0       | y2w23     395 W2.1k G102       | y2w24     358 W2.1k G  0      
+  y2w25     422 W2.1k G102       | y2w26     375 W2.1k G  0       | y2w27     439 W2.1k G102       | y2w28     403 W2.1k G  0      
+  y2w29     467 W2.1k G102       | y2w30     430 W2.1k G  0       | y2w31     483 W2.1k G102       | y2w32     447 W2.1k G  0      
+  y2w33     511 W2.1k G102       | y2w34     475 W2.1k G  0       | y2w35     528 W2.1k G102       | y2w36     493 W1.7k G  0      
+  y2w37     537 W1.7k G 81       | y2w38     502 W1.7k G  0       | y2w39     536 W1.7k G 81       | y2w40     501 W1.7k G  0      
+  y2w41     545 W1.7k G 81       | y2w42     510 W1.2k G  0       | y2w43     533 W1.2k G 60       | y2w44     516                 
+  y2w45     516                  | y2w46     516                  | y2w47     516                  | y2w48     505                 
+  y2w49     505                  | y2w50     505                  | y2w51     505                  | y2w52     505                 
+  minimum company cash: $164k at year 1 week 20 (owner injection needed: $0k of $40k personal); end of year 2 cash $505k
+
+C2. §11.15 canonical curve = refSmallNorthDebt, year 2 (engine).  §11.15 table: trough −$111k (Jun, level) / −$35k (seasonal); year +$15k / +$11k; 427 gross fine oz, receipts $1,588k
+month | site outflows (rebuild cash in Jan-Apr) | gold in | end cash (level) | end cash (seasonal Jun-Nov)
+------+-----------------------------------------+---------+------------------+----------------------------
+Jan   | 28k                                     | 0k      | 346k             | 365k                       
+Feb   | 28k                                     | 0k      | 291k             | 329k                       
+Mar   | 28k                                     | 0k      | 237k             | 294k                       
+Apr   | 28k                                     | 0k      | 182k             | 259k                       
+May   | 162k                                    | 153k    | -8k              | 88k                        
+Jun   | 169k                                    | 262k    | 86k              | 162k                       
+Jul   | 215k                                    | 374k    | 232k             | 288k                       
+Aug   | 171k                                    | 261k    | 293k             | 329k                       
+Sep   | 171k                                    | 256k    | 345k             | 361k                       
+Oct   | 172k                                    | 231k    | 380k             | 377k                       
+Nov   | 0k                                      | 0k      | 462k             | 439k                       
+Dec   | 0k                                      | 0k      | 435k             | 431k                       
+  level: payment $19,122.34; min month-end cash $-8k in May; drawdown $408k = 32% of ops outflows ($1,272k); debt service $229k (interest $83k); year net $+35k; gross fine oz 413; receipts $1,536k
+  seasonal: payment $38,896.80; min month-end cash $88k in May; drawdown $312k = 25% of ops outflows ($1,272k); debt service $233k (interest $87k); year net $+31k; gross fine oz 413; receipts $1,536k
+
+C3. First-season effect of permafrost and strip-ahead (§7 7.4)
+refSmallNorth on 0.012 ground                  | yr1 bcy | yr1 fine oz | yr1 op margin | yr2 bcy | yr2 fine oz | yr2 op margin
+-----------------------------------------------+---------+-------------+---------------+---------+-------------+--------------
+frozen muck p 0.8, no strip-ahead (season 1)   | 49,771  | 334         | 59k           | 61,494  | 413         | 325k         
+frozen, 2 blocks pre-stripped (thaw 4.5 ft)    | 64,304  | 432         | 388k          | 61,417  | 412         | 323k         
+frozen, 3 blocks pre-stripped (thaw 4.5 ft)    | 66,054  | 444         | 450k          | 61,247  | 411         | 318k         
+frozen, D8 on rip assist half time (D6 strips) | 49,954  | 335         | -44k          | 63,360  | 426         | 238k         
+unfrozen ground (p 0)                          | 76,043  | 511         | 700k          | 77,543  | 521         | 761k         
+
+====================================================================================================
+PART D. BREAK-EVEN IN-SITU GRADE (raw oz per bcy of pay column) BY STRIPPING RATIO (engine, year-2 steady state)
+====================================================================================================
+
+D1. Break-even grade: opex only / + typical royalty / + royalty + debt service (or 10 % capital charge).  SR = (OB − 0.5 ft) / (pay + bedrock cleanup).  Compare: median paystreak block ≈ 0.0057; grade of economically mined blocks p50 ≈ 0.016.
+operation                            | permafrost | SR 1                 | SR 2                 | SR 3                 | SR 4                 | SR 6                 | SR 8                
+-------------------------------------+------------+----------------------+----------------------+----------------------+----------------------+----------------------+---------------------
+starterNorth (Bootstrapper mini)     | 0.0        | 0.0075/0.0081/0.0083 | 0.0077/0.0083/0.0085 | 0.0081/0.0087/0.0088 | 0.0088/0.0095/0.0097 | 0.0130/0.0140/0.0142 | 0.0158/0.0170/0.0174
+starterNorth (Bootstrapper mini)     | 0.8        | 0.0079/0.0085/0.0086 | 0.0083/0.0089/0.0091 | 0.0084/0.0091/0.0092 | 0.0100/0.0107/0.0109 | 0.0124/0.0133/0.0135 | 0.0128/0.0138/0.0141
+refSmallNorth                        | 0.0        | 0.0071/0.0079/0.0101 | 0.0072/0.0080/0.0103 | 0.0074/0.0082/0.0105 | 0.0076/0.0084/0.0107 | 0.0106/0.0118/0.0151 | 0.0144/0.0160/0.0207
+refSmallNorth                        | 0.8        | 0.0088/0.0098/0.0126 | 0.0094/0.0104/0.0132 | 0.0101/0.0113/0.0143 | 0.0116/0.0129/0.0165 | 0.0170/0.0189/0.0243 | 0.0187/0.0208/0.0268
+refSmallNorth @ refinery (P5)        | 0.0        | 0.0062/0.0069/0.0089 | 0.0063/0.0071/0.0090 | 0.0065/0.0072/0.0092 | 0.0067/0.0074/0.0094 | 0.0093/0.0103/0.0133 | 0.0127/0.0141/0.0182
+refSmallNorth @ refinery (P5)        | 0.8        | 0.0078/0.0086/0.0111 | 0.0082/0.0091/0.0116 | 0.0089/0.0099/0.0126 | 0.0102/0.0114/0.0145 | 0.0150/0.0166/0.0214 | 0.0164/0.0183/0.0235
+matureNorth (refinery)               | 0.0        | 0.0049/0.0056/0.0072 | 0.0050/0.0057/0.0074 | 0.0051/0.0058/0.0075 | 0.0052/0.0060/0.0076 | 0.0069/0.0079/0.0102 | 0.0089/0.0101/0.0131
+matureNorth (refinery)               | 0.8        | 0.0053/0.0061/0.0077 | 0.0064/0.0073/0.0092 | 0.0089/0.0101/0.0130 | 0.0115/0.0130/0.0169 | 0.0167/0.0189/0.0247 | 0.0209/0.0238/0.0311
+arid mini + centrifuge (median well) | 0.0        | 0.0103/0.0107/0.0109 | 0.0105/0.0109/0.0111 | 0.0107/0.0111/0.0113 | 0.0108/0.0113/0.0115 | 0.0128/0.0134/0.0136 | 0.0162/0.0168/0.0171
+  frozen/thawed opex break-even at SR 3: engine (refSmallNorth) 1.37 (§7 7.23 target 1.38 ± 0.05); §3 yardstick 1.36 (§3 3.7 states 1.36)
+  matureNorth ÷ refSmallNorth break-even with royalty at SR 3, p 0.8: 0.90 against refSmallNorth at the local buyer; 1.02 with both at a refinery; thawed (p 0), both at a refinery: 0.81 (T-10 gate ≤ 0.85)
+
+====================================================================================================
+PART E. MONTE CARLO OF THE FIRST TWO SEASONS (reduced bots; see simplifications)
+====================================================================================================
+
+E1. Rules = P1 (flat $4,200, local buyer, cash only, no permits, no wear)
+bot        | start         | n   | B2 % (±95%) | S2 % (±95%) | retreated B2−S2 | first-season profit % | mined s1 % | op margin>0 | mined s1 % | NI season 1 p10/p50/p90 | owner NW y2 ÷ start p10/p50/p90 | arid share | median injected
+-----------+---------------+-----+-------------+-------------+-----------------+-----------------------+------------+--------------------------+-------------------------+---------------------------------+------------+----------------
+cautious   | bootstrapper  | 500 | 88±3        | 64±4        | 24              | 43                    | 87         | 53                       | -471k / -100k / 1,671k  | 0.00 / 0.73 / 6.37              | 42%        | 21k            
+cautious   | backed        | 500 | 100±0       | 80±4        | 20              | 30                    | 93         | 39                       | -575k / -231k / 1,249k  | 0.00 / 0.20 / 10.08             | 37%        | 0k             
+cautious   | backedRoyalty | 500 | 100±0       | 78±4        | 22              | 31                    | 90         | 38                       | -531k / -193k / 978k    | -2.76 / 0.13 / 11.09            | 32%        | 0k             
+cautious   | inheritor     | 500 | 85±3        | 46±4        | 39              | 34                    | 97         | 37                       | -361k / -130k / 659k    | -0.30 / 0.22 / 5.52             | 4%         | 0k             
+balanced   | bootstrapper  | 500 | 84±3        | 60±4        | 24              | 39                    | 81         | 50                       | -476k / -96k / 1,535k   | 0.00 / 0.70 / 5.55              | 41%        | 29k            
+balanced   | backed        | 500 | 100±0       | 82±3        | 18              | 27                    | 85         | 35                       | -569k / -209k / 1,073k  | 0.00 / 0.20 / 10.08             | 32%        | 0k             
+noTest     | bootstrapper  | 500 | 86±3        | 45±4        | 41              | 23                    | 91         | 27                       | -467k / -198k / 774k    | 0.00 / 0.45 / 3.93              | 35%        | 70k            
+noTest     | backed        | 500 | 100±0       | 69±4        | 31              | 20                    | 98         | 23                       | -636k / -338k / 774k    | 0.00 / 0.20 / 7.90              | 19%        | 0k             
+undercap   | bootstrapper  | 500 | 22±4        | 15±3        | 7               | 10                    | 81         | 13                       | -501k / -417k / -26k    | 0.00 / 0.00 / 1.16              | 41%        | 120k           
+aggressive | bootstrapper  | 500 | 47±4        | 33±4        | 13              | 31                    | 67         | 49                       | -502k / -273k / 1,594k  | 0.00 / 0.00 / 6.41              | 28%        | 120k           
+aggressive | backed        | 500 | 99±1        | 23±4        | 76              | 23                    | 78         | 32                       | -778k / -518k / 1,357k  | 0.00 / 0.00 / 8.31              | 32%        | 50k            
+  pooled cautious S2 (Bootstrapper, Backed equity/royalty averaged, Inheritor) = 63%; pooled B2 = 91%; pooled first-season profit = 36%
+
+E2. Rules = FULL (P5-like: regime price, refinery, P2 permits incl. §3 permitStub and the starter lease, P3 availability, P4 insurance, G&A, equipment finance and hard money)
+bot        | start         | n   | B2 % (±95%) | S2 % (±95%) | retreated B2−S2 | first-season profit % | mined s1 % | op margin>0 | mined s1 % | NI season 1 p10/p50/p90 | owner NW y2 ÷ start p10/p50/p90 | arid share | median injected
+-----------+---------------+-----+-------------+-------------+-----------------+-----------------------+------------+--------------------------+-------------------------+---------------------------------+------------+----------------
+cautious   | bootstrapper  | 500 | 79±4        | 45±4        | 34              | 14                    | 31         | 57                       | -264k / -104k / 253k    | 0.00 / 0.57 / 5.09              | 44%        | 120k           
+cautious   | backed        | 500 | 100±0       | 74±4        | 26              | 10                    | 35         | 41                       | -391k / -106k / 65k     | 0.00 / 0.20 / 9.74              | 34%        | 0k             
+cautious   | backedRoyalty | 500 | 100±0       | 71±4        | 29              | 10                    | 28         | 43                       | -370k / -105k / -33k    | -2.04 / 0.25 / 10.13            | 35%        | 0k             
+cautious   | inheritor     | 500 | 75±4        | 30±4        | 44              | 28                    | 89         | 36                       | -366k / -158k / 647k    | -0.27 / 0.05 / 6.18             | 4%         | 40k            
+balanced   | bootstrapper  | 500 | 84±3        | 45±4        | 39              | 14                    | 39         | 46                       | -312k / -93k / 172k     | 0.00 / 0.58 / 4.53              | 43%        | 108k           
+balanced   | backed        | 500 | 100±0       | 67±4        | 33              | 8                     | 36         | 30                       | -413k / -91k / -31k     | 0.00 / 0.20 / 7.26              | 34%        | 0k             
+noTest     | bootstrapper  | 500 | 73±4        | 25±4        | 48              | 3                     | 22         | 20                       | -279k / -88k / -62k     | 0.00 / 0.32 / 1.10              | 33%        | 120k           
+noTest     | backed        | 500 | 100±0       | 65±4        | 35              | 3                     | 25         | 21                       | -434k / -83k / -62k     | 0.00 / 0.20 / 2.97              | 23%        | 0k             
+undercap   | bootstrapper  | 500 | 32±4        | 9±2         | 24              | 3                     | 55         | 8                        | -524k / -363k / -80k    | 0.00 / 0.00 / 0.67              | 42%        | 120k           
+aggressive | bootstrapper  | 500 | 70±4        | 2±1         | 68              | 2                     | 44         | 9                        | -658k / -260k / -167k   | -0.60 / 0.00 / 0.24             | 38%        | 120k           
+aggressive | backed        | 500 | 100±0       | 17±3        | 83              | 6                     | 51         | 19                       | -1,223k / -304k / -226k | -1.79 / 0.00 / 0.20             | 38%        | 50k            
+  pooled cautious S2 (Bootstrapper, Backed equity/royalty averaged, Inheritor) = 49%; pooled B2 = 85%; pooled first-season profit = 17%
+
+E3. Value of information (O-08)
+rules | start        | S2 cautious vs noTest | S2 gain pp | NW ratio y2 p50 cautious vs noTest | NW gain | owner NW y2 >= start %, cautious vs noTest (gain pp) | cautious testing spend ÷ first-season commitment (median)
+------+--------------+-----------------------+------------+------------------------------------+---------+------------------------------------------------------+----------------------------------------------------------
+p1    | bootstrapper | 64 vs 45              | +19        | 0.73 vs 0.45                       | +0.28   | 45 vs 25 (+20)                                       | 12%                                                      
+p1    | backed       | 80 vs 69              | +11        | 0.20 vs 0.20                       | +0.00   | 37 vs 27 (+10)                                       | 3%                                                       
+full  | bootstrapper | 45 vs 25              | +20        | 0.57 vs 0.32                       | +0.24   | 34 vs 11 (+23)                                       | 31%                                                      
+full  | backed       | 74 vs 65              | +9         | 0.20 vs 0.20                       | +0.00   | 38 vs 16 (+22)                                       | 5%                                                       
+
+E3b. Difficulty ordering (P1 rules; §1 1.11 honesty mix, ask markup, reservation discount, start cash 1.25/1.0/0.85, personal 1.1/1.0/0.9, insolvency grace 8/6/4, season variance and freeze-up shift, Inheritor note; n = 500 on common seeds)
+difficulty | bot      | start        | B2 % | S2 % | first-season profit % | NW ratio y2 p50
+-----------+----------+--------------+------+------+-----------------------+----------------
+easy       | cautious | bootstrapper | 90   | 67   | 45                    | 1.00           
+easy       | cautious | backed       | 100  | 95   | 34                    | 0.45           
+easy       | undercap | bootstrapper | 27   | 19   | 11                    | 0.00           
+standard   | cautious | bootstrapper | 86   | 66   | 44                    | 0.67           
+standard   | cautious | backed       | 100  | 85   | 38                    | 0.20           
+standard   | undercap | bootstrapper | 18   | 12   | 10                    | 0.00           
+hard       | cautious | bootstrapper | 94   | 49   | 36                    | 0.52           
+hard       | cautious | backed       | 100  | 74   | 33                    | 0.21           
+hard       | undercap | bootstrapper | 16   | 6    | 5                     | 0.00           
+
+E4. Inheritor outcomes by hidden tier
+rules | family-ground tier | n   | B2 % | S2 % | mined s1 % | NI s1 p50 | yardstick class = tier after §3 3.6.1 conditioning
+------+--------------------+-----+------+------+------------+-----------+---------------------------------------------------
+p1    | uneconomic         | 113 | 78   | 15   | 96         | -214k     | 99%                                               
+p1    | marginal           | 164 | 83   | 32   | 96         | -152k     | 92%                                               
+p1    | good               | 185 | 90   | 70   | 98         | 146k      | 81%                                               
+p1    | excellent          | 38  | 95   | 84   | 97         | 846k      | 24%                                               
+full  | uneconomic         | 84  | 56   | 1    | 90         | -246k     | 99%                                               
+full  | marginal           | 214 | 76   | 19   | 87         | -176k     | 90%                                               
+full  | good               | 159 | 82   | 53   | 91         | 10k       | 82%                                               
+full  | excellent          | 43  | 79   | 60   | 93         | 608k      | 28%                                               
+
+E5. Lever sensitivity (P1 rules, n = 200 per cell; cautious bot unless noted)
+lever                                              | Boot S2 % | Boot first profit % | Boot NW p50 | Boot arid share | Backed S2 % | Inheritor S2 % | Inheritor s1 attempt % | undercap S2 / B2 %
+---------------------------------------------------+-----------+---------------------+-------------+-----------------+-------------+----------------+------------------------+-------------------
+baseline (current sections)                        | 65        | 44                  | 0.66        | 40%             | 81          | 52             | 95                     | 12 / 19           
+game.start.inheritor.companyCashUsd 250k → 300k    | 65        | 44                  | 0.66        | 40%             | 81          | 64             | 96                     | 12 / 19           
+game.inheritor.noteSchedule 'seasonal' → 'level'   | 65        | 44                  | 0.66        | 40%             | 81          | 52             | 94                     | 12 / 19           
+game.inheritor.preStrippedBlocks 2 → 0             | 65        | 44                  | 0.66        | 40%             | 81          | 36             | 92                     | 12 / 19           
+game.start.bootstrapper.companyCashUsd 400k → 325k | 55        | 42                  | 0.56        | 42%             | 81          | 52             | 95                     | 10 / 17           
+market.localBuyer.discount 0.10 → 0.08             | 66        | 46                  | 0.68        | 40%             | 81          | 52             | 95                     | 12 / 21           
+fleet.p1MaintUsdPerHr × 0.85                       | 67        | 47                  | 0.76        | 42%             | 83          | 53             | 96                     | 13 / 23           
+ops.digMult gravel frozen 0.35 → 0.50              | 66        | 44                  | 0.70        | 40%             | 82          | 52             | 96                     | 12 / 20           
+ops.makeupFrac.arid 0.15 → 0.20                    | 58        | 40                  | 0.53        | 38%             | 82          | 52             | 95                     | 11 / 20           
+
+E6. Owner-background parity (O-07; P1 rules, cautious bot, n = 200 per cell; P1 stubs per §1 1.7)
+start        | background | S2 % | Δ vs mean of the five | NW ratio y2 p50 | owner NW y2 >= start % | first-season profit %
+-------------+------------+------+-----------------------+-----------------+------------------------+----------------------
+bootstrapper | none       | 63   | -                     | 0.69            | 44                     | 42                   
+bootstrapper | operator   | 64   | -1                    | 0.71            | 46                     | 44                   
+bootstrapper | mechanic   | 68   | +3                    | 0.96            | 48                     | 48                   
+bootstrapper | geologist  | 68   | +2                    | 0.90            | 48                     | 46                   
+bootstrapper | banker     | 62   | -3                    | 1.18            | 50                     | 42                   
+bootstrapper | landman    | 63   | -2                    | 0.68            | 42                     | 42                   
+backed       | none       | 80   | -                     | 0.85            | 48                     | 40                   
+backed       | operator   | 81   | -1                    | 1.06            | 51                     | 41                   
+backed       | mechanic   | 84   | +2                    | 1.62            | 54                     | 40                   
+backed       | geologist  | 79   | -3                    | 1.49            | 51                     | 42                   
+backed       | banker     | 84   | +3                    | 1.39            | 51                     | 40                   
+backed       | landman    | 82   | -0                    | 0.86            | 48                     | 38                   
+
+E7. Five-year runs (O-04 dominance, O-06 year-5 NW, O-14 cost per ounce, O-15 profitable claims; n = 300 per cell)
+
+E7a. Rules = P1, 5 years
+bot        | start         | n   | B5 % | S5 % (going at y5) | NW ratio y2 p10/50/90 | NW ratio y5 p10/50/90 | NW y5 >= start | claims profitable (reduced M-CLAIMPROFIT) | cash cost/oz p50 (producing seasons) | AISC ÷ realized p50 | M-FLIP share
+-----------+---------------+-----+------+--------------------+-----------------------+-----------------------+----------------+-------------------------------------------+--------------------------------------+---------------------+-------------
+cautious   | bootstrapper  | 300 | 80   | 58                 | 0.00 / 0.61 / 6.56    | 0.00 / 0.55 / 11.17   | 41%            | 44% of 524                                | 3,059                                | 85%                 | 1%          
+cautious   | backed        | 300 | 100  | 67                 | 0.00 / 0.20 / 12.52   | 0.00 / 0.20 / 21.75   | 40%            | 29% of 754                                | 4,319                                | 120%                | 1%          
+cautious   | backedRoyalty | 300 | 99   | 67                 | -2.62 / 0.03 / 12.29  | -2.87 / -1.05 / 18.83 | 37%            | 25% of 741                                | 4,454                                | 123%                | 5%          
+cautious   | inheritor     | 300 | 46   | 20                 | -0.29 / 0.21 / 5.50   | 0.00 / 0.00 / 8.92    | 18%            | 29% of 423                                | 4,087                                | 114%                | 4%          
+balanced   | bootstrapper  | 300 | 80   | 51                 | 0.00 / 0.64 / 5.34    | 0.00 / 0.49 / 9.90    | 38%            | 43% of 511                                | 3,178                                | 88%                 | 1%          
+balanced   | backed        | 300 | 100  | 73                 | 0.00 / 0.20 / 11.30   | 0.00 / 0.20 / 18.44   | 44%            | 33% of 683                                | 4,197                                | 117%                | 1%          
+aggressive | bootstrapper  | 300 | 21   | 19                 | 0.00 / 0.00 / 5.06    | 0.00 / 0.00 / 6.42    | 20%            | 19% of 530                                | 3,666                                | 104%                | 1%          
+aggressive | backed        | 300 | 25   | 15                 | 0.00 / 0.00 / 11.03   | 0.00 / 0.00 / 5.80    | 14%            | 11% of 983                                | 4,654                                | 128%                | 1%          
+undercap   | bootstrapper  | 300 | 4    | 3                  | 0.00 / 0.00 / 0.31    | 0.00 / 0.00 / 0.00    | 2%             | 3% of 483                                 | 10,290                               | 291%                | 0%          
+noTest     | bootstrapper  | 300 | 79   | 31                 | 0.00 / 0.45 / 4.03    | 0.00 / 0.35 / 5.63    | 18%            | 20% of 415                                | 5,399                                | 150%                | 1%          
+
+E7b. Rules = FULL, 5 years
+bot        | start         | n   | B5 % | S5 % (going at y5) | NW ratio y2 p10/50/90 | NW ratio y5 p10/50/90 | NW y5 >= start | claims profitable (reduced M-CLAIMPROFIT) | cash cost/oz p50 (producing seasons) | AISC ÷ realized p50 | M-FLIP share
+-----------+---------------+-----+------+--------------------+-----------------------+-----------------------+----------------+-------------------------------------------+--------------------------------------+---------------------+-------------
+cautious   | bootstrapper  | 300 | 63   | 35                 | 0.00 / 0.62 / 3.82    | 0.00 / 0.27 / 9.31    | 31%            | 36% of 407                                | 3,231                                | 76%                 | 1%          
+cautious   | backed        | 300 | 100  | 71                 | 0.00 / 0.20 / 10.26   | 0.00 / 0.83 / 22.50   | 48%            | 42% of 552                                | 2,988                                | 72%                 | 2%          
+cautious   | backedRoyalty | 300 | 98   | 60                 | -1.81 / 0.40 / 11.09  | -2.72 / -0.77 / 30.18 | 43%            | 34% of 507                                | 3,902                                | 95%                 | 6%          
+cautious   | inheritor     | 300 | 26   | 20                 | -0.34 / 0.01 / 5.68   | 0.00 / 0.00 / 8.57    | 20%            | 28% of 394                                | 4,552                                | 117%                | 3%          
+balanced   | bootstrapper  | 300 | 62   | 29                 | 0.00 / 0.52 / 3.07    | 0.00 / 0.21 / 5.96    | 22%            | 30% of 378                                | 4,012                                | 93%                 | 2%          
+balanced   | backed        | 300 | 100  | 65                 | 0.00 / 0.20 / 9.04    | 0.00 / 0.20 / 18.75   | 39%            | 32% of 503                                | 3,984                                | 100%                | 3%          
+aggressive | bootstrapper  | 300 | 2    | 2                  | -0.58 / 0.00 / 0.27   | 0.00 / 0.00 / 0.00    | 2%             | 2% of 850                                 | 9,446                                | 236%                | 4%          
+aggressive | backed        | 300 | 23   | 4                  | -2.02 / 0.00 / 0.20   | -0.29 / 0.00 / 0.00   | 4%             | 3% of 1037                                | 9,388                                | 228%                | 5%          
+undercap   | bootstrapper  | 300 | 3    | 3                  | 0.00 / 0.00 / 0.67    | 0.00 / 0.00 / 0.00    | 2%             | 2% of 473                                 | 12,198                               | 335%                | 3%          
+noTest     | bootstrapper  | 300 | 49   | 18                 | 0.00 / 0.31 / 1.72    | 0.00 / 0.00 / 1.71    | 12%            | 14% of 336                                | 6,768                                | 170%                | 3%          
+
+E8. Lever checks for BALANCE §8.3 (cautious bot, n = 500 per cell, E1/E2 seeds)
+lever                                        | rules | north plan-authority share | S2 Boot | S2 Backed eq | S2 Backed roy | S2 Inheritor | pooled S2 | pooled FSP | pooled B2 | undercap S2 / B2
+---------------------------------------------+-------+----------------------------+---------+--------------+---------------+--------------+-----------+------------+-----------+-----------------
+current sections                             | P1    | 4.8%                       | 64      | 80           | 78            | 46           | 63        | 36         | 91        | 15 / 22         
+R-3 game.start.inheritor.companyCashUsd 300k | P1    | 4.8%                       | 64      | 80           | 78            | 60           | 68        | 36         | 93        | 15 / 22         
+current sections                             | FULL  | 4.8%                       | 45      | 74           | 71            | 30           | 49        | 17         | 85        | 9 / 32          
+R-3 game.start.inheritor.companyCashUsd 300k | FULL  | 4.8%                       | 45      | 74           | 71            | 43           | 53        | 18         | 87        | 9 / 32          
+R-1 permitStub 2000 / 0.60 / 0.20            | FULL  | 10.0%                      | 51      | 76           | 75            | 30           | 52        | 19         | 87        | 12 / 30         
+R-1 + R-3                                    | FULL  | 10.0%                      | 51      | 76           | 75            | 40           | 55        | 19         | 90        | 12 / 30         
+  R-1 regenerates the world with the new stub draw (another world on the same seed); R-3 changes only the Inheritor start.
+
+====================================================================================================
+PART G. CALENDAR (T-12) AND PRICE CROSS-CHECK (O-11)
+====================================================================================================
+  north site season (operating weeks, §1 calendar): p10/p50/p90 20 / 22 / 24; mean 22.0
+  north effective sluicing weeks (cool-week 0.80, freeze-up 0.6, × A 0.92 × F 0.91): p50 18.4 (without A and F: 22.0)
+  arid effective day-shift weeks (Σ heat × fire hours factor, 6 × 10 h): p10/p50/p90 45.6 / 47.4 / 48.8
+  P(gold falls > 15 % in year 1), this model's price path (no macro, no fair-value pull): 19.7% over 2000 seeds (§10 10.5 states 12 %)
+
+====================================================================================================
+PART F. TARGET SCORECARD INPUTS (preflight; BALANCE.md §9 assigns the status)
+====================================================================================================
+target               | measure                                                                                                                | preflight value                                               
+---------------------+------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------
+T-01                 | mined grade p10/p50/p90 N; A; PS bcy in band N/A; pockets N/A                                                          | 0.010/0.018/0.038; 0.010/0.015/0.036; 52%/41%; 0.11%/0.19%    
+T-02                 | §3 yardstick listing pool N; A                                                                                         | 64.0/25.4/9.1/1.5; 63.1/26.5/9.5/1.0                          
+T-03                 | EconTest refSmallNorth; arid starter                                                                                   | 67.8/24.7/6.6/0.9; 51.8/39.9/7.7/0.6                          
+T-04                 | bcy/hr season 2: starterNorth, inheritorNorth, starterArid (d / d1 / d2)                                               | 36, 36, 39 / 28 / 40                                          
+T-05                 | matureNorth bcy/hr; bcy season 2                                                                                       | 242; 326,957                                                  
+T-06                 | refSmallNorth s2 bcy / raw oz / fine oz; s1 bcy (share of s2)                                                          | 61,494 / 500 / 413; 49,771 (81%)                              
+T-07                 | fuel+wages / R&M / fuel share of site opex (s2): starterNorth, refSmallNorth, matureNorth, starterArid, inheritorNorth | 65/23/14; 64/26/17; 66/23/21; 47/15/10; 65/25/14              
+T-08                 | refSmallNorth s2 margin; royalty variant royalty/margin; debt variant (royalty+debt)/margin; nets                      | 319k; 345k/363k = 0.95; (173k+229k)/535k = 0.75; net 11k / 39k
+T-09                 | P1 used asks ex30 / ld966 / adt30 at grade B and C                                                                     | ex30 211k/113k; ld966 229k/116k; adt30 256k/130k              
+T-10                 | refSmallNorth BE SR3 p0.8 opex/+roy/+cap; mature ratio (local, refinery)                                               | 0.0101/0.0113/0.0143; 0.90, 1.02, thawed 0.81                 
+T-11                 | refSmallNorthDebt level: min month-end, month, drawdown ÷ outflows, year net                                           | -8k, May, 32%, 35k                                            
+T-12                 | north site season p50; sluicing weeks p50; arid effective weeks p50                                                    | 22; 22.0; 47.4                                                
+O-01 p1              | cautious S2 Boot / Backed eq / Backed roy / Inh; pooled; pooled B2                                                     | 64 / 80 / 78 / 46; 63; 91                                     
+O-02 p1              | cautious pooled FSP; max any bot; min any bot                                                                          | 36; 43 (cautious/boot); 10                                    
+O-03 p1              | undercap S2; B2                                                                                                        | 15; 22                                                        
+O-06 p1              | Inheritor season-1 attempt                                                                                             | 97                                                            
+O-01 full            | cautious S2 Boot / Backed eq / Backed roy / Inh; pooled; pooled B2                                                     | 45 / 74 / 71 / 30; 49; 85                                     
+O-02 full            | cautious pooled FSP; max any bot; min any bot                                                                          | 17; 28 (cautious/inhe); 2                                     
+O-03 full            | undercap S2; B2                                                                                                        | 9; 32                                                         
+O-06 full            | Inheritor season-1 attempt                                                                                             | 89                                                            
+O-05                 | cautious S2 easy/std/hard Boot; Backed; B2 Boot                                                                        | 67/66/49; 95/85/74; 90/86/94                                  
+O-07 bootstrapper    | S2 by background (operator/mechanic/geologist/banker/landman); mean                                                    | 64/68/68/62/63; 65                                            
+O-07 bootstrapper NW | owner NW y2 >= start % by background (same order); mean                                                                | 46/48/48/50/42; 47                                            
+O-07 backed          | S2 by background (operator/mechanic/geologist/banker/landman); mean                                                    | 81/84/79/84/82; 82                                            
+O-07 backed NW       | owner NW y2 >= start % by background (same order); mean                                                                | 51/54/51/51/48; 51                                            
+O-08 bootstrapper    | P1 S2 gain cautious − noTest (pp); NW y2 p50 gain; owner-ahead gain (pp); testing ÷ commitment                         | +19; +0.28; +20; 12%                                          
+O-08 backed          | P1 S2 gain cautious − noTest (pp); NW y2 p50 gain; owner-ahead gain (pp); testing ÷ commitment                         | +11; +0.00; +10; 3%                                           
+O-04 p1              | Bootstrapper cautious / balanced / aggressive: S5; NW y5 p50; NW y5 p90                                                | 58 / 51 / 19; 0.55 / 0.49 / 0.00; 11.17 / 9.90 / 6.42         
+O-06b p1             | cautious NW y5 p50 Boot/Backed/BackedRoy/Inh; owner ahead at y5 %                                                      | 0.55/0.20/-1.05/0.00; 41/40/37/18                             
+O-14 p1              | cautious cash cost/oz p50 and AISC ÷ realized p50, Boot/Backed/BackedRoy/Inh                                           | 3,059/4,319/4,454/4,087; 85%/120%/123%/114%                   
+O-15 p1              | claims profitable: cautious (claim-weighted over starts); aggressive Boot; undercap                                    | 31%; 19%; 3%                                                  
+O-04 full            | Bootstrapper cautious / balanced / aggressive: S5; NW y5 p50; NW y5 p90                                                | 35 / 29 / 2; 0.27 / 0.21 / 0.00; 9.31 / 5.96 / 0.00           
+O-06b full           | cautious NW y5 p50 Boot/Backed/BackedRoy/Inh; owner ahead at y5 %                                                      | 0.27/0.83/-0.77/0.00; 31/48/43/20                             
+O-14 full            | cautious cash cost/oz p50 and AISC ÷ realized p50, Boot/Backed/BackedRoy/Inh                                           | 3,231/2,988/3,902/4,552; 76%/72%/95%/117%                     
+O-15 full            | claims profitable: cautious (claim-weighted over starts); aggressive Boot; undercap                                    | 36%; 2%; 2%                                                   
+T-15                 | north (arid) listing-pool share with plan authority: current; with R-1                                                 | 4.8% (4.3%); 10.0% (6.6%)                                     
+O-01 p1 R-3          | pooled cautious S2; Inheritor S2; pooled FSP                                                                           | 68; 60; 36                                                    
+O-01 full R-3        | pooled cautious S2; Inheritor S2; pooled FSP                                                                           | 53; 43; 18                                                    
+O-01 full R-1        | pooled cautious S2; Inheritor S2; pooled FSP                                                                           | 52; 30; 19                                                    
+O-01 full R-1+R-3    | pooled cautious S2; Inheritor S2; pooled FSP                                                                           | 55; 40; 19                                                    
+O-11                 | P(year-1 fall > 15 %), model price path                                                                                | 19.7%                                                         
+O-16                 | cautious Bootstrapper arid share P1 / FULL                                                                             | 42% / 44%                                                     
+
+====================================================================================================
+SIMPLIFICATIONS (this is a sanity check, not the simulator)
+====================================================================================================
+  - Geology: creek network, parcel layout and dredged stretches simplified (independent creeks); no tailings piles as feed; recentCat history gaps drawn at 0.2 per season (§3 says 'occasional'); Inheritor run drawn from three generated 20-ac creek parcels.
+  - Operations: weekly aggregation of §7's hour-block flow (stages capped per week, pad buffer 1,500 bcy); thaw per §7.4 on queue blocks; single cut, best-first block order (no contiguity), fixed haul distance and push distance; no concurrent reclamation hours.
+  - Recovery: §7.9 capture with φ, skill, cold, prep, clay, oversize; riffle loading ignored (cleanup every 2 weeks); gold room per §7.10.
+  - Costs: P1 flat maintenance (§9) in every rule set (FULL adds P3 availability by grade only); no breakdowns, parts lead times or winter rebuilds, except the §11.15 fixture, which moves $110k of R&M cash into Jan-Apr.
+  - Staff: wages at résumé-free asks (skill 50/55), remote premium and the spring-rush multiplier; no morale, quits, injuries or fatigue.
+  - Land: §5 asks, reservations, royalties, AMR and structures by situation; negotiated price = max(reservation, 0.8 × ask); no title defects, closings or first look; P1 leases instant; the starter permitted lease (P2+) is added to the year-1 market.
+  - Sellers: honesty mix, tilts and transforms per §3.10 applied to a claim-level 'honest' grade (no per-sample draws); evidence class from §3.10.3's rules in reduced form.
+  - Estimation: §4 not run; estimate error drawn as lognormal noise calibrated to §4.9 (indicated: claim sd 0.18, block sd 0.45).
+  - Finance: P1 insolvency counter (bankrupt after finance.p1InsolvencyGraceWeeks open weeks, after a last-resort dealer sale of the fleet); FULL adds equipment loans (aggressive, undercap), hard money (aggressive, undercap), insurance, G&A, the §6 plan delay (20 weeks of preparation + LN(40 wk, 0.6) review) and a surety bond; no covenants, cards, revolver or taxes.
+  - Market: FULL price = regime GARCH + jumps without macro or fair-value pull; diesel AR(1); no ripples on wages, iron or land prices.
+  - Events and competitors: not modeled beyond season-length variance; competitors do not bid against the bots; no investor check-ins, so no Backed ouster.
+  - Bots: reduced versions of BALANCE.md §4 / §2.12.1 (20 random listings plus, in FULL year 1, two starter leases, seen once a year; one claim at a time; aggressive takes no second claim).
+  - Hard rock (§14) is not modeled: §14.13's lode generator, refEconomicsLode and the hardrockSeeker bot are not in this model.
+
+run time 506s
