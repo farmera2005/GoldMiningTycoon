@@ -4,6 +4,10 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import gmt from './tools/eslint-plugin-gmt/index.js';
+import { loadRegistries } from './tools/eslint-plugin-gmt/registry.js';
+
+// The live stream, id-prefix and hook registries (evaluated from their TypeScript sources) feed the gmt rule options.
+const registries = await loadRegistries();
 
 const TRANSCENDENTAL = ['exp', 'log', 'pow', 'sin', 'cos', 'tan', 'atan', 'atan2', 'asin', 'acos', 'sinh', 'cosh', 'tanh',
   'asinh', 'acosh', 'atanh', 'log2', 'log10', 'log1p', 'expm1', 'cbrt', 'hypot', 'random'];
@@ -67,6 +71,28 @@ export default tseslint.config(
   {
     files: ['src/engine/core/memo.ts'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+  // Registry contracts: stream names and id prefixes are registered literals (DESIGN §2.3, §2.4) and hook keys are read
+  // only through effective() (§2.10). tests/architecture/registries.test.ts checks the owners.
+  {
+    files: ['src/engine/**/*.ts', 'src/data/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/*.perf.test.ts'],
+    rules: {
+      'gmt/rng-stream-literal': ['error', { streams: registries.streams }],
+      'gmt/id-prefix-literal': ['error', { prefixes: registries.idPrefixes }],
+      'gmt/no-raw-hook-read': ['error', { hookKeys: registries.hookKeys }],
+    },
+  },
+  // These files name hook keys by design: the registry itself, event and preparation effects (§12 12.3), tuning and
+  // difficulty tables, and scenario tuning overrides (§2.10 resolution order).
+  {
+    files: [
+      'src/data/events/**/*.ts',
+      'src/data/tuning/**/*.ts',
+      'src/data/difficulty.ts',
+      'src/data/scenarios/**/*.ts',
+    ],
+    rules: { 'gmt/no-raw-hook-read': 'off' },
   },
   // data/ may import only data/ and engine types.
   {
