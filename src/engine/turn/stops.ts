@@ -6,7 +6,6 @@ import { MONTH_END_WEEKS } from '../core/calendar';
 import { sortedKeys } from '../core/iter';
 import type { ClaimId, DecId, DistrictId, EntityRef, MsgId } from '../core/ids';
 import type { Cents } from '../core/money';
-import { uiConfig } from '../../data/tuning/ui';
 import { openDecisions } from '../actions/decisions';
 import { select } from '../select';
 import type { GameState } from '../state/types';
@@ -65,18 +64,31 @@ export function upcomingDeadlines(state: GameState): DeadlineItem[] {
     .map((d) => ({ ref: d.id, dueTurn: d.deadlineTurn, createdTurn: d.createdTurn, label: `Decision due: ${d.kind}` }));
 }
 
+/**
+ * Parameters of the default stop rules. They are §13's presentation config (`ui.runDeadlineNoticeWeeks`,
+ * `ui.runGoldMoveStopPct` in src/data/tuning/ui.ts), which the engine may not import (ui.* sits outside
+ * TuningResolved, DESIGN §2.10). The UI and the simulator pass their configured values; these defaults mirror them
+ * and a UI test keeps the two in step.
+ */
+export interface StopRuleParams {
+  readonly deadlineNoticeWeeks: number;
+  readonly goldMoveStopPct: number;
+}
+
+export const STOP_RULE_DEFAULTS: StopRuleParams = { deadlineNoticeWeeks: 2, goldMoveStopPct: 0.05 };
+
 /** §13 13.9 defaults (also the simulator's pacing rules, BALANCE O-13). Blocking and critical stops are not rules. */
-export function defaultStopRules(): StopRule[] {
+export function defaultStopRules(params: StopRuleParams = STOP_RULE_DEFAULTS): StopRule[] {
   return [
     { kind: 'warningKinds', muted: [] },
     { kind: 'seasonPhase', scope: 'held', enabled: true },
-    { kind: 'deadlineWithin', weeks: uiConfig['ui.runDeadlineNoticeWeeks'], enabled: true },
+    { kind: 'deadlineWithin', weeks: params.deadlineNoticeWeeks, enabled: true },
     { kind: 'everyCleanup', claimIds: 'all', enabled: false },
     { kind: 'cashBelow', cents: 0 as Cents, enabled: false },
     { kind: 'machineFailure', enabled: false },
     { kind: 'listingMatch', searches: [], enabled: false },
     { kind: 'monthStart', enabled: false },
-    { kind: 'goldMove', pct: uiConfig['ui.runGoldMoveStopPct'], enabled: false },
+    { kind: 'goldMove', pct: params.goldMoveStopPct, enabled: false },
   ];
 }
 

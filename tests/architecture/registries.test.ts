@@ -156,7 +156,9 @@ describe('stream registry (DESIGN §2.3)', () => {
 
   it('builds streams only through rng() (streamState and rngFromState stay inside core/rng.ts)', () => {
     const bad = scan(['streamState', 'rngFromState'], 0)
-      .filter((s) => s.file !== RNG_DEFINITION)
+      // The HandlerContext rng wrapper (actions/apply.ts) rebuilds the stream the handler named so it can record the draw
+      // for undo detection (D-2.22); every handler's ctx.rng(...) call is itself checked for a registered literal.
+      .filter((s) => s.file !== RNG_DEFINITION && s.file !== 'src/engine/actions/apply.ts')
       .map((s) => `${where(s)} ${s.callee}()`);
     expect(bad).toEqual([]);
   });

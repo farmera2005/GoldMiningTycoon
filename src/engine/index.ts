@@ -11,6 +11,8 @@ export {
   defaultRunAnchor,
   defaultStopRules,
   evaluateStops,
+  STOP_RULE_DEFAULTS,
+  type StopRuleParams,
   upcomingDeadlines,
   type DeadlineItem,
   type ListingFilter,
