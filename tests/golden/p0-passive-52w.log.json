@@ -1,0 +1,25 @@
+{
+  "format": "gmt-replay",
+  "version": 1,
+  "name": "p0-passive-52w",
+  "seed": "golden-p0",
+  "setup": {
+    "companyName": "Golden Placers LLC",
+    "ownerName": "Owner",
+    "entity": "llc",
+    "background": "none",
+    "start": "bootstrapper",
+    "backedTerms": null,
+    "mode": "sandbox",
+    "scenarioId": null,
+    "difficulty": "standard",
+    "world": {
+      "startCalendarYear": 2027,
+      "districtTemplates": ["northernFederal", "aridFederal"],
+      "openingSpotUsdPerFineOz": null
+    },
+    "tutorial": false
+  },
+  "weeks": 52,
+  "actions": []
+}

@@ -1,0 +1,2745 @@
+{
+  "format": "gmt-save",
+  "schemaVersion": 1,
+  "rulesVersion": "0.1.0",
+  "savedAt": "2026-10-05T18:00:00.000Z",
+  "slotName": "Fixture Placers LLC",
+  "summary": {
+    "company": "Fixture Placers LLC",
+    "year": 1,
+    "week": 4,
+    "cash": 40000000,
+    "netWorth": 52000000
+  },
+  "state": {
+    "schemaVersion": 1,
+    "meta": {
+      "seed": "fixture-v1",
+      "setup": {
+        "companyName": "Fixture Placers LLC",
+        "ownerName": "Ada Lindqvist",
+        "entity": "llc",
+        "background": "none",
+        "start": "bootstrapper",
+        "backedTerms": null,
+        "mode": "sandbox",
+        "scenarioId": null,
+        "difficulty": "standard",
+        "world": {
+          "startCalendarYear": 2027,
+          "districtTemplates": ["northernFederal", "aridFederal"],
+          "openingSpotUsdPerFineOz": null
+        },
+        "tutorial": false
+      },
+      "tuningHash": "f29e37e133e06a26",
+      "tuning": {
+        "game.alerts.inboxRetentionWeeks": 104,
+        "game.history.weeklyKeep": 156,
+        "game.nw.partsResaleFactor": 0.6,
+        "game.start.bootstrapper.companyCashUsd": 400000,
+        "game.start.bootstrapper.personalCashUsd": 120000,
+        "game.startCalendarYear": 2027,
+        "game.startCompanyCashMult": 1,
+        "game.startPersonalCashMult": 1,
+        "market.cb.normal": 650,
+        "market.cpiTrendAnnual": 0.03,
+        "market.eq.mean": 0.2,
+        "market.geo.baseline": 30,
+        "market.openingBaseRate": 0.04,
+        "market.openingDieselRackUsdPerGal": 3.6,
+        "market.openingSpotUsdPerFineOz": 4200,
+        "market.preHistory.keepWeeks": 156
+      },
+      "rulesVersion": "0.1.0",
+      "rulesPhase": 0
+    },
+    "clock": {
+      "turn": 3,
+      "year": 1,
+      "week": 4,
+      "actionSeq": 0,
+      "phase": {}
+    },
+    "ids": {
+      "txn": 2
+    },
+    "climate": {},
+    "company": {
+      "name": "Fixture Placers LLC",
+      "entity": "llc",
+      "pendingEntity": null,
+      "background": "none",
+      "start": "bootstrapper",
+      "difficulty": "standard",
+      "mode": "sandbox",
+      "owner": {
+        "name": "Ada Lindqvist"
+      },
+      "scenario": null,
+      "runStatus": "active",
+      "endReason": null,
+      "liquidationPath": null
+    },
+    "world": {},
+    "knowledge": {},
+    "land": {},
+    "permits": {},
+    "ops": {},
+    "staff": {},
+    "fleet": {},
+    "gold": {},
+    "finance": {
+      "books": {
+        "company": {
+          "txns": [
+            {
+              "book": "company",
+              "date": 0,
+              "lines": [
+                {
+                  "account": "cash.operating",
+                  "debit": 40000000
+                },
+                {
+                  "account": "eq.ownerCapital",
+                  "credit": 40000000
+                }
+              ],
+              "memo": "Owner capital contribution",
+              "refs": [
+                {
+                  "kind": "company",
+                  "id": "company"
+                }
+              ],
+              "source": "§1/start",
+              "counterparty": "Ada Lindqvist",
+              "id": "txn_000001",
+              "seq": 1
+            }
+          ],
+          "balances": {
+            "cash.operating": 40000000,
+            "eq.ownerCapital": -40000000
+          },
+          "monthly": []
+        },
+        "owner": {
+          "txns": [
+            {
+              "book": "owner",
+              "date": 0,
+              "lines": [
+                {
+                  "account": "own.cash",
+                  "debit": 12000000
+                },
+                {
+                  "account": "own.equity",
+                  "credit": 12000000
+                }
+              ],
+              "memo": "Personal cash at start",
+              "refs": [
+                {
+                  "kind": "company",
+                  "id": "company"
+                }
+              ],
+              "source": "§1/start",
+              "id": "txn_000002",
+              "seq": 2
+            }
+          ],
+          "balances": {
+            "own.cash": 12000000,
+            "own.equity": -12000000
+          },
+          "monthly": []
+        }
+      },
+      "distress": {
+        "liquidation": null
+      }
+    },
+    "events": {
+      "modifiers": {},
+      "modifierIdsByTarget": {},
+      "modifiersVersion": 0
+    },
+    "competitors": {},
+    "inbox": {
+      "messages": {},
+      "messageIds": [],
+      "decisions": {},
+      "decisionIds": [],
+      "closedDecisions": {},
+      "closedDecisionIds": []
+    },
+    "history": {
+      "weekly": [
+        {
+          "turn": -153,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -152,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -151,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -150,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -149,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -148,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -147,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -146,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -145,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -144,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -143,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -142,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -141,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -140,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -139,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -138,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -137,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -136,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -135,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -134,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -133,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -132,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -131,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -130,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -129,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -128,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -127,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -126,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -125,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -124,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -123,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -122,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -121,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -120,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -119,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -118,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -117,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -116,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -115,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -114,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -113,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -112,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -111,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -110,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -109,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -108,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -107,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -106,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -105,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -104,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -103,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -102,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -101,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -100,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -99,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -98,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -97,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -96,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -95,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -94,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -93,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -92,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -91,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -90,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -89,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -88,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -87,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -86,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -85,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -84,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -83,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -82,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -81,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -80,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -79,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -78,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -77,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -76,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -75,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -74,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -73,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -72,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -71,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -70,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -69,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -68,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -67,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -66,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -65,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -64,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -63,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -62,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -61,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -60,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -59,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -58,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -57,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -56,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -55,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -54,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -53,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -52,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -51,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -50,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -49,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -48,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -47,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -46,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -45,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -44,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -43,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -42,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -41,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -40,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -39,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -38,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -37,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -36,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -35,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -34,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -33,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -32,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -31,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -30,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -29,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -28,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -27,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -26,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -25,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -24,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -23,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -22,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -21,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -20,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -19,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -18,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -17,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -16,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -15,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -14,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -13,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -12,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -11,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -10,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -9,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -8,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -7,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -6,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -5,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -4,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -3,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -2,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": -1,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          }
+        },
+        {
+          "turn": 0,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          },
+          "company": {
+            "cashCents": 40000000,
+            "ownerNwCents": 52000000,
+            "companyNwCents": 40000000,
+            "payWashedBcy": 0,
+            "weighedRawOz": 0,
+            "soldFineOz": 0,
+            "byClaim": {}
+          }
+        },
+        {
+          "turn": 1,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          },
+          "company": {
+            "cashCents": 40000000,
+            "ownerNwCents": 52000000,
+            "companyNwCents": 40000000,
+            "payWashedBcy": 0,
+            "weighedRawOz": 0,
+            "soldFineOz": 0,
+            "byClaim": {}
+          }
+        },
+        {
+          "turn": 2,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          },
+          "company": {
+            "cashCents": 40000000,
+            "ownerNwCents": 52000000,
+            "companyNwCents": 40000000,
+            "payWashedBcy": 0,
+            "weighedRawOz": 0,
+            "soldFineOz": 0,
+            "byClaim": {}
+          }
+        },
+        {
+          "turn": 3,
+          "market": {
+            "spot": 4200,
+            "goldIdx": 1,
+            "cpiIndex": 1,
+            "cpiYoY": 0,
+            "baseRate": 0.04,
+            "realRate": 0.010000000000000002,
+            "usdIdx": 100,
+            "cbPublished": 650,
+            "geoRisk": 30,
+            "eqSentiment": 0.2,
+            "dieselRack": 3.6
+          },
+          "company": {
+            "cashCents": 40000000,
+            "ownerNwCents": 52000000,
+            "companyNwCents": 40000000,
+            "payWashedBcy": 0,
+            "weighedRawOz": 0,
+            "soldFineOz": 0,
+            "byClaim": {}
+          }
+        }
+      ],
+      "annual": []
+    }
+  },
+  "ui": {
+    "uiVersion": 1,
+    "ironman": false,
+    "stopRules": [
+      {
+        "kind": "monthStart",
+        "enabled": true
+      }
+    ],
+    "inbox": {}
+  }
+}
