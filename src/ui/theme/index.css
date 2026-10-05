@@ -1,0 +1,107 @@
+/*
+ * Theme entry (DESIGN §13.19–13.20). Tailwind v4 utilities are mapped onto the CSS tokens with `@theme inline`, so
+ * `bg-surface-1`, `text-ink-2`, `border-hairline`, `fill-series-3` and `bg-chrome` always read the active theme's
+ * variable. Tailwind's default palette is dropped: a color that is not a token cannot be used by accident.
+ */
+@import 'tailwindcss';
+@import './tokens.css';
+@import './fonts.css';
+@import './base.css';
+
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-hairline: var(--hairline);
+  --color-axis: var(--axis);
+  --color-border-control: var(--border-control);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-link: var(--link);
+  --color-chrome: var(--chrome);
+  --color-chrome-ink: var(--chrome-ink);
+  --color-chrome-ink-2: var(--chrome-ink-2);
+  --color-chrome-hairline: var(--chrome-hairline);
+  --color-brass: var(--brass);
+  --color-brass-on-chrome: var(--brass-on-chrome);
+
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-serious: var(--status-serious);
+  --color-status-critical: var(--status-critical);
+  --color-status-good-on: var(--status-good-on);
+  --color-status-warning-on: var(--status-warning-on);
+  --color-status-serious-on: var(--status-serious-on);
+  --color-status-critical-on: var(--status-critical-on);
+  --color-status-good-text: var(--status-good-text);
+  --color-status-warning-text: var(--status-warning-text);
+  --color-status-serious-text: var(--status-serious-text);
+  --color-status-critical-text: var(--status-critical-text);
+
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+
+  --color-seq-gold-100: var(--seq-gold-100);
+  --color-seq-gold-200: var(--seq-gold-200);
+  --color-seq-gold-300: var(--seq-gold-300);
+  --color-seq-gold-400: var(--seq-gold-400);
+  --color-seq-gold-500: var(--seq-gold-500);
+  --color-seq-gold-600: var(--seq-gold-600);
+  --color-seq-gold-700: var(--seq-gold-700);
+  --color-seq-slate-100: var(--seq-slate-100);
+  --color-seq-slate-200: var(--seq-slate-200);
+  --color-seq-slate-300: var(--seq-slate-300);
+  --color-seq-slate-400: var(--seq-slate-400);
+  --color-seq-slate-500: var(--seq-slate-500);
+  --color-seq-slate-600: var(--seq-slate-600);
+  --color-seq-slate-700: var(--seq-slate-700);
+  --color-div-neg-1: var(--div-neg-1);
+  --color-div-neg-2: var(--div-neg-2);
+  --color-div-neg-3: var(--div-neg-3);
+  --color-div-mid: var(--div-mid);
+  --color-div-pos-1: var(--div-pos-1);
+  --color-div-pos-2: var(--div-pos-2);
+  --color-div-pos-3: var(--div-pos-3);
+
+  /* Typography (13.20, D-13.59): Besley for titles and headers only; Inter for everything else. */
+  --font-*: initial;
+  --font-display: 'Besley', 'Besley Fallback', Rockwell, 'Roboto Slab', Georgia, serif;
+  --font-sans:
+    'Inter', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Type scale 12/13/14/16/20/24/32 px; line height 1.4 for text, 1.2 for headings. */
+  --text-*: initial;
+  --text-12: 12px;
+  --text-12--line-height: 1.4;
+  --text-13: 13px;
+  --text-13--line-height: 1.4;
+  --text-14: 14px;
+  --text-14--line-height: 1.4;
+  --text-16: 16px;
+  --text-16--line-height: 1.2;
+  --text-20: 20px;
+  --text-20--line-height: 1.2;
+  --text-24: 24px;
+  --text-24--line-height: 1.2;
+  --text-32: 32px;
+  --text-32--line-height: 1.2;
+
+  /* Radius 6 px for cards, 4 px for controls; one elevation shadow (popovers and the drawer). */
+  --radius-card: 6px;
+  --radius-control: 4px;
+  --shadow-*: initial;
+  --shadow-raised: var(--shadow-elevation);
+}
