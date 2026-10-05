@@ -14,7 +14,7 @@ const engineBannedGlobals = ['window', 'document', 'indexedDB', 'fetch', 'Date',
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'out/**', 'node_modules/**', 'docs/**', 'coverage/**', 'test-results/**', 'playwright-report/**'],
+    ignores: ['.claude/**', 'dist/**', 'out/**', 'node_modules/**', 'docs/**', 'coverage/**', 'test-results/**', 'playwright-report/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
