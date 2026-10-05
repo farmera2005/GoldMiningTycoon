@@ -1,0 +1,158 @@
+/*
+ * Base styles and theme rules that are not tokens (DESIGN §13.19–13.20). The theme decorates chrome and titles only:
+ * tables, charts, forms and every number stay on flat surfaces in the data face.
+ */
+
+@layer base {
+  :root {
+    /* Table row height by density (13.2): 32 px comfortable, 26 px compact. */
+    --row-h: 32px;
+  }
+  :root[data-density='compact'] {
+    --row-h: 26px;
+  }
+
+  html {
+    background-color: var(--surface-0);
+    color: var(--ink-1);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--surface-0);
+    color: var(--ink-1);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* Every number is set with tabular lining figures (D-13.59); IDs, seeds and codes also take a slashed zero. */
+  [data-num],
+  table,
+  input[type='number'] {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  [data-code] {
+    font-variant-numeric: tabular-nums lining-nums slashed-zero;
+  }
+
+  a {
+    color: var(--link);
+  }
+
+  /* Focus ring: 2 px accent with a 2 px offset on content, brass-on-chrome on the chrome (13.19, D-13.61). */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .chrome :focus-visible {
+    outline-color: var(--brass-on-chrome);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Display face roles (13.20): never on numbers, tables, controls, chips, buttons, tooltips or body text, and never
+     below ui.theme.displayMinPx (16 px). */
+  .display-title-screen {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .display-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .display-section {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .display-panel {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  /* Ornament (13.20): a 2 px brass rule under screen titles with a 1 px hairline 3 px below it. */
+  .title-rule {
+    position: relative;
+    border-bottom: 2px solid var(--brass);
+    padding-bottom: 6px;
+  }
+  .title-rule::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* The 3 px brass marker on the active nav item. */
+  .nav-item[aria-current='page'] {
+    box-shadow: inset 3px 0 0 var(--brass-on-chrome);
+  }
+
+  .narrow-banner {
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    .narrow-banner {
+      display: block;
+    }
+  }
+}
+
+/*
+ * Grain (13.20, D-13.60): only on chrome, screen-title bands, the wizard header, the title screen, the end-of-run
+ * headline and empty states; never in or behind a number, table, chart, map, block grid, form control, chip, toast,
+ * popover, drawer, inbox list or the top bar's status cluster (T28). Unlayered so the switch-offs below beat any
+ * utility. The tile is fixed: it never moves.
+ */
+.grain {
+  background-image: var(--grain-band);
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+.grain-chrome {
+  background-image: var(--grain-chrome);
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* Off with Settings > Display > Header grain (Prefs.headerGrain). */
+:root[data-grain='off'] :is(.grain, .grain-chrome) {
+  background-image: none;
+}
+/* Off under forced colors, high contrast and print. */
+@media (forced-colors: active) {
+  :is(.grain, .grain-chrome) {
+    background-image: none;
+  }
+}
+@media (prefers-contrast: more) {
+  :is(.grain, .grain-chrome) {
+    background-image: none;
+  }
+}
+@media print {
+  :is(.grain, .grain-chrome) {
+    background-image: none;
+  }
+}
