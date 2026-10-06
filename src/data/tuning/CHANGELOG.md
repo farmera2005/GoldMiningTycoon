@@ -19,3 +19,7 @@ Every tuning or bot change: date, key, old → new, owner section, target ID, be
 | 2026-10-06 | `geology.oldTimer.recentGapP` | — → 0.2 | §3 3.6, 3.16 (D-3.56) | — | — (new: one-year gap between recent-operator seasons) | f571613 |
 | 2026-10-06 | `geology.oldTimer.kinds` (hydraulic `obMult`) | — → 0.5 | §3 3.6, 3.16 (D-3.56) | — | — (new: hydraulic overburden reduction, P6) | f571613 |
 | 2026-10-06 | §3 prose constants registered as `geology.*` keys (no value change) | — | §3 3.16 (D-3.56) | — | — | f571613 |
+| 2026-10-06 | difficulty `geology.seller.honestyMix` (easy / hard) | — (no difficulty rows) → easy 0.55 / 0.30 / 0.12 / 0.03, hard 0.20 / 0.35 / 0.30 / 0.15 (accurate / optimistic / cherry-picked / fraudulent) | §1 1.11 (D-1.19) | — | P0 had an empty difficulty table, so every difficulty resolved standard tuning; now as §1 1.11 states | 6af5911 |
+| 2026-10-06 | difficulty `geology.seller.tellDetect` (easy / hard) | — → × 1.15 / × 0.85 per cell, capped at 1 | §1 1.11 | — | as §1 1.11 states; the cap keeps each cell a probability | 6af5911 |
+| 2026-10-06 | difficulty `game.startCompanyCashMult` (easy / hard) | — → 1.25 / 0.85 | §1 1.11 (D-1.43) | — | easy company cash $500k, hard $340k | 6af5911 |
+| 2026-10-06 | difficulty `game.startPersonalCashMult` (easy / hard) | — → 1.1 / 0.9 | §1 1.11 (D-1.43) | — | easy personal cash $132k, hard $108k | 6af5911 |
