@@ -1,14 +1,6 @@
 // CI thresholds from DESIGN §2.16 (`sim.*`, `save.*`): application configuration outside TuningResolved and its hash.
-// Kept beside the perf job until a shared sim/save config module exists; names match the §2.16 table.
-export const perfBudgets = {
-  'sim.perf.weekMeanMs': 3.5,
-  'sim.perf.weekCeilingMs': 8,
-  'sim.perf.opsPerLineMs': 1.0,
-  'sim.perf.estimatorWeekMs': 1.5,
-  'sim.perf.estimatorEconRerunMs': 0.5,
-  'sim.perf.eventsCompetitorsMs': 0.5,
-  'sim.perf.marketsMs': 0.5,
-} as const;
+// The `sim.perf.*` time budgets live in sim/config.ts (one source); names match the §2.16 table.
+export { perfBudgets } from '../../sim/config';
 
 export const saveBudgets = {
   'save.maxStateKb': 3500,
