@@ -48,14 +48,14 @@ test('keyboard path: new game, advance 3 weeks, save, reload, load', async ({ pa
   await tabTo(page, page.getByRole('textbox', { name: 'Slot name' }));
   await page.keyboard.type('Keyboard camp');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('rowheader', { name: 'Keyboard camp' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'Keyboard camp', exact: true })).toBeVisible();
   await expect(page.getByRole('banner').getByText('Saved Wk 4')).toBeVisible();
 
   // Reload: the game is gone from memory, the slot is in IndexedDB.
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Saves' })).toBeVisible();
   await expect(topBarDate(page)).toHaveCount(0);
-  await tabTo(page, page.getByRole('button', { name: 'Load Keyboard camp' }));
+  await tabTo(page, page.getByRole('button', { name: 'Load Keyboard camp', exact: true }));
   await page.keyboard.press('Enter');
   await expect(topBarDate(page)).toHaveText('Y1 Wk 4 · Jan 22–28, 2027');
   await expect(topBarCash(page)).toHaveText(cash ?? '');
