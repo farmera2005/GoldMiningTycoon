@@ -38,6 +38,10 @@ const INTERPRETATION: Readonly<Record<string, Interpretation>> = {
   'geology.seller.honestyMix': { kind: 'mix', fields: ['accurate', 'optimistic', 'cherryPicked', 'fraudulent'] },
   // "× 1.15": every detection probability of the base table times the multiplier, capped at 1.
   'geology.seller.tellDetect': { kind: 'probabilityTableTimes' },
+  // §4 4.20: the three difficulty-scaled §4 multipliers (base 1.0).
+  'geology.recordsFindMult': { kind: 'number' },
+  'geology.pitStopMult': { kind: 'number' },
+  'geology.contractorLeadMult': { kind: 'number' },
   'game.startCompanyCashMult': { kind: 'number' },
   'game.startPersonalCashMult': { kind: 'number' },
 };
@@ -154,7 +158,8 @@ describe('src/data/difficulty.ts ↔ §1 1.11 (D-1.44)', () => {
         else expect(t[key], `${key} on ${d}`).toEqual(BASE[key]);
       }
     }
-    expect(differing).toBe(8);
+    // honesty mix 2, tell detection 2, records find 1 (hard only), pit stops 2, contractor lead 2, start cash 2 + 2.
+    expect(differing).toBe(13);
     const hashes = DIFFICULTIES.map((d) => tuningHashOf(resolveTuning(setupFor(d))));
     expect(new Set(hashes).size).toBe(3);
   });

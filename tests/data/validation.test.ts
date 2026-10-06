@@ -9,27 +9,38 @@ import type { z } from 'zod';
 import seedsJson from '../../src/data/balance/seeds.json';
 import { difficultyTable, type Difficulty } from '../../src/data/difficulty';
 import { hookRegistry } from '../../src/data/events/hooks';
+import {
+  geophysicsDepthCv,
+  prospectingEngagements,
+  prospectingMethods,
+  smallCountTable,
+} from '../../src/data/prospecting';
 import { bedrockTable, holderNames, regionTemplates, townServicesByTier } from '../../src/data/regions';
 import { uiText } from '../../src/data/text/ui';
 import { baseTuning, tuningNamespaces, type TuningValue } from '../../src/data/tuning';
 import { uiConfig } from '../../src/data/tuning/ui';
 import { defaultNewGameSetup, resolveTuning } from '../../src/engine';
+import { methodMeasurementRowsFromDesign } from './designTables';
 import {
   BEDROCK_TYPES,
   TOWN_TIERS,
   TUNING_KEY_SCHEMAS,
   bedrockTableSchema,
   difficultyTableSchema,
+  geophysicsDepthCvSchema,
   holderNamesSchema,
   hookRegistrySchema,
   lnLaw,
   mixArray,
   mixOf,
   prob,
+  prospectingEngagementsSchema,
+  prospectingMethodsSchema,
   range,
   regionTemplateSchema,
   scalarRule,
   seedsSchema,
+  smallCountTableSchema,
   townServicesSchema,
   tuningValue,
   uiConfigSchema,
@@ -135,6 +146,67 @@ describe('region templates (DESIGN §3.2)', () => {
   });
 });
 
+describe('prospecting content (DESIGN §4.2, §4.4.4, §4.13)', () => {
+  const METHODS: Readonly<Record<string, unknown>> = prospectingMethods;
+
+  it('methods.ts: every row is a valid §4.2 row keyed by its own id', () => {
+    expect(problems(prospectingMethodsSchema, prospectingMethods)).toEqual([]);
+    expect(problems(geophysicsDepthCvSchema, geophysicsDepthCv)).toEqual([]);
+  });
+
+  it('methods.ts: the draw blocks state DESIGN §4.2.B’s numbers', () => {
+    const rows = methodMeasurementRowsFromDesign();
+    expect(rows.map((r) => r.id).sort()).toEqual(Object.keys(METHODS).sort());
+    let compared = 0;
+    for (const r of rows) {
+      const draw = (METHODS[r.id] as { draw: Record<string, unknown> | null } | undefined)?.draw;
+      if (draw === null || draw === undefined) continue;
+      if (r.capture !== null) {
+        const c = draw['captureBySize'] as Record<string, number>;
+        expect([c['coarse'], c['medium'], c['fine'], c['ultrafine']], `${r.id} capture`).toEqual(r.capture);
+        compared++;
+      }
+      (['volumeCv', 'weighCv', 'geomCv', 'thickCv'] as const).forEach((f, k) => {
+        const v = r.cvs?.[k];
+        if (v !== null && v !== undefined) expect(draw[f], `${r.id} ${f}`).toBe(v);
+      });
+      if (r.bedrockPenFt !== null) expect(draw['bedrockPenFt'], `${r.id} bedrockPenFt`).toBe(r.bedrockPenFt);
+      if (r.frozenOk !== null) expect(draw['frozenOk'], `${r.id} frozenOk`).toBe(r.frozenOk);
+      if (typeof r.maxDepthFt === 'number') expect(draw['maxDepthFt'], `${r.id} maxDepthFt`).toBe(r.maxDepthFt);
+      if (r.maxDepthFt === 'reach') expect(draw['maxDepthFt'], `${r.id} maxDepthFt`).toBeNull();
+      expect(draw['positionMode'], `${r.id} positionMode`).toBe(r.positionMode);
+      const fb = (METHODS[r.id] as { falseBedrockP: number }).falseBedrockP;
+      if (r.falseBedrockP !== null) expect(fb, `${r.id} falseBedrockP`).toBe(r.falseBedrockP);
+    }
+    expect(compared).toBeGreaterThanOrEqual(10);
+  });
+
+  it('methods.ts: the historic churn row reads §3’s geology.method.churnHistoric (one source of truth)', () => {
+    const draw = prospectingMethods.churnHistoric.draw as unknown as Record<string, unknown>;
+    const s3 = BASE['geology.method.churnHistoric'] as Readonly<Record<string, unknown>>;
+    for (const [k, v] of Object.entries(s3)) expect(draw[k], k).toEqual(v);
+  });
+
+  it('smallCountTable.ts is valid and is the tuning value geology.estSmallCountTable', () => {
+    expect(problems(smallCountTableSchema, smallCountTable)).toEqual([]);
+    expect(BASE['geology.estSmallCountTable']).toEqual(smallCountTable);
+    expect(problems(smallCountTableSchema, [smallCountTable[1], smallCountTable[0]])).not.toEqual([]);
+  });
+
+  it('engagements.ts (§4.2.A lower rows, §4.13)', () => {
+    expect(problems(prospectingEngagementsSchema, prospectingEngagements)).toEqual([]);
+  });
+
+  it('reject a malformed method row', () => {
+    const bad = { ...prospectingMethods, sonic: { ...prospectingMethods.sonic, falseBedrockP: 1.2 } };
+    expect(problems(prospectingMethodsSchema, bad)).not.toEqual([]);
+    const wrongId = { ...prospectingMethods, rc: { ...prospectingMethods.rc, id: 'sonic' } };
+    expect(problems(prospectingMethodsSchema, wrongId)).not.toEqual([]);
+    const drill = { ...prospectingMethods.sonic, sampleBcy: { kind: 'perFtOfColumn', bcyPerFt: 0.01 } };
+    expect(problems(prospectingMethodsSchema, { ...prospectingMethods, sonic: drill })).not.toEqual([]);
+  });
+});
+
 describe('the other data files', () => {
   it('balance/seeds.json (BALANCE §6.2)', () => {
     expect(problems(seedsSchema, seedsJson)).toEqual([]);
@@ -165,6 +237,10 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'balance/seeds.ts': 'loader of seeds.json (validated)',
   'difficulty.ts': 'difficultyTableSchema',
   'events/hooks.ts': 'hookRegistrySchema',
+  'prospecting/engagements.ts': 'prospectingEngagementsSchema',
+  'prospecting/index.ts': 'aggregator of the prospecting files',
+  'prospecting/methods.ts': 'prospectingMethodsSchema, geophysicsDepthCvSchema, DESIGN §4.2.B cross-check',
+  'prospecting/smallCountTable.ts': 'smallCountTableSchema (= geology.estSmallCountTable)',
   'regions/aridFederal.ts': 'regionTemplateSchema',
   'regions/northernFederal.ts': 'regionTemplateSchema',
   'regions/bedrock.ts': 'bedrockTableSchema',

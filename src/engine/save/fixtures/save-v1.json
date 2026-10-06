@@ -35,7 +35,7 @@
         },
         "tutorial": false
       },
-      "tuningHash": "81a0118e0694ef34",
+      "tuningHash": "3ce2391a36a2f92d",
       "tuning": {
         "game.alerts.inboxRetentionWeeks": 104,
         "game.history.weeklyKeep": 156,
@@ -68,6 +68,40 @@
         "geology.access.winterTrail.mobMult": 2.2,
         "geology.access.winterTrail.partsLead": 2,
         "geology.access.winterTrail.refMi": 120,
+        "geology.aridSampleWaterMinGpm": 20,
+        "geology.aridWaterHaulUsdPerUnit": 15,
+        "geology.boxYardToBankFactor": 0.7,
+        "geology.confBlockMaxLogSd": {
+          "measured": 0.25,
+          "indicated": 0.45,
+          "inferred": 0.75
+        },
+        "geology.confBlockMeasuredMinSampleBcy": 100,
+        "geology.confIndicatedCoverage": 0.7,
+        "geology.confIndicatedMaxCoarseLogSd": 0.06,
+        "geology.confIndicatedMaxSpread": 1.9,
+        "geology.confIndicatedMinProcessedBcy": 75,
+        "geology.confInferredCoverage": 0.6,
+        "geology.confInferredMaxRowGap": 2,
+        "geology.confInferredMaxSpread": 3.5,
+        "geology.confInferredMinBedrockSamples": 6,
+        "geology.confMeasuredCoverage": 0.9,
+        "geology.confMeasuredMaxCoarseLogSd": 0.04,
+        "geology.confMeasuredMaxSpread": 1.45,
+        "geology.confMeasuredMinBulkBlocks": 2,
+        "geology.confMeasuredMinProdBcy": 5000,
+        "geology.contractorLeadMult": 1,
+        "geology.contractorLeadWeeksBase": {
+          "sonic": 6,
+          "rc": 4,
+          "auger": 2,
+          "churn": 10,
+          "geophysics": 3,
+          "pitting": 1
+        },
+        "geology.deepColdLostDays": 2,
+        "geology.demobFracOfMob": 0.5,
+        "geology.drillBedrockPenetrationFt": 3,
         "geology.env.aspectFrozenSlope": 0.6,
         "geology.env.aspectThawSlope": 0.35,
         "geology.env.channelOffsetFt": [
@@ -82,6 +116,122 @@
           "specialStatus": 0.2,
           "noiseSd": 0.05
         },
+        "geology.estCensorLogSd": 0.25,
+        "geology.estCensorPadFactor": 1.15,
+        "geology.estCensorTrigger": 1.1,
+        "geology.estClaimSharedLogSd": 0.05,
+        "geology.estCoarseBlockLogSd": 0.25,
+        "geology.estCoarseMassPriorCount": 5,
+        "geology.estExposureLambdaLogSd": 0.25,
+        "geology.estExposureThickElast": 1.6,
+        "geology.estFinenessAssaySd": 0.008,
+        "geology.estFinenessParticleSd": 0.08,
+        "geology.estFinenessProdSd": 0.005,
+        "geology.estFullSolveEveryProdRows": 12,
+        "geology.estGeomBLogSdKnown": 0.115,
+        "geology.estGeomBSdUnknownFt": 0.39,
+        "geology.estHypPruneWeight": 0.0001,
+        "geology.estHypPruneWeightLarge": 0.001,
+        "geology.estLargeClaimBlocks": 40,
+        "geology.estModelErrorLogSd": 0.1,
+        "geology.estPocketBcy2Mean": 3330000,
+        "geology.estPocketBcyMean": 1650,
+        "geology.estPocketGradeCv2": 0.3,
+        "geology.estPocketGradeMin": 0.15,
+        "geology.estPocketGradeMult": 15,
+        "geology.estPocketHitMult": 6,
+        "geology.estPocketHitNcGrade": 0.04,
+        "geology.estPosFullLogSd": 0.1,
+        "geology.estPosUpperExtraLogSd": 0.15,
+        "geology.estPriorMedianAdj": {
+          "northernFederal": 0.05,
+          "aridFederal": -0.02
+        },
+        "geology.estProdAttribLogSd": {
+          "oneBlock": 0.08,
+          "severalBlocks": 0.2
+        },
+        "geology.estProdRecoveryLogSd": 0.1,
+        "geology.estRepriceStep": 0.02,
+        "geology.estSellerVerifiedExtraLogSd": 0.35,
+        "geology.estSiteRefineGrid": 24,
+        "geology.estSiteRefineMaxNeff": 3,
+        "geology.estSiteRefineSweeps": 2,
+        "geology.estSizeMixPriorMg": 50,
+        "geology.estSmallCountTable": [
+          {
+            "n": 0.03,
+            "b": 2.8217,
+            "v": 0.0096
+          },
+          {
+            "n": 0.1,
+            "b": 1.639,
+            "v": 0.0337
+          },
+          {
+            "n": 0.3,
+            "b": 0.6134,
+            "v": 0.113
+          },
+          {
+            "n": 0.5,
+            "b": 0.1898,
+            "v": 0.1984
+          },
+          {
+            "n": 1,
+            "b": -0.2044,
+            "v": 0.3801
+          },
+          {
+            "n": 2,
+            "b": -0.1847,
+            "v": 0.34
+          },
+          {
+            "n": 3,
+            "b": -0.134,
+            "v": 0.2544
+          },
+          {
+            "n": 5,
+            "b": -0.0873,
+            "v": 0.1692
+          },
+          {
+            "n": 10,
+            "b": -0.0469,
+            "v": 0.0914
+          },
+          {
+            "n": 20,
+            "b": -0.0238,
+            "v": 0.0475
+          },
+          {
+            "n": 50,
+            "b": -0.01,
+            "v": 0.0196
+          }
+        ],
+        "geology.estStreakHwNodes": 3,
+        "geology.estStreakMisfitScale": 0.5,
+        "geology.estStreakNodes": 9,
+        "geology.estStreakNodesLarge": 7,
+        "geology.estStreakRangeAlongFt": 2000,
+        "geology.estStreakResidLogSd": 0.35,
+        "geology.estVarIterations": 2,
+        "geology.estWorkedCountSlackBlocks": 2,
+        "geology.estWorkedOffStreakLik": 0.1,
+        "geology.estWorkedSetTemper": 1,
+        "geology.falseBedrockGeoBase": 1.6,
+        "geology.falseBedrockGeoPerSkill": 0.012,
+        "geology.finenessAssayCostUsd": 60,
+        "geology.finenessAssayMinMg": 300,
+        "geology.frozenPitCostMult": 1.5,
+        "geology.geoNoiseMultBase": 1.3,
+        "geology.geoNoiseMultPerSkill": 0.006,
         "geology.grade.blockRangeAcrossFt": 120,
         "geology.grade.blockRangeAlongFt": 700,
         "geology.grade.boulderSettingMult": {
@@ -135,6 +285,9 @@
         "geology.grade.pocketProximalMult": 1.5,
         "geology.grade.pocketStreakMinF": 0.4,
         "geology.grade.wanderRangeFt": 2000,
+        "geology.hotProductivityMult": 0.75,
+        "geology.maxTrackedClaims": 40,
+        "geology.maxTrackedClaimsSim": 8,
         "geology.method.churnHistoric": {
           "positionMode": "fullColumn",
           "frozenOk": true,
@@ -283,6 +436,7 @@
           1985,
           2018
         ],
+        "geology.ownerGeologistSkill": 75,
         "geology.particle.massCv": [
           2,
           1,
@@ -302,6 +456,40 @@
         "geology.permitStub.noticeP": 0.2,
         "geology.permitStub.planP": 0.6,
         "geology.permitStub.rceStubUsdPerAcre": 6000,
+        "geology.pitFrozenRateMult": 0.35,
+        "geology.pitHrBackfill": 0.3,
+        "geology.pitHrBase": 0.6,
+        "geology.pitHrPerFt": 0.06,
+        "geology.pitHrPerSampleBcy": 0.1,
+        "geology.pitHrWetAdd": 0.5,
+        "geology.pitStopBase": 0.05,
+        "geology.pitStopBoulder": 0.1,
+        "geology.pitStopMult": 1,
+        "geology.pitWetDepthFt": 12,
+        "geology.planDilutionFrac": 0.1,
+        "geology.planGroundMult": {
+          "stripFrozen": 0.6,
+          "stripCement": 0.5,
+          "washBoulders": 0.3,
+          "washClay": 0.3,
+          "recClay": 0.15
+        },
+        "geology.planMiningLossFrac": 0.05,
+        "geology.planPayable": 0.95,
+        "geology.planPriceMode": "ema13",
+        "geology.planStripUsdPerBcy": {
+          "subarctic": 2.5,
+          "arid": 2.2
+        },
+        "geology.planTercileValues": {
+          "low": 0.15,
+          "med": 0.5,
+          "high": 0.85
+        },
+        "geology.planWashUsdPerPayBcy": {
+          "subarctic": 12,
+          "arid": 14
+        },
         "geology.prior.coarseMassLogSd": 0.3,
         "geology.prior.listedSigmaAdj": 0,
         "geology.prior.oldWorkingsMult": {
@@ -321,6 +509,8 @@
           "listed": 0.92,
           "open": 0.6
         },
+        "geology.programsPerGeologist": 2,
+        "geology.prospectCostAridMult": 0.75,
         "geology.records.creekProdLogSd": 0.5,
         "geology.records.flyInQualityMult": 0.5,
         "geology.records.historicGradeRatio": 2.5,
@@ -333,6 +523,50 @@
           1935,
           1985
         ],
+        "geology.recordsFindMult": 1,
+        "geology.recordsItemWeight": {
+          "creekHistory": 1,
+          "oldWorkings": 0.9,
+          "priorExploration": 1,
+          "filedProduction": 0.8,
+          "permitHistory": 1
+        },
+        "geology.recordsMaxFindProb": 0.95,
+        "geology.recordsRemovalLog": {
+          "drift": -0.87,
+          "handCut": -1.05,
+          "dredge": -1.97,
+          "dryWash": -0.23
+        },
+        "geology.recordsTailingsPriorMedian": {
+          "handEra": 0.012,
+          "dozer": 0.005,
+          "dredge": 0.0025
+        },
+        "geology.recordsWorkedLogOffset": {
+          "drift": [
+            -0.45,
+            -0.38
+          ],
+          "handCut": [
+            -0.84,
+            -0.25
+          ],
+          "dredge": [
+            -1.97,
+            -1.97
+          ],
+          "dryWash": [
+            0.29,
+            -0.52
+          ]
+        },
+        "geology.recordsWorkedShare": {
+          "drift": 0.48,
+          "handCut": 0.3,
+          "dredge": 1,
+          "dryWash": 0.5
+        },
         "geology.refEcon.boulderWashAdd": 0.3,
         "geology.refEcon.capture": [
           0.95,
@@ -366,6 +600,58 @@
           "subarctic": 12,
           "arid": 14
         },
+        "geology.reportValidityWeeks": 104,
+        "geology.reviewerMult": {
+          "owner": 0.6,
+          "staffBase": 0.5,
+          "staffPerSkill": 0.005,
+          "ownerGeologist": 0.9,
+          "consultantBudget": 0.75,
+          "consultantStandard": 0.85,
+          "consultantPremier": 0.95
+        },
+        "geology.ripple.consultants": {
+          "elasticity": 0.3,
+          "lagWeeks": 26,
+          "clampLo": 0,
+          "clampHi": 1000000000,
+          "escalate": true
+        },
+        "geology.ripple.drilling": {
+          "elasticity": 0.4,
+          "lagWeeks": 13,
+          "clampLo": 0.8,
+          "clampHi": 1.6,
+          "escalate": true
+        },
+        "geology.ripple.geophysics": {
+          "elasticity": 0.2,
+          "lagWeeks": 13,
+          "clampLo": 0,
+          "clampHi": 1000000000,
+          "escalate": true
+        },
+        "geology.ripple.lab": {
+          "elasticity": 0.1,
+          "lagWeeks": 26,
+          "clampLo": 0,
+          "clampHi": 1000000000,
+          "escalate": true
+        },
+        "geology.ripple.leadTime": {
+          "elasticity": 1.5,
+          "lagWeeks": 8,
+          "clampLo": 0.7,
+          "clampHi": 2.5,
+          "escalate": false
+        },
+        "geology.ripple.pitting": {
+          "elasticity": 0.3,
+          "lagWeeks": 13,
+          "clampLo": 0,
+          "clampHi": 1000000000,
+          "escalate": true
+        },
         "geology.sample.activeLayerFt": 2,
         "geology.sample.bedrockIdP": 0.9,
         "geology.sample.cltParticleThreshold": 40,
@@ -398,6 +684,7 @@
           "subarctic": 6,
           "arid": 15
         },
+        "geology.seasonalFrostFt": 6,
         "geology.seller.bedrockScrapeP": 0.5,
         "geology.seller.cherryPitMult": 2.5,
         "geology.seller.cherryReportShare": 0.35,
@@ -596,6 +883,11 @@
             "siteVisit": 0
           }
         },
+        "geology.sellerFlagZImplausible": 2,
+        "geology.sellerFlagZQuestionable": 1,
+        "geology.sellerPreferentialMinShare": 0.3,
+        "geology.sellerTwinMin": 3,
+        "geology.sellerTwinZPass": 1.5,
         "geology.siteVisit.costUsd": {
           "highway": 400,
           "seasonalRoad": 800,
@@ -608,6 +900,7 @@
           "winterTrail": 4,
           "flyIn": 4
         },
+        "geology.stormLostDays": 3,
         "geology.supply.baseListHazard": 0.025,
         "geology.supply.goldElasticityDown": 1.5,
         "geology.supply.goldElasticityUp": 0.5,
@@ -644,8 +937,24 @@
           "inSeason": 0.6
         },
         "geology.supply.starterLeasePerDistrict": 1,
+        "geology.tellSkillMult": {
+          "recordsDivisor": 0.78,
+          "ownerGeologist": 1.15,
+          "staffBase": 0.7,
+          "staffPerSkill": 0.006,
+          "consultantBudget": 1,
+          "consultantStandard": 1.15,
+          "consultantPremier": 1.3
+        },
+        "geology.testPlantBcyPerHr": 5,
+        "geology.unloggedCaptureMult": 0.93,
+        "geology.unloggedFalseBedrockMult": 2,
+        "geology.unloggedNoiseMult": 1.5,
+        "geology.verdictBarrenMin": 0.05,
         "geology.vertical.bedrockDecayFt": 0.6,
         "geology.vertical.obGradeRatio": 0.03,
+        "geology.voiMaxCandidates": 6,
+        "geology.voiShowTop": 3,
         "geology.water.benchLiftFt": [
           30,
           300
@@ -673,6 +982,10 @@
           "arid": 0.3
         },
         "geology.water.usableFrac": 0.8,
+        "geology.wetLostDaysEarthwork": 1,
+        "geology.winterDrillCostMult": 1.15,
+        "geology.winterDrillRateMult": 0.8,
+        "geology.winterTrailWindowMobMult": 1.4,
         "geology.world.barrenCreekFactor": 0.15,
         "geology.world.barrenCreekP": 0.2,
         "geology.world.benchMinHalfWidthFt": 400,
@@ -23717,7 +24030,14 @@
         "clm_000003"
       ]
     },
-    "knowledge": {},
+    "knowledge": {
+      "samples": {},
+      "sampleIds": [],
+      "drawIndex": {},
+      "records": {},
+      "recordIds": [],
+      "priorStatus": {}
+    },
     "land": {},
     "permits": {},
     "ops": {},
