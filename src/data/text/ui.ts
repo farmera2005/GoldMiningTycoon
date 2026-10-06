@@ -119,6 +119,7 @@ export const actionCodeText = {
   OPTION_EXPIRED: 'The purchase option has expired.',
   NO_RENEWAL_RIGHT: 'This lease has no renewal right.',
   NOT_LEASED: 'That ground is not leased.',
+  PI_BURDEN_TOO_HIGH: 'The royalties and interests on this ground would take all of the gold.',
   SURRENDER_PENDING: 'The surrender is already under way.',
   SITE_ACTIVE: 'Demobilize the site on this claim first.',
   TENURE_NOT_OWNED: 'Only owned ground can be sold.',

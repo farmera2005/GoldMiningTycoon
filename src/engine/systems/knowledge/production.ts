@@ -3,65 +3,21 @@
 // §7.16 with `lotId?` and `interestsTaken[].rawMilliOz`), the production row as §4 stores it on the SampleRecord, and
 // the pure core of `recordProduction`: attribution, the audit swap of the chain's capture term, and the sieved masses.
 // The state mutator (minting sample ids, pushing records) is a thin wrapper over `productionRecords`.
-import type { BlockId, ClaimId, LineId, LotId, ProductionInterestId, ProgramId } from '../../core/ids';
+import type { BlockId, ClaimId, LineId, ProgramId } from '../../core/ids';
 import { compareIds } from '../../core/ids';
 import { sortedKeys } from '../../core/iter';
-import type { MilliOz } from '../../core/money';
 import { log } from '../../core/dmath';
 import { MG_PER_OZ } from '../world/constants';
 import type { SizeClass, SizeRecord } from '../world/types';
 import type { ProductionCoarse } from './coarse';
 import type { ProductionRowInput } from './rows';
 import type { ProductionRow, SampleRecord } from './types';
+import type { CleanupResult, ModeledChain } from '../ops/types';
 
 const SIZES: readonly SizeClass[] = ['coarse', 'medium', 'fine', 'ultrafine'];
 
-// ---------------------------------------------------------------------------------------------------------------------
-// §7 → §4 contract shapes (DESIGN §7.16). contracts-engine owns the canonical declarations in §7's types; these are
-// the same shapes, and the integrator reconciles the two when both merge.
-// ---------------------------------------------------------------------------------------------------------------------
-
-/** The visible model's chain parts (§7.16): what §4 needs to swap an audited capture into the chain. */
-export interface ModeledChain {
-  /** shareTakenVis × (1 − λVis) per block washed since the last cleanup. */
-  readonly miningFactorByBlock: Readonly<Partial<Record<BlockId, number>>>;
-  readonly sizeMixP50: SizeRecord;
-  /** Washed-bcy-weighted visible capture (= nominalRecoveryBySize). */
-  readonly captureBySize: SizeRecord;
-  readonly goldRoomLossBySize: SizeRecord;
-  /** §10 claimFineness(claimId).dirt: the public ops.goldRoomDirtFrac until the claim is assayed. */
-  readonly estDirtFrac: number;
-}
-
-/** §7.16 CleanupResult (contracts.md §4.7: + lotId?, interestsTaken[].rawMilliOz). One per plant-line cleanup. */
-export interface CleanupResult {
-  readonly turn: number;
-  readonly lineId: LineId;
-  readonly purpose: 'production' | 'bulkSample';
-  /** Gross weighed raw oz, before interests. */
-  readonly rawOzWeighed: number;
-  /** Sieved, visible (weighed raw oz). */
-  readonly rawOzBySize: SizeRecord;
-  readonly interestsTaken: readonly { readonly interestId: ProductionInterestId; readonly rawMilliOz: MilliOz }[];
-  readonly lotId?: LotId;
-  readonly bcyWashedSince: number;
-  readonly bcyByBlock: Readonly<Partial<Record<BlockId, number>>>;
-  readonly recoveredGradeOzPerBcy: number;
-  /** Washed bcy restated on §3's in-situ pay-column basis (→ §4). */
-  readonly inSituBcyByBlock: Readonly<Partial<Record<BlockId, number>>>;
-  /** Surface-pile / own-tailings feed and its visible-model weighed raw oz (→ §4). */
-  readonly pileBcyWashed: number;
-  readonly pileRawOzEst: number;
-  /** Visible model: in-situ metal oz → weighed raw oz (→ §4). */
-  readonly modeledChainFactor: number;
-  readonly modeledChain: ModeledChain;
-  /** Visible model, frozen at cleanup (§13 reconciliation). */
-  readonly foremanEstimateOz: number;
-  readonly nominalRecoveryBySize: SizeRecord;
-  readonly auditedRecoveryBySize?: SizeRecord;
-  /** HIDDEN: metal oz skimmed at this cleanup (§7.10; → §12). §4 never reads it. */
-  readonly skimOz: number;
-}
+// The §7 → §4 contract shapes are §7's (DESIGN §7.16, ops/types.ts); §4 reads them and re-exports them for its callers.
+export type { CleanupResult, ModeledChain } from '../ops/types';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The stored production row (contract delta: SampleRecord.production gains these fields)

@@ -9,6 +9,7 @@ Status: being built in waves per `docs/build/p1/plan.md`; entries collect here u
 **Golden replays**
 - `tests/golden/p0-passive-52w` regenerated for the P1 framework (saves schema 2, rules version 0.2.0, new history fields that are zero or null in a P0 game: weekly `fineOzRecovered` and `sampleRawOz`, annual cash cost, AISC and per-claim rows). A field-by-field diff of all 53 weekly states against the P0 base shows no other change. Turn 52 `0981c636abe30a57`.
 - P1 wave 0: goldens regenerated for `fleet-catalog` and `contracts-data` (the new `fleet.*` and P1 tuning keys in `meta.tuning` move `meta.tuningHash` only; a field diff of all 53 weekly states after each merge shows no other change). Turn 52 `8b0c327ac09c4221`.
+- P1 wave 0: the build phase is now 1. `p0-passive-52w`'s log pins `"rulesPhase": 0`; regenerated for `contracts-engine` (every P1 slice at neutral values and `meta.calendarMode`; a field diff of all 53 weekly states under rules p0 shows added neutral fields only, nothing changed or removed). Turn 52 `ea8c6643fbf12191`. New `p1-passive-52w` (the same passive game under rules p1). Turn 52 `b6afa02e619a03f0`.
 
 ## Phase 0: Foundation (2026-10-06)
 

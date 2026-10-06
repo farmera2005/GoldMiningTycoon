@@ -1,9 +1,9 @@
 {
   "format": "gmt-replay",
   "version": 1,
-  "name": "p0-passive-52w",
-  "seed": "golden-p0",
-  "rulesPhase": 0,
+  "name": "p1-passive-52w",
+  "seed": "golden-p1",
+  "rulesPhase": 1,
   "setup": {
     "companyName": "Golden Placers LLC",
     "ownerName": "Owner",
