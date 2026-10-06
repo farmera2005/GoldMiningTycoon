@@ -1,220 +1,220 @@
 {
   "name": "p0-passive-52w",
   "rulesVersion": "0.1.0",
-  "tuningHash": "81a0118e0694ef34",
+  "tuningHash": "3ce2391a36a2f92d",
   "weeks": 52,
   "hashes": [
     {
       "turn": 0,
-      "hash": "78cff112c3d247b0"
+      "hash": "2467357757a7ad35"
     },
     {
       "turn": 1,
-      "hash": "92d3eb26bcac8ff0"
+      "hash": "e10957647ff0fe75"
     },
     {
       "turn": 2,
-      "hash": "d5ec3152212a0240"
+      "hash": "e5c1bfa6be5ccc65"
     },
     {
       "turn": 3,
-      "hash": "33a966d040dd0d2c"
+      "hash": "f55cf0974d9bbc51"
     },
     {
       "turn": 4,
-      "hash": "639b13b5eb2dffdc"
+      "hash": "e17c9962c85f54a1"
     },
     {
       "turn": 5,
-      "hash": "5b981e02bc410a8c"
+      "hash": "20b06d47cbc468f1"
     },
     {
       "turn": 6,
-      "hash": "04b562ffe8680114"
+      "hash": "e230221c70a8ee59"
     },
     {
       "turn": 7,
-      "hash": "21672bb9be30f650"
+      "hash": "025d5f9eeb18ba15"
     },
     {
       "turn": 8,
-      "hash": "f14837cb052a97f7"
+      "hash": "36503e23ce796cb4"
     },
     {
       "turn": 9,
-      "hash": "931ce70b2ccb0cf5"
+      "hash": "3f1e9b36b89db5ba"
     },
     {
       "turn": 10,
-      "hash": "0bbc8665c5f4ce54"
+      "hash": "0702f55454c65199"
     },
     {
       "turn": 11,
-      "hash": "ec00d8195cf83aea"
+      "hash": "b82b7786ba3432cf"
     },
     {
       "turn": 12,
-      "hash": "7d34ca467a85a214"
+      "hash": "7f9d82a4b9d79159"
     },
     {
       "turn": 13,
-      "hash": "bf7e072c4566d4d6"
+      "hash": "1805f999b7525a8b"
     },
     {
       "turn": 14,
-      "hash": "8f5f6909d5b9f4a0"
+      "hash": "2f78e72721ee4705"
     },
     {
       "turn": 15,
-      "hash": "90b850ee65ce8d9a"
+      "hash": "e51da1d5340edc5f"
     },
     {
       "turn": 16,
-      "hash": "a221e88f5d379644"
+      "hash": "0b8ffc374b7680a9"
     },
     {
       "turn": 17,
-      "hash": "c083f7355cf21302"
+      "hash": "83b12d4b1f7f26c7"
     },
     {
       "turn": 18,
-      "hash": "2a4e4fbaaece4703"
+      "hash": "2b14ecb93b4c95a0"
     },
     {
       "turn": 19,
-      "hash": "ffe07716f316cd71"
+      "hash": "1cf3e997196a71c6"
     },
     {
       "turn": 20,
-      "hash": "4a51a220e6b5822a"
+      "hash": "e23fae245997930f"
     },
     {
       "turn": 21,
-      "hash": "4126d2c018dcf1b4"
+      "hash": "6e5a543171307339"
     },
     {
       "turn": 22,
-      "hash": "56d663da0865cdb4"
+      "hash": "761adc2f85dc0739"
     },
     {
       "turn": 23,
-      "hash": "01b5afb73effecee"
+      "hash": "32f45868d98afbc3"
     },
     {
       "turn": 24,
-      "hash": "984080b3d0efde5a"
+      "hash": "29c9162fda66eb1f"
     },
     {
       "turn": 25,
-      "hash": "b874300b67d55444"
+      "hash": "ee2349a25d643aa9"
     },
     {
       "turn": 26,
-      "hash": "1b36fd270044c080"
+      "hash": "30ab785ac6c516a5"
     },
     {
       "turn": 27,
-      "hash": "e7ff3270646f4862"
+      "hash": "c12959f4ae0b4ae7"
     },
     {
       "turn": 28,
-      "hash": "37c64ddfe838be87"
+      "hash": "150bfe88232b8c64"
     },
     {
       "turn": 29,
-      "hash": "ede4a17eef292791"
+      "hash": "b798cd2a9e0de5a6"
     },
     {
       "turn": 30,
-      "hash": "dd8d3f574f32c1aa"
+      "hash": "cecb33862680718f"
     },
     {
       "turn": 31,
-      "hash": "962ec40e62670f30"
+      "hash": "7f95d3b37de523b5"
     },
     {
       "turn": 32,
-      "hash": "2276296f813bc322"
+      "hash": "f0027fced9afbfa7"
     },
     {
       "turn": 33,
-      "hash": "f8a8ce1c81c38844"
+      "hash": "20ade0e4f139d6a9"
     },
     {
       "turn": 34,
-      "hash": "6e1e7cd78e2e163a"
+      "hash": "7223e1e9702e1ebf"
     },
     {
       "turn": 35,
-      "hash": "fcffe0f4442f21ec"
+      "hash": "fbdaafcf31fa2711"
     },
     {
       "turn": 36,
-      "hash": "598b8a8ad9119abe"
+      "hash": "b97594fd34dec4f3"
     },
     {
       "turn": 37,
-      "hash": "513064348e7c98fc"
+      "hash": "071a92435911b701"
     },
     {
       "turn": 38,
-      "hash": "16847a6e20d91e19"
+      "hash": "0ade3ffc2765376e"
     },
     {
       "turn": 39,
-      "hash": "cf40c6116aaeaad7"
+      "hash": "c59b15e83dadafd4"
     },
     {
       "turn": 40,
-      "hash": "f90ed06d7b48a0e8"
+      "hash": "f61eba1a07f9c04d"
     },
     {
       "turn": 41,
-      "hash": "3b03452518343ebe"
+      "hash": "6e90c4b1ea55b0f3"
     },
     {
       "turn": 42,
-      "hash": "f7c35ac642a8a0d2"
+      "hash": "f0beb681453726f7"
     },
     {
       "turn": 43,
-      "hash": "95d889e685dfd888"
+      "hash": "266d932f82af232d"
     },
     {
       "turn": 44,
-      "hash": "335df15d2a4fdcac"
+      "hash": "85f1d1970ce14ad1"
     },
     {
       "turn": 45,
-      "hash": "1e4b4a9812de75c2"
+      "hash": "d7c5a338229d6f87"
     },
     {
       "turn": 46,
-      "hash": "7182142113c0a7e2"
+      "hash": "aef8c680a2288967"
     },
     {
       "turn": 47,
-      "hash": "135f377676b8fff0"
+      "hash": "85a953ff7a1a4e75"
     },
     {
       "turn": 48,
-      "hash": "1615ac88ab7df4c5"
+      "hash": "779e7f265d6337ea"
     },
     {
       "turn": 49,
-      "hash": "0a042664dd8866eb"
+      "hash": "a9ef962a25c30268"
     },
     {
       "turn": 50,
-      "hash": "1197d70b5bdc7e90"
+      "hash": "cd91a85a9c27b355"
     },
     {
       "turn": 51,
-      "hash": "593b0211419457f3"
+      "hash": "40e97372fcb01bf0"
     },
     {
       "turn": 52,
-      "hash": "834f66159360f90f"
+      "hash": "d1902a720c81cb4c"
     }
   ]
 }

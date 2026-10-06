@@ -1,6 +1,7 @@
 // `geology.*` tuning constants (DESIGN §3.16; §4's keys join this file with the estimator). Keys must start with
 // 'geology.'. Region-template values live in src/data/regions (§3.2). Keys marked "(prose)" carry a number DESIGN
 // states in §3's pseudo-code without naming a key; they are listed as design deltas so §3.16 can adopt them.
+import { smallCountTable } from '../prospecting/smallCountTable';
 import type { TuningTable } from './types';
 
 export const geologyTuning = {
@@ -369,4 +370,214 @@ export const geologyTuning = {
   // ---- Site visits (§3.12)
   'geology.siteVisit.costUsd': { highway: 400, seasonalRoad: 800, winterTrail: 1800, flyIn: 3500 },
   'geology.siteVisit.days': { highway: 2, seasonalRoad: 3, winterTrail: 4, flyIn: 4 },
+
+  // =================================================================================================================
+  // §4 Prospecting and resource estimation (DESIGN §4.20). Physics constants (deWijsAlpha, particle masses and CVs,
+  // the vertical profile, template sigmas and ranges, bgRatio, pockets, barren creeks, prior status multipliers and
+  // geology.records.*) are §3's above and reach the estimator through ClaimPriors and world.genParams, never
+  // duplicated here. Method rows (§4.2) live in src/data/prospecting/methods.ts.
+  // =================================================================================================================
+
+  // ---- Estimator: prior and paystreak hypotheses (§4.5.1)
+  // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration
+  // (1,000 claims per cell, seed base 1000): north 0 → +0.05, arid 0 → −0.02 centre the visible cells.
+  'geology.estPriorMedianAdj': { northernFederal: 0.05, aridFederal: -0.02 },
+  'geology.estStreakResidLogSd': 0.35,
+  'geology.estStreakNodes': 9,
+  'geology.estStreakHwNodes': 3,
+  'geology.estStreakNodesLarge': 7,
+  'geology.estLargeClaimBlocks': 40,
+  'geology.estHypPruneWeightLarge': 1e-3,
+  'geology.estStreakRangeAlongFt': 2000,
+  'geology.estHypPruneWeight': 1e-4,
+  // (P0 addition, design delta) §3 draws the paystreak centre and half-width row by row (AR(1), §3.5.2), while a
+  // configuration is a straight centre line and one half-width. The prior takes the expected log grade and its variance
+  // over the rows' misfit (the centre's spread between the end nodes, the half-width's spread about the claim's) from
+  // §3's own constants; this scales that variance (0 turns it off). It matters on long claims (160-acre: 40 rows).
+  'geology.estStreakMisfitScale': 0.5,
+  // (P0 addition, design delta) Old-timers worked only paystreak blocks (§3.6), so a hypothesis that puts a known
+  // worked block off the paystreak keeps this likelihood factor per such block. Soft, because §3's paystreak wanders
+  // and changes width row by row while a configuration is rigid (centre linear along the claim, one half-width): at
+  // 1e-3 the footprint forced wide configurations and overstated worked claims by 0.1–0.2 (ln) at the prior.
+  'geology.estWorkedOffStreakLik': 0.1,
+  // (P0 addition, design delta) Old-timers worked a share of the paystreak blocks (§3.6: dry-washers and hand-cutters
+  // the top share, recent operators U(15%, 50%), drift miners a share with a work probability), so a complete set of
+  // known worked blocks also tells the paystreak's size. A hypothesis's paystreak block count is uncertain by this sd
+  // (blocks) around its configuration (the hypothesis grid is coarse), which softens the count likelihood.
+  'geology.estWorkedCountSlackBlocks': 2,
+  // (P0 addition, design delta) Which blocks were worked also tells the paystreak's size: among N paystreak blocks the
+  // chance that the top W are exactly the known ones falls as 1/C(N, W) when the grade ranking is exchangeable. The
+  // ranking is partly predictable (centre blocks and rich stretches lead), so the term is tempered by this exponent.
+  'geology.estWorkedSetTemper': 1,
+  // ---- Estimator: measurement model (§4.4)
+  // Calibration floor: tune so P10–P90 coverage stays 0.72–0.88.
+  'geology.estModelErrorLogSd': 0.1,
+  // (P0 addition, design delta) Calibration floor shared by every sample row of a claim (a claim-level systematic
+  // error: capture, position profile, lab), so many samples cannot pin a claim tighter than the model is right. Without
+  // it a 160-block pit grid held truth in only 0.66 of P10–P90 bands. Tune with estModelErrorLogSd.
+  'geology.estClaimSharedLogSd': 0.05,
+  'geology.estPosFullLogSd': 0.1,
+  'geology.estPosUpperExtraLogSd': 0.15,
+  'geology.estExposureLambdaLogSd': 0.25,
+  'geology.estExposureThickElast': 1.6,
+  'geology.estSmallCountTable': smallCountTable,
+  'geology.estSiteRefineMaxNeff': 3,
+  'geology.estSiteRefineSweeps': 2,
+  'geology.estSiteRefineGrid': 24,
+  'geology.estVarIterations': 2,
+  // ---- Estimator: coarse factor and pockets (§4.5.3, §4.4.5, §4.7)
+  'geology.estCoarseBlockLogSd': 0.25,
+  'geology.estCoarseMassPriorCount': 5,
+  'geology.estPocketBcyMean': 1650,
+  'geology.estPocketBcy2Mean': 3.33e6,
+  'geology.estPocketGradeMin': 0.15,
+  'geology.estPocketGradeMult': 15,
+  'geology.estPocketGradeCv2': 0.3,
+  'geology.estPocketHitNcGrade': 0.04,
+  'geology.estPocketHitMult': 6,
+  // ---- Estimator: geometry (§4.6)
+  'geology.estGeomBSdUnknownFt': 0.39,
+  'geology.estGeomBLogSdKnown': 0.115,
+  'geology.estCensorTrigger': 1.1,
+  'geology.estCensorPadFactor': 1.15,
+  'geology.estCensorLogSd': 0.25,
+  // ---- Estimator: size mix and fineness (§4.7)
+  'geology.estSizeMixPriorMg': 50,
+  'geology.estFinenessAssaySd': 0.008,
+  'geology.estFinenessParticleSd': 0.08,
+  'geology.estFinenessProdSd': 0.005,
+  'geology.finenessAssayMinMg': 300,
+  'geology.finenessAssayCostUsd': 60,
+  // ---- Planning case and economic layer (§4.7; ×cpiIndex where money)
+  'geology.planWashUsdPerPayBcy': { subarctic: 12.0, arid: 14.0 },
+  'geology.planStripUsdPerBcy': { subarctic: 2.5, arid: 2.2 },
+  'geology.planPayable': 0.95,
+  'geology.planGroundMult': { stripFrozen: 0.6, stripCement: 0.5, washBoulders: 0.3, washClay: 0.3, recClay: 0.15 },
+  'geology.planMiningLossFrac': 0.05,
+  'geology.planDilutionFrac': 0.1,
+  'geology.planPriceMode': 'ema13',
+  'geology.estRepriceStep': 0.02,
+  // (prose) §4.7 observed ground terciles low / med / high → 0.15 / 0.5 / 0.85.
+  'geology.planTercileValues': { low: 0.15, med: 0.5, high: 0.85 },
+  // ---- Production reconciliation (§4.4.6, P1)
+  'geology.estFullSolveEveryProdRows': 12,
+  'geology.estProdRecoveryLogSd': 0.1,
+  'geology.estProdAttribLogSd': { oneBlock: 0.08, severalBlocks: 0.2 },
+  // ---- Seller claims (§4.10, P1 display and claim-wide test; P2 verification)
+  'geology.estSellerVerifiedExtraLogSd': 0.35,
+  'geology.sellerTwinMin': 3,
+  'geology.sellerTwinZPass': 1.5,
+  'geology.sellerFlagZQuestionable': 1.0,
+  'geology.sellerFlagZImplausible': 2.0,
+  'geology.sellerPreferentialMinShare': 0.3,
+  'geology.boxYardToBankFactor': 0.7,
+  // ---- Records review (§4.10.2). Offsets: [worked, passed-over] log-grade offsets on paystreak blocks.
+  'geology.recordsWorkedLogOffset': {
+    drift: [-0.45, -0.38],
+    // §3's hand-cutters work only blocks under thin cover (maxObFt), so the worked blocks are chosen by cover more
+    // than by grade: measured on §3's generator the worked block's virgin offset is +0.25, not +0.58 (P0 calibration).
+    handCut: [-0.84, -0.25],
+    dredge: [-1.97, -1.97],
+    dryWash: [0.29, -0.52],
+  },
+  'geology.recordsWorkedShare': { drift: 0.48, handCut: 0.3, dredge: 1.0, dryWash: 0.5 },
+  'geology.recordsRemovalLog': { drift: -0.87, handCut: -1.05, dredge: -1.97, dryWash: -0.23 },
+  'geology.recordsTailingsPriorMedian': { handEra: 0.012, dozer: 0.005, dredge: 0.0025 },
+  'geology.recordsMaxFindProb': 0.95,
+  'geology.recordsItemWeight': {
+    creekHistory: 1.0,
+    oldWorkings: 0.9,
+    priorExploration: 1.0,
+    filedProduction: 0.8,
+    permitHistory: 1.0,
+  },
+  'geology.recordsFindMult': 1.0, // difficulty 1.0 / 1.0 / 0.9 (§1 1.11)
+  'geology.reviewerMult': {
+    owner: 0.6,
+    staffBase: 0.5,
+    staffPerSkill: 0.005,
+    ownerGeologist: 0.9,
+    consultantBudget: 0.75,
+    consultantStandard: 0.85,
+    consultantPremier: 0.95,
+  },
+  'geology.tellSkillMult': {
+    recordsDivisor: 0.78,
+    ownerGeologist: 1.15,
+    staffBase: 0.7,
+    staffPerSkill: 0.006,
+    consultantBudget: 1.0,
+    consultantStandard: 1.15,
+    consultantPremier: 1.3,
+  },
+  // ---- Confidence classes (§4.8)
+  'geology.confMeasuredMaxSpread': 1.45,
+  'geology.confIndicatedMaxSpread': 1.9,
+  'geology.confInferredMaxSpread': 3.5,
+  'geology.confMeasuredCoverage': 0.9,
+  'geology.confIndicatedCoverage': 0.7,
+  'geology.confInferredCoverage': 0.6,
+  'geology.confInferredMaxRowGap': 2,
+  'geology.confIndicatedMaxCoarseLogSd': 0.06,
+  'geology.confMeasuredMaxCoarseLogSd': 0.04,
+  'geology.confIndicatedMinProcessedBcy': 75,
+  'geology.confMeasuredMinProdBcy': 5000,
+  'geology.confMeasuredMinBulkBlocks': 2, // (prose) §4.8 "bulk samples on ≥ 2 blocks of F"
+  'geology.confInferredMinBedrockSamples': 6,
+  // (prose) §4.8 block-class table: sd(ln G_b) limits and the measured block's minimum sample volume.
+  'geology.confBlockMaxLogSd': { measured: 0.25, indicated: 0.45, inferred: 0.75 },
+  'geology.confBlockMeasuredMinSampleBcy': 100,
+  // ---- Value of information (§4.11, P2)
+  'geology.voiMaxCandidates': 6,
+  'geology.voiShowTop': 3,
+  // ---- Geologists and logging (§4.13, §4.3)
+  'geology.geoNoiseMultBase': 1.3,
+  'geology.geoNoiseMultPerSkill': 0.006,
+  'geology.unloggedNoiseMult': 1.5,
+  'geology.unloggedFalseBedrockMult': 2.0,
+  'geology.unloggedCaptureMult': 0.93,
+  'geology.falseBedrockGeoBase': 1.6,
+  'geology.falseBedrockGeoPerSkill': 0.012,
+  'geology.programsPerGeologist': 2,
+  'geology.ownerGeologistSkill': 75,
+  // ---- Sample execution and programs (§4.3, §4.12)
+  'geology.pitStopBase': 0.05,
+  'geology.pitStopBoulder': 0.1,
+  'geology.pitStopMult': 1.0, // difficulty 0.7 / 1.0 / 1.3 (§1 1.11)
+  'geology.pitWetDepthFt': 12,
+  'geology.pitHrBase': 0.6,
+  'geology.pitHrPerFt': 0.06,
+  'geology.pitHrPerSampleBcy': 0.1,
+  'geology.pitHrBackfill': 0.3,
+  'geology.pitHrWetAdd': 0.5,
+  'geology.pitFrozenRateMult': 0.35,
+  'geology.seasonalFrostFt': 6,
+  'geology.testPlantBcyPerHr': 5,
+  'geology.frozenPitCostMult': 1.5,
+  'geology.drillBedrockPenetrationFt': 3,
+  'geology.prospectCostAridMult': 0.75,
+  'geology.winterDrillCostMult': 1.15,
+  'geology.winterDrillRateMult': 0.8,
+  'geology.winterTrailWindowMobMult': 1.4,
+  'geology.demobFracOfMob': 0.5,
+  'geology.contractorLeadWeeksBase': { sonic: 6, rc: 4, auger: 2, churn: 10, geophysics: 3, pitting: 1 },
+  'geology.contractorLeadMult': 1.0, // difficulty 0.8 / 1.0 / 1.25 (§1 1.11)
+  'geology.stormLostDays': 3,
+  'geology.wetLostDaysEarthwork': 1,
+  'geology.deepColdLostDays': 2,
+  'geology.hotProductivityMult': 0.75,
+  'geology.aridSampleWaterMinGpm': 20,
+  'geology.aridWaterHaulUsdPerUnit': 15,
+  'geology.reportValidityWeeks': 104,
+  // ---- Gold ripples (§4.18; §10 rippleDomain on goldIdxReal, P5)
+  'geology.ripple.drilling': { elasticity: 0.4, lagWeeks: 13, clampLo: 0.8, clampHi: 1.6, escalate: true },
+  'geology.ripple.pitting': { elasticity: 0.3, lagWeeks: 13, clampLo: 0, clampHi: 1e9, escalate: true },
+  'geology.ripple.geophysics': { elasticity: 0.2, lagWeeks: 13, clampLo: 0, clampHi: 1e9, escalate: true },
+  'geology.ripple.consultants': { elasticity: 0.3, lagWeeks: 26, clampLo: 0, clampHi: 1e9, escalate: true },
+  'geology.ripple.lab': { elasticity: 0.1, lagWeeks: 26, clampLo: 0, clampHi: 1e9, escalate: true },
+  'geology.ripple.leadTime': { elasticity: 1.5, lagWeeks: 8, clampLo: 0.7, clampHi: 2.5, escalate: false },
+  // ---- Tracking and verdict (§4.1, §4.14)
+  'geology.maxTrackedClaims': 40,
+  'geology.maxTrackedClaimsSim': 8,
+  'geology.verdictBarrenMin': 0.05,
 } as const satisfies TuningTable;
