@@ -78,7 +78,7 @@ export interface EngineClient {
   loadSlot(slot: Pick<SlotMeta, 'slotId' | 'kind'>): Promise<LoadOutcome>;
   /** The current game as an export file (the critical toast's `Export now`). */
   exportCurrent(options?: { readonly gzip?: boolean }): ExportedFile | null;
-  /** Resolves once every scheduled autosave has been written (tests, page unload). */
+  /** Resolves once every write that has started (autosaves whose idle moment came, saves) has finished. */
   settled(): Promise<void>;
 }
 
@@ -113,9 +113,8 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
   const { store, saves } = options;
   const now = options.now ?? ((): string => new Date().toISOString());
   const scheduleIdle = options.scheduleIdle ?? scheduleWhenIdle;
+  /** Every write runs after the previous one, so autosaves land in week order. */
   let writes: Promise<void> = Promise.resolve();
-  /** Autosaves scheduled for an idle moment and not yet written. */
-  const pending = new Set<Promise<void>>();
 
   const game = (): GameSlice => store.getState().game;
   const persisted = (): UiPersisted => store.getState().persisted;
@@ -161,17 +160,7 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
     // The SaveFile is captured now (states are immutable), so a later week cannot change what this write stores.
     const save = buildSave(g.state, g.state.company.name, false);
     const epoch = g.epoch;
-    let done = (): void => undefined;
-    const written = new Promise<void>((resolve) => {
-      done = resolve;
-    });
-    pending.add(written);
-    scheduleIdle(() => {
-      void writeAutosave(save, epoch).finally(() => {
-        pending.delete(written);
-        done();
-      });
-    });
+    scheduleIdle(() => void writeAutosave(save, epoch));
   }
 
   function startGame(state: GameState, ui: UiPersisted, extra: Partial<GameSlice>): void {
@@ -312,7 +301,7 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
       return save === null ? null : exportSave(save as SaveEnvelope, { gzip: exportOptions.gzip ?? true });
     },
 
-    settled: () => Promise.all([writes, ...pending]).then(() => undefined),
+    settled: () => writes,
   };
   return client;
 }

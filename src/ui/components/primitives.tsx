@@ -66,6 +66,7 @@ export function MessageArea({ errors, notices }: { errors: readonly string[]; no
     <>
       <div
         role="alert"
+        aria-label="Problems"
         className="empty:hidden mb-4 rounded-card border border-status-critical bg-surface-1 p-3 text-14"
       >
         {errors.map((e) => (
@@ -75,7 +76,11 @@ export function MessageArea({ errors, notices }: { errors: readonly string[]; no
           </p>
         ))}
       </div>
-      <div role="status" className="empty:hidden mb-4 rounded-card border border-hairline bg-surface-1 p-3 text-14">
+      <div
+        role="status"
+        aria-label="Notices"
+        className="empty:hidden mb-4 rounded-card border border-hairline bg-surface-1 p-3 text-14"
+      >
         {notices.map((n) => (
           <p key={n} className="text-ink-1">
             {n}
