@@ -2,6 +2,9 @@
 // assembles a NewGameSetup, `validateSetup` returns §1's typed codes, and newGame refuses an invalid setup.
 import type { Difficulty } from '../../data/difficulty';
 import { gameTuning } from '../../data/tuning/game';
+import { startsAvailable } from '../systems/company/start';
+import { BUILD_RULES_PHASE } from './rules';
+import type { RulesPhase } from './types';
 
 export type { Difficulty } from '../../data/difficulty';
 
@@ -69,10 +72,10 @@ export class SetupError extends Error {
 export const NAME_MAX_LENGTH = 40;
 /** §1 1.6: P1–P5 worlds are these two districts; P6 adds templates. */
 export const DEFAULT_DISTRICT_TEMPLATES: readonly RegionTemplateId[] = ['northernFederal', 'aridFederal'];
-/** Templates a P0–P5 build can generate (§1 1.6 DISTRICT_TEMPLATE_NOT_IN_PHASE). */
-const TEMPLATES_IN_BUILD: readonly RegionTemplateId[] = ['northernFederal', 'aridFederal'];
-/** Starts a P0 build implements (only the Bootstrapper's opening cash; the others need §11 loans and §9 fleets). */
-const STARTS_IN_BUILD: readonly StartType[] = ['bootstrapper'];
+/** Templates a game can generate under a rules phase (§1 1.6 DISTRICT_TEMPLATE_NOT_IN_PHASE; P6 adds templates). */
+export function templatesAvailable(_rulesPhase: RulesPhase): readonly RegionTemplateId[] {
+  return DEFAULT_DISTRICT_TEMPLATES;
+}
 /** No scenario content ships before P6 (§1 1.10). */
 const KNOWN_SCENARIOS: readonly ScenarioId[] = [];
 
@@ -108,8 +111,11 @@ function nameIssue(name: string, field: string): SetupIssue | null {
   return null;
 }
 
-/** §1 1.6 validation, plus the P0 build's limits. Returns every issue (empty when valid). */
-export function validateSetup(setup: NewGameSetup): SetupIssue[] {
+/**
+ * §1 1.6 validation, plus the limits of the rules phase the game will run (templates and starts available; P1
+ * contract §1.5). Returns every issue (empty when valid).
+ */
+export function validateSetup(setup: NewGameSetup, rulesPhase: RulesPhase = BUILD_RULES_PHASE): SetupIssue[] {
   const issues: SetupIssue[] = [];
   const push = (i: SetupIssue | null): void => {
     if (i !== null) issues.push(i);
@@ -128,13 +134,14 @@ export function validateSetup(setup: NewGameSetup): SetupIssue[] {
     push({ code: 'SCENARIO_UNKNOWN', field: 'scenarioId' });
   }
   const templates = setup.world.districtTemplates;
-  if (templates.length === 0 || templates.some((t) => !TEMPLATES_IN_BUILD.includes(t))) {
+  const templatesInPhase = templatesAvailable(rulesPhase);
+  if (templates.length === 0 || templates.some((t) => !templatesInPhase.includes(t))) {
     push({ code: 'DISTRICT_TEMPLATE_NOT_IN_PHASE', field: 'world.districtTemplates' });
   }
   if (setup.start === 'inheritor' && !templates.includes('northernFederal')) {
     push({ code: 'INHERITOR_NEEDS_NORTHERN', field: 'world.districtTemplates' });
   }
-  if (!STARTS_IN_BUILD.includes(setup.start)) push({ code: 'START_NOT_IN_PHASE', field: 'start' });
+  if (!startsAvailable(rulesPhase).includes(setup.start)) push({ code: 'START_NOT_IN_PHASE', field: 'start' });
   const year = setup.world.startCalendarYear;
   if (!Number.isSafeInteger(year) || year < 1900 || year > 2500) {
     push({ code: 'START_YEAR_INVALID', field: 'world.startCalendarYear' });

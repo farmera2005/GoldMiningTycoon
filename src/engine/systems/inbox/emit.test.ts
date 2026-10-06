@@ -24,7 +24,7 @@ const report = (): WeekReportBuilder => ({
 
 const signal = (over: Partial<AlertSignal> = {}): AlertSignal => ({
   kind: 'staff.recallDecision',
-  severity: 'info',
+  severity: 'warning',
   trigger: 'edge',
   dedupeKey: 'recall/2028',
   subject: [{ kind: 'company', id: 'company' }],
@@ -54,6 +54,15 @@ describe('emitAlert', () => {
     expect(() => emitAlert({ report: report() }, signal({ severity: 'blocking' as AlertSignal['severity'] }))).toThrow(
       /cannot be blocking/,
     );
+  });
+
+  it('refuses a signal that contradicts its taxonomy row (trigger; severity unless the row is a rule)', () => {
+    expect(() => emitAlert({ report: report() }, signal({ trigger: 'level' }))).toThrow(/edge alert/);
+    expect(() => emitAlert({ report: report() }, signal({ severity: 'critical' }))).toThrow(/is warning/);
+    // employee.quit's severity is the owner's rule (warning; critical for the only foreman).
+    const r = report();
+    emitAlert({ report: r }, signal({ kind: 'employee.quit', severity: 'critical' }));
+    expect(r.alerts).toHaveLength(1);
   });
 });
 

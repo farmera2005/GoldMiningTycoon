@@ -11,6 +11,6 @@ export interface PeriodCostTotals {
 
 /** Cost totals for turns fromTurn … toTurn inclusive (company book). */
 export function periodCostTotals(_state: GameState, _fromTurn: number, _toTurn: number): PeriodCostTotals {
-  // CONTRACT-STUB(§11)
+  // CONTRACT-STUB(§11) finance.periodCostTotals
   return { cashCostCents: ZERO_CENTS, aiscCents: ZERO_CENTS };
 }

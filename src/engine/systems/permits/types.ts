@@ -120,6 +120,17 @@ export function emptyPermitSlice(): PermitSlice {
   return { obligations: {}, obligationIds: [] };
 }
 
+/** §6.7 disturbance types §7 reports and §6 bonds (6.7 RCE). */
+export type DisturbanceType =
+  | 'explorationPit'
+  | 'stripped'
+  | 'minedPit'
+  | 'pond'
+  | 'road'
+  | 'campPad'
+  | 'wasteDump'
+  | 'tailings';
+
 /** §6.18 P1 activity kinds `activityAllowed` answers for (every one allowed in P1). */
 export type ActivityKind =
   | 'handSample'
