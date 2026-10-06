@@ -39,7 +39,7 @@ Single-player browser business simulation: the player founds and runs a small **
 |---|---|
 | `npm install` | Install dependencies (Node ≥ 22) |
 | `npm run dev` / `build` / `preview` | Vite dev server / typecheck + production build to `dist/` / serve the build |
-| `npm test` | Vitest, all projects, once (includes golden replays and data validation) |
+| `npm test` | Vitest `engine` and `ui` projects, once (includes golden replays and data validation; the `long` project runs only under `test:long`) |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run test:engine` | Engine, data and sim tests only (fast; no DOM) |
 | `npm run test:e2e` | Playwright: explain-coverage crawler, axe-core accessibility, keyboard path, Node-vs-Chromium replay hash |
