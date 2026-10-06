@@ -64,6 +64,7 @@ export interface SmallCountRow {
 export interface TemplateConsts {
   readonly climateBand: ClimateBand;
   readonly gMed: number;
+  readonly stakedFraction: number;
   readonly clayMed: number;
   readonly boulderMed: number;
   readonly cementMed: Readonly<Partial<Record<DepositType, number>>>;
@@ -81,6 +82,13 @@ export interface EstimatorParams {
   readonly streakMinF: number;
   readonly dredgeMinF: number;
   readonly handCutMaxObFt: number;
+  /** §3.4 held selection: P(held) = logistic(logit(stakedFraction) + slope × zq), zq = ln(gStreak/gMed)/zqLnScale. */
+  readonly selection: {
+    readonly slope: number;
+    readonly slopeOverlooked: number;
+    readonly zqLnScale: number;
+    readonly zqNoPaystreak: number;
+  };
   readonly richRangeFt: Readonly<Partial<Record<RegionTemplateId, number>>>;
   readonly coarseStreakThin: number;
   readonly payStreakWeight: number;
@@ -235,6 +243,7 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
       templates[id] = {
         climateBand: tpl.climateBand,
         gMed: tpl.gMed,
+        stakedFraction: tpl.stakedFraction,
         clayMed: tpl.clayMed,
         boulderMed: tpl.boulderMed,
         cementMed: tpl.cementMed,
@@ -258,6 +267,12 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     streakMinF: gp.grade.pocketStreakMinF,
     dredgeMinF: gp.oldTimer.kinds.dredge.minF,
     handCutMaxObFt: gp.oldTimer.kinds.handCut.maxObFt,
+    selection: {
+      slope: gp.world.selSlope,
+      slopeOverlooked: gp.world.selSlopeOverlooked,
+      zqLnScale: gp.world.zqLnScale,
+      zqNoPaystreak: gp.world.zqNoPaystreak,
+    },
     richRangeFt,
     coarseStreakThin: gp.grade.claim.coarseStreakThin,
     payStreakWeight: gp.grade.claim.payStreakWeight,

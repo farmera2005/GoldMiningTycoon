@@ -12,8 +12,10 @@ export interface Hyps {
   readonly count: number;
   readonly streak: Int32Array;
   readonly barren: Uint8Array;
-  /** ln prior weight plus the worked-block penalty. */
+  /** ln prior weight plus the worked-block penalty and the held-selection factor. */
   readonly logPrior: Float64Array;
+  /** Offset on the claim mean m: ln barrenMult for barren hypotheses plus the held-selection shift. */
+  readonly mOffset: Float64Array;
 }
 
 export function allHypotheses(model: PriorModel, penalty: Float64Array): Hyps {
@@ -21,18 +23,24 @@ export function allHypotheses(model: PriorModel, penalty: Float64Array): Hyps {
   const streak = new Int32Array(H);
   const barren = new Uint8Array(H);
   const logPrior = new Float64Array(H);
+  const mOffset = new Float64Array(H);
   const lpb = logOf(model.pBarren);
   const lpg = logOf(1 - model.pBarren);
+  const sel = model.selection;
   let h = 0;
   for (let s = 0; s < model.S; s++) {
+    const ps = model.streakHasPS[s] === 1;
     for (let br = 0; br < 2; br++) {
       streak[h] = s;
       barren[h] = br;
-      logPrior[h] = logOf(model.streakPrior[s] as number) + (br === 1 ? lpb : lpg) + (penalty[s] as number);
+      const sl = ps ? (br === 1 ? sel.barren : sel.gold) : sel.noPaystreak;
+      logPrior[h] =
+        logOf(model.streakPrior[s] as number) + (br === 1 ? lpb : lpg) + (penalty[s] as number) + sl.logWeight;
+      mOffset[h] = (br === 1 ? model.lnBarrenMult : 0) + sl.shift;
       h++;
     }
   }
-  return { count: H, streak, barren, logPrior };
+  return { count: H, streak, barren, logPrior, mOffset };
 }
 
 function logOf(x: number): number {
@@ -52,12 +60,14 @@ export function pruneHypotheses(h: Hyps, weights: Float64Array, minWeight: numbe
   const streak = new Int32Array(count);
   const barren = new Uint8Array(count);
   const logPrior = new Float64Array(count);
+  const mOffset = new Float64Array(count);
   keep.forEach((src, i) => {
     streak[i] = h.streak[src] as number;
     barren[i] = h.barren[src] as number;
     logPrior[i] = h.logPrior[src] as number;
+    mOffset[i] = h.mOffset[src] as number;
   });
-  return { count, streak, barren, logPrior };
+  return { count, streak, barren, logPrior, mOffset };
 }
 
 export interface Solve {
@@ -104,7 +114,6 @@ export function solvePosterior(
   const n = model.n;
   const R = rows.R;
   const H = hyps.count;
-  const c = model.lnBarrenMult;
   const meanLnG = new Float64Array(H * n);
   const meanR = new Float64Array(H);
   const alpha = new Float64Array(H * R);
@@ -112,7 +121,7 @@ export function solvePosterior(
   if (R === 0) {
     for (let h = 0; h < H; h++) {
       const s = hyps.streak[h] as number;
-      const Mh = model.M + (hyps.barren[h] === 1 ? c : 0);
+      const Mh = model.M + (hyps.mOffset[h] as number);
       for (let b = 0; b < n; b++) meanLnG[h * n + b] = Mh + (muE[s * n + b] as number);
       logw[h] = hyps.logPrior[h] as number;
     }
@@ -171,9 +180,9 @@ export function solvePosterior(
       backSolveInPlace(L, R, u);
       let t = 0;
       for (let j = 0; j < R; j++) t += u[j] as number;
-      // Store the gold-bearing twin's quantities in slot h; a barren twin is derived from them.
-      const isBarren = hyps.barren[h] === 1;
-      const cc = isBarren ? c : 0;
+      // u, q, t are for the configuration's unshifted residual; every hypothesis on the configuration differs only
+      // by its constant offset on m (barren flag, selection shift), so it is derived from them in O(R + n).
+      const cc = hyps.mOffset[h] as number;
       for (let j = 0; j < R; j++) alpha[h * R + j] = (u[j] as number) - cc * (k1[j] as number);
       logw[h] = (hyps.logPrior[h] as number) - 0.5 * (q - 2 * cc * t + cc * cc * s11);
       let rm = 0;
@@ -191,13 +200,11 @@ export function solvePosterior(
       src = h;
       continue;
     }
-    // Derive from the stored twin at slot `src` (which may itself be barren or not).
-    const srcBarren = hyps.barren[src] === 1;
-    const isBarren = hyps.barren[h] === 1;
+    // Derive from the stored twin at slot `src`.
     const q = twinQ[s] as number;
     const t = twinT[s] as number;
-    const cc = isBarren ? c : 0;
-    const cs = srcBarren ? c : 0;
+    const cc = hyps.mOffset[h] as number;
+    const cs = hyps.mOffset[src] as number;
     for (let j = 0; j < R; j++) alpha[h * R + j] = (alpha[src * R + j] as number) + (cs - cc) * (k1[j] as number);
     logw[h] = (hyps.logPrior[h] as number) - 0.5 * (q - 2 * cc * t + cc * cc * s11);
     meanR[h] = (meanR[src] as number) + (cs - cc) * rk1;

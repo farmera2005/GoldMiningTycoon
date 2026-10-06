@@ -222,7 +222,7 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
     a[b] = (thin + (1 - thin) * (model.fbar[b] as number)) * (cMult[b] as number);
     let m = 0;
     for (let s = 0; s < model.S; s++) m += (model.streakPrior[s] as number) * (muE[s * n + b] as number);
-    gt[b] = exp(model.M + m - log(1 + (a[b] as number) * model.coarse.R0));
+    gt[b] = exp(model.M + model.selection.gold.shift + m - log(1 + (a[b] as number) * model.coarse.R0));
   }
   let hyps = allHypotheses(model, penalty);
   const evaluatedHypotheses = hyps.count;

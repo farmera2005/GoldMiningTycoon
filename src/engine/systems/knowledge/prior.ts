@@ -23,6 +23,109 @@ export function overlapShare(d: number, halfWidthFt: number): number {
   return Math.max(0, hi - lo) / BLOCK_FT;
 }
 
+export interface SelectionTerm {
+  /** ln of the selection factor's expectation for the class (multiplies the hypothesis prior). */
+  readonly logWeight: number;
+  /** Shift of the claim mean m given selection. */
+  readonly shift: number;
+}
+
+export interface HeldSelection {
+  readonly gold: SelectionTerm;
+  readonly barren: SelectionTerm;
+  readonly noPaystreak: SelectionTerm;
+  /** Var[u | held] / Var[u] for the gold-bearing class (shrinks V_m). */
+  readonly varRatio: number;
+  readonly sU2: number;
+}
+
+const NO_SELECTION: HeldSelection = {
+  gold: { logWeight: 0, shift: 0 },
+  barren: { logWeight: 0, shift: 0 },
+  noPaystreak: { logWeight: 0, shift: 0 },
+  varRatio: 1,
+  sU2: 1,
+};
+
+function logistic(x: number): number {
+  return x >= 0 ? 1 / (1 + exp(-x)) : exp(x) / (1 + exp(x));
+}
+
+/** Moments of N(mean, s²) tilted by logistic(a + c·u), on a fixed 121-point grid over ±6 sd. */
+function tiltedMoments(mean: number, s2: number, a: number, c: number): { z: number; m1: number; m2: number } {
+  const sd = sqrt(s2);
+  let w0 = 0;
+  let wz = 0;
+  let w1 = 0;
+  let w2 = 0;
+  for (let k = 0; k <= 120; k++) {
+    const z = -6 + k / 10;
+    const u = mean + sd * z;
+    const pdf = exp(-0.5 * z * z);
+    const g = logistic(a + c * u);
+    w0 += pdf;
+    wz += pdf * g;
+    w1 += pdf * g * u;
+    w2 += pdf * g * u * u;
+  }
+  return { z: wz / w0, m1: w1 / wz, m2: w2 / wz };
+}
+
+/**
+ * The held-selection factor (design delta, DESIGN D-4.16): §3.4 stakes a parcel with probability
+ * logistic(logit(stakedFraction) + b·zq), zq = ln(mean virgin gStreak of its paystreak blocks / gMed) / zqLnScale, b the
+ * template slope (weak on benches, whose quality is hard to see), zq = zqNoPaystreak without paystreak blocks. Held
+ * status is visible, so the prior for held and listed claims (the listing pool is held claims that came to market)
+ * carries that factor: barren creeks are rarely staked (P(barren | held valley claim) ≈ 0.03, not 0.20) and held
+ * claims sit above gMed. u = ln(gStreak/gMed) of the claim ≈ (m − ln gMed) + ln(mean of e^{rich + block} over the
+ * paystreak blocks); the tilted moments of u give each hypothesis class its weight and its shift of m.
+ */
+function heldSelection(
+  priors: ClaimPriors,
+  params: EstimatorParams,
+  tpl: TemplateConsts,
+  Se: Float64Array,
+  n: number,
+  psProb: Float64Array,
+  resid2: number,
+  VmBase: number,
+): HeldSelection {
+  if (priors.priorStatus === 'open') return NO_SELECTION;
+  const sel = params.selection;
+  const b = priors.setting === 'bench' ? sel.slopeOverlooked : sel.slope;
+  const a = log(tpl.stakedFraction / (1 - tpl.stakedFraction));
+  const c = b / sel.zqLnScale;
+  // The likely paystreak blocks: P(f ≥ 0.4) ≥ ½ under the prior, else the most likely ones.
+  const order = [...Array(n).keys()].sort((x, y) => (psProb[y] as number) - (psProb[x] as number) || x - y);
+  let expected = 0;
+  for (let k = 0; k < n; k++) expected += psProb[k] as number;
+  const nPs = Math.max(1, Math.min(n, Math.round(expected)));
+  const ps = order.slice(0, nPs);
+  let cov = 0;
+  let diag = 0;
+  for (const x of ps) {
+    diag += (Se[x * n + x] as number) - resid2;
+    for (const y of ps) cov += (Se[x * n + y] as number) - (x === y ? resid2 : 0);
+  }
+  const varE = cov / (nPs * nPs);
+  const sx2 = diag / nPs;
+  const meanE = sx2 / 2 - varE / 2;
+  const status = priors.priorStatus;
+  const lnStatus = log(params.statusMult[status]);
+  const u0 = priors.logGradeMedian - lnStatus - log(tpl.gMed) + meanE;
+  const sU2 = VmBase + varE;
+  const gold = tiltedMoments(u0, sU2, a, c);
+  const barren = tiltedMoments(u0 + log(priors.barrenMult), sU2, a, c);
+  const g0 = logistic(a + b * sel.zqNoPaystreak);
+  return {
+    gold: { logWeight: log(gold.z), shift: gold.m1 - u0 },
+    barren: { logWeight: log(barren.z), shift: barren.m1 - (u0 + log(priors.barrenMult)) },
+    noPaystreak: { logWeight: log(g0), shift: 0 },
+    varRatio: (gold.m2 - gold.m1 * gold.m1) / sU2,
+    sU2,
+  };
+}
+
 export interface PriorModel {
   readonly priors: ClaimPriors;
   readonly params: EstimatorParams;
@@ -53,6 +156,10 @@ export interface PriorModel {
   readonly streakPrior: Float64Array;
   readonly pBarren: number;
   readonly lnBarrenMult: number;
+  /** Does the configuration put any block on the paystreak (f ≥ 0.4)? */
+  readonly streakHasPS: Uint8Array;
+  /** The held-selection factor of §3.4 by hypothesis class (see heldSelection). */
+  readonly selection: HeldSelection;
   readonly large: boolean;
   readonly pruneWeight: number;
   /** Prior mean and sd of f_b over the configurations. */
@@ -199,6 +306,22 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     fsd[b] = sqrt(Math.max(0, m2 - m1 * m1));
   }
 
+  const streakHasPS = new Uint8Array(S);
+  const psProb = new Float64Array(n);
+  for (let k = 0; k < S; k++) {
+    let any = 0;
+    for (let b = 0; b < n; b++) {
+      if ((streakF[k * n + b] as number) >= params.streakMinF) {
+        any = 1;
+        psProb[b] = (psProb[b] as number) + (streakPrior[k] as number);
+      }
+    }
+    streakHasPS[k] = any;
+  }
+  const selection = heldSelection(priors, params, tpl, Se, n, psProb, resid2, VmBase);
+  // Selection narrows u = m + ē; its variance reduction is credited to m (V_m).
+  const VmSel = VmBase - (1 - selection.varRatio) * ((VmBase * VmBase) / selection.sU2);
+
   const cr = coarseRatioPrior(priors.sizeMixPrior, priors.sizeMixJitterLogSd);
   const alpha0 = invTrigamma(cr.varLnR);
   const R0 = exp(cr.meanLnR);
@@ -226,7 +349,7 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     blockIds,
     indexOf,
     M,
-    VmBase,
+    VmBase: VmSel,
     sigmaBlock: s.block,
     Se,
     S,
@@ -234,6 +357,8 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     streakPrior,
     pBarren: priors.pBarrenCreek,
     lnBarrenMult: log(priors.barrenMult),
+    streakHasPS,
+    selection,
     large,
     pruneWeight: large ? params.hypPruneWeightLarge : params.hypPruneWeight,
     fbar,
