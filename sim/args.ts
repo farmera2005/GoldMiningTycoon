@@ -115,7 +115,7 @@ export const USAGE = `usage: npm run sim -- --strategy <botId> [options]
   --seed-base S          game i uses seed S + i (default: src/data/balance/seeds.json for the rules phase)
   --rules pN             phase rules p0..p6, at most the build's phase (default: the build's phase)
   --tuning <file.json>   tuning overrides { "key": value }
-  --workers N            worker threads, 0 = CPU cores (default ${simConfig['sim.workers']}); never changes results
+  --workers N            worker processes, 0 = CPU cores (default ${simConfig['sim.workers']}); never changes results
   --out <dir>            write summary.json, games.csv, weekly-sample.csv (and timing.json)
   --fixture <id>         run a scripted BALANCE §2.1 fixture [--breakeven]
   --world-only           newGame for N seeds, no weeks advance [--econ <fixtureId>] [--calendar]

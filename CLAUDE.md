@@ -52,13 +52,13 @@ Single-player browser business simulation: the player founds and runs a small **
 Simulator (DESIGN §2.12, BALANCE §6):
 
 ```
-npm run sim -- --games N --strategy <botId> --start <bootstrapper|backedEquity|backedRoyalty|inheritor> --years Y
-               --difficulty <easy|standard|hard> --background <none|operator|mechanic|geologist|banker|landman>
-               --seed-base S [--rules p1..p6] [--tuning overrides.json] [--workers N] [--out dir]
-               [--fixture <id> [--breakeven]] [--world-only [--econ <fixtureId>] [--calendar]] [--market-only] [--events-only]
+npm run sim -- --strategy <botId> [--games N] [--start <bootstrapper|backedEquity|backedRoyalty|inheritor>] [--years Y]
+               [--difficulty <easy|standard|hard>] [--background <none|operator|mechanic|geologist|banker|landman>]
+               [--entity <soleProp|llc|corp>] [--seed-base S] [--rules p0..p6] [--tuning overrides.json] [--workers N] [--out dir]
+npm run sim -- --fixture <id> [--breakeven] | --world-only [--econ <fixtureId>] [--calendar] | --market-only | --events-only  [common flags]
 ```
 
-- Defaults: `--games 500`, `--years 5`, `standard`, `bootstrapper`, background `none` (simulator-only, no edge), `--rules` = the build's phase, `--seed-base` from `src/data/balance/seeds.json`, workers = CPU cores. `--seeds N` (used in DESIGN §10.21) is an alias of `--games N`. Game *i* uses seed `seedBase + i`; output is identical for any worker count.
+- Defaults: `--games 500`, `--years 5`, `standard`, `bootstrapper`, background `none` (simulator-only, no edge), entity `llc`, `--rules` = the build's phase, `--seed-base` from `src/data/balance/seeds.json`, workers = CPU cores (forked child processes with `--import tsx`; `--workers 1` runs in-process). There is no default bot: a bot run needs `--strategy`, and the modes take none. `--seeds N` (used in DESIGN §10.21) is an alias of `--games N`. Game *i* uses seed `seedBase + i`; output is identical for any worker count. A Y-year game ends after the pipeline of turn 52Y − 1 (DESIGN D-2.52). Exit codes: 0 done, 1 bot defect or failed run, 2 usage error or "available from Pn" (D-2.51).
 - Bot ids (§2.12.1): `cautious`, `balanced`, `aggressive`, `undercap` (Bootstrapper only); test bots `noTest`, `heavyProspector`, `leaseOnly`, `buyOnly`, `gradeDFleet`, `gradeAFleet`, `maxHours`, `noStripAhead`, `passive` (P1); `exceeder`, `abandoner` (P2); `noMaintenance`, `auctionOnlyFleet`, `newOnlyFleet`, `rentOnlyFleet`, `brandOnly(brandId)` (P3); `allHardMoney`, `royaltyEveryWinter` (P4); `hedge50`, `noHedge`, `alwaysLocalBuyer` (P5); `hardrockSeeker` (P6); option bots `smallCrewNoForeman` (P1), `multiLine`, `poolMechanics` (P3). Every other bot keeps one plant line, a foreman on every claim and site mechanics (D-2.32). Fixture ids are BALANCE §2's (`starterNorth`, `refSmallNorth`, `matureNorth`, `starterArid`, `inheritorNorth` and variants).
 - Outputs go to `out/` (gitignored); `sim:balance` writes `out/balance/<phase>/<sha>/{summary.json,games.csv,weekly-sample.csv}`. Every output records git SHA, `tuningHash`, `BOT_VERSION` and `seedBase`. `--quick` (100 games per cell) is for development, never for sign-off.
 
@@ -92,7 +92,8 @@ src/
     difficulty.ts calendar.ts regions/ prospecting/ equipment/ staff/ permits/ market/ finance/ events/ scenarios/ text/
     balance/          seeds.json, fixtures.ts (BALANCE reference fixtures; read by sim/ only)
   ui/                 React app: app/ store/ engine/ (engine client, run worker) explain/ format/ components/ charts/ screens/ tutorial/
-  persistence/        IndexedDB slots, autosave rotation, gzip export/import, UI-state migration (browser-only)
+  persistence/        IndexedDB slots, autosave rotation, gzip export/import (browser-only, engine-free behind an injected SaveCodec;
+                      the UiPersisted shape and its migration live in ui/store/persisted.ts, D-13.74)
 sim/                  Node-only: cli.ts, runner.ts (worker pool), bots/ (catalog.ts, shared helpers), fixtures/ (scripted runners), balance/ (matrix, scorecard), report.ts
 tests/                Cross-cutting: golden/ replays, property tests, data validation, scenarios, perf/, e2e/
 ```

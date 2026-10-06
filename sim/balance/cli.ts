@@ -49,7 +49,7 @@ export interface BalanceOptions {
 export const BALANCE_USAGE = `usage: npm run sim:balance -- [--phase N] [--quick] [--workers N] [--out dir] [--baseline file]
   --phase N        the phase whose matrix and bands to run (default: the build's phase, P${BUILD_RULES_PHASE})
   --quick          ${simConfig['sim.quickGames']} games per cell (development only, never sign-off)
-  --workers N      worker threads, 0 = CPU cores (default ${simConfig['sim.workers']})
+  --workers N      worker processes, 0 = CPU cores (default ${simConfig['sim.workers']})
   --out dir        output directory (default out/balance/p<N>/<sha>)
   --baseline file  compare with this summary instead of docs/balance/baseline-phase-<N|N−1>.json`;
 
