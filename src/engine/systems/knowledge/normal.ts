@@ -3,7 +3,7 @@
 // exps, bit-exact in every engine) dominated the statistical layer's time (§2.13). Here Φ and φ are tabulated once
 // from dmath at module load on z = −8.5 … 8.5 in steps of 1/128 and interpolated by cubic Hermite polynomials (Φ with
 // φ as its slope; φ with −zφ). Building and evaluating use only + − × ÷ on dmath values, so results stay bit-identical
-// in every engine. Interpolation error: |Φ| ≤ h⁴/384 · max|φ‴| ≈ 2e-12, |φ| ≤ h⁴/384 · max|φ⁗| ≈ 1.2e-11 (h = 1/128).
+// in every engine. Interpolation error: |Φ| ≤ h⁴/384 · max|φ‴| ≈ 5.4e-12, |φ| ≤ h⁴/384 · max|φ⁗| ≈ 1.2e-11 (h = 1/128).
 // Beyond |z| = 8.5, Φ is 0 or 1 and φ is 0 to double precision (Φ(−8.5) ≈ 9.5e-18).
 import { exp, normCdf } from '../../core/dmath';
 
@@ -46,7 +46,7 @@ function hermite(out: Float64Array, i: number, y0: number, y1: number, m0: numbe
   out[k + 3] = 2 * (y0 - y1) + m0 + m1;
 }
 
-/** Φ(z) to ≈ 2e-12. */
+/** Φ(z) to ≈ 5.4e-12 (absolute). */
 export function stdNormCdf(z: number): number {
   if (Number.isNaN(z)) return NaN;
   if (z <= -NORMAL_Z_FAR) return 0;
