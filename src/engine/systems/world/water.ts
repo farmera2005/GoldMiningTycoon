@@ -58,13 +58,16 @@ export function genWater(
     nearestFillMi: round(nearestFillMi, 2),
     hidden: { wellYieldGpm: round(wellYieldGpm, 1), depthToWaterFt: round(depthToWaterFt, 1) },
   };
-  // A recorded senior right on recent-operator claims (§3.3.4, D-3.40); assignStatus clears it on unheld ground.
+  // A recorded senior right on recent-operator claims (§3.3.4, D-3.40); assignStatus clears it on unheld ground. The
+  // drawn right is recorded to 0.1 gpm before the low-flow cap is applied, so a surface right never exceeds the stored
+  // claim's lowFlowGpm (§3.18), which §6 uses as the grant cap.
   const pRight = byBand(Wp.rightStubP, d.tpl.climateBand, 'geology.water.rightStubP');
   if (oldTimerKind === 'recentCat' && rightU < pRight) {
+    const recordedGpm = round(rightGpm, 1);
     const rightStub: WaterRightStub =
       sourceKind === 'creek' || sourceKind === 'spring'
-        ? { priority: 'senior', gpm: round(Math.min(lowFlowGpm(base, gp), rightGpm), 1), source: 'surface' }
-        : { priority: 'senior', gpm: round(rightGpm, 1), source: 'groundwater' };
+        ? { priority: 'senior', gpm: Math.min(lowFlowGpm(base, gp), recordedGpm), source: 'surface' }
+        : { priority: 'senior', gpm: recordedGpm, source: 'groundwater' };
     return { ...base, rightStub };
   }
   return base;

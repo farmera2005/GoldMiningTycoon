@@ -243,6 +243,99 @@ describe('drawSample results (§3.8)', () => {
   });
 });
 
+describe('the logged interval (§3.8 step 7: only what the sampler could see)', () => {
+  const NOISELESS_PIT: SampleMethodParams = { ...PIT, geomCv: 0, thickCv: 0 };
+  const NOISELESS_PAN: SampleMethodParams = { ...PAN, geomCv: 0, thickCv: 0 };
+
+  it('reproduces the true interval with zero logging noise (the control)', () => {
+    // Full column, no bedrock: [OB, OB + T]. Pit with 0.5 ft of bedrock (B 1.5 ≥ 0.5): [OB, OB + T + 0.5].
+    expect(draws(1, BT, req(3), IDEAL)[0]?.intervalDepthFt).toEqual([15, 21]);
+    const pit = drawSample(BT, UNTOUCHED_BLOCK, req(3), NOISELESS_PIT, rng('iv', 'sample', 0), CTX);
+    expect(pit.reachedBedrock).toBe(true);
+    expect(pit.intervalDepthFt?.[0]).toBe(15);
+    expect(pit.intervalDepthFt?.[1]).toBeCloseTo(21.5, 12);
+    // Cutbank pan on the channel: the upper 40% of the gravel, [OB, OB + 0.4 T].
+    const pan = drawSample(BT, UNTOUCHED_BLOCK, req(0.0067), NOISELESS_PAN, rng('iv', 'sample', 1), CHANNEL);
+    expect(pan.intervalDepthFt?.[0]).toBe(15);
+    expect(pan.intervalDepthFt?.[1]).toBeCloseTo(17.4, 12);
+  });
+
+  it('a channel pan logs a noisy gravel top and never reveals the exact overburden or pay thickness', () => {
+    const tops = new Set<number>();
+    for (const r of draws(200, BT, req(0.0067), PAN, CHANNEL)) {
+      const iv = r.intervalDepthFt as readonly [number, number];
+      expect(iv[0]).toBe(r.observed.overburdenFt);
+      expect(Math.abs(iv[0] - 15)).toBeGreaterThan(1e-9);
+      expect(Math.abs((iv[1] - iv[0]) / 0.4 - 6)).toBeGreaterThan(1e-9);
+      tops.add(iv[0]);
+    }
+    expect(tops.size).toBe(200);
+  });
+
+  it('a pit logs the bedrock it dug below the logged contact, never the hidden cleanup depth', () => {
+    // B = 0.3 ft < the pit's 0.5 ft penetration: the gold interval stops at −B, the logged one at the dug 0.5 ft.
+    const thinB: BlockTruth = { ...BT, bedrockCleanupFt: 0.3 };
+    for (const r of draws(100, thinB, req(3), PIT)) {
+      if (!r.reachedBedrock) continue;
+      const iv = r.intervalDepthFt as readonly [number, number];
+      expect(iv[1] - (r.observed.depthToBedrockFt as number)).toBeCloseTo(0.5, 12);
+      expect(Math.abs(iv[1] - 21.3)).toBeGreaterThan(1e-9);
+      expect(Math.abs(iv[1] - iv[0] - 6.3)).toBeGreaterThan(1e-9);
+    }
+  });
+
+  it('a pit stopped at its reach logs the depth it dug', () => {
+    for (const r of draws(50, BT, req(3), { ...PIT, maxDepthFt: 19 })) {
+      if (r.stopReason !== 'reach') continue;
+      expect(r.intervalDepthFt?.[1]).toBe(19);
+      expect(r.reachedBedrock).toBe(false);
+    }
+  });
+
+  it('shows no visible number equal to a true geometry value or an exact affine function of one', () => {
+    // The penetration (a method constant the sampler knows) avoids the generators' boundary values, so a logged
+    // "bedrock dug" never coincides with a boundary truth such as T = 1.
+    const NOISY_FULL: SampleMethodParams = { ...IDEAL, id: 'noisyFull', geomCv: 0.1, thickCv: 0.1, bedrockPenFt: 0.7 };
+    const same = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 1e6 }),
+        fc.constantFrom(PAN, PIT, NOISY_FULL),
+        // Cover from 0.6 ft up (a bare block is the stripped case, where the sampler stands on the gravel).
+        fc.double({ min: 0.6, max: 30, noNaN: true }),
+        fc.double({ min: 1, max: 15, noNaN: true }),
+        fc.double({ min: 0.05, max: 3, noNaN: true }),
+        fc.boolean(),
+        fc.boolean(),
+        (k, m, ob, T, B, channel, stripped) => {
+          const bt: BlockTruth = { ...BT, overburdenFt: ob, payThicknessFt: T, bedrockCleanupFt: B };
+          const bs: BlockState = stripped ? { ...UNTOUCHED_BLOCK, strippedBcy: ob * 1613 } : UNTOUCHED_BLOCK;
+          const r = drawSample(bt, bs, req(1), m, rng('leak', 'sample', k), channel ? CHANNEL : CTX);
+          const obNow = stripped ? 0 : ob;
+          const truths = [ob, obNow, T, B, obNow + T, T + B, obNow + T + B, 0.4 * T, 0.6 * T];
+          const visible: number[] = [];
+          const o = r.observed;
+          for (const v of [o.overburdenFt, o.payThicknessFt, o.depthToBedrockFt]) if (v !== undefined) visible.push(v);
+          const iv = r.intervalDepthFt;
+          if (iv !== null) {
+            visible.push(iv[0], iv[1], iv[1] - iv[0], (iv[1] - iv[0]) / 0.4);
+            if (o.depthToBedrockFt !== undefined) visible.push(iv[1] - o.depthToBedrockFt);
+            if (o.overburdenFt !== undefined) visible.push(iv[1] - o.overburdenFt);
+          }
+          for (const v of visible) {
+            // A stripped block's zero overburden is what the sampler sees standing on bare gravel.
+            if (v === 0 && obNow === 0) continue;
+            for (const t of truths) if (t > 0) expect(same(v, t)).toBe(false);
+          }
+          if (iv !== null) expect(iv[1]).toBeGreaterThanOrEqual(iv[0]);
+          if (r.reachedBedrock && iv !== null) expect(iv[1]).toBeGreaterThanOrEqual(o.depthToBedrockFt as number);
+        },
+      ),
+      { seed: 3803, numRuns: 400 },
+    );
+  });
+});
+
 describe('sample statistics (§3.18 properties)', () => {
   it('is unbiased with capture 1 and no noise: the mean of 20,000 draws is within 2% of g × posMult', () => {
     const rs = draws(20_000, BT, req(3), IDEAL);

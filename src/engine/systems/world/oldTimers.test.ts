@@ -1,8 +1,13 @@
 // DESIGN §3.6 old-timer depletion, tailings piles and the drift worked example (§3.18 depletion tests).
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { depleteAgain, deplete, depletionRemoval, tailingsPile } from './oldTimers';
+import { baseTuning } from '../../../data/tuning';
+import { rng } from '../../core/rng';
+import type { GenClaim } from './genTypes';
+import { applyOldTimers, depleteAgain, deplete, depletionRemoval, tailingsPile } from './oldTimers';
+import { snapshotGenParams, templateOf } from './params';
 import type { Mix4, WorkBlock } from './truth';
+import type { RegionTemplate } from './types';
 
 const HAND: Mix4 = [1.3, 1.1, 0.7, 0.3];
 const DREDGE: Mix4 = [1.1, 1.05, 0.9, 0.6];
@@ -115,5 +120,66 @@ describe('a second depletion (§3.6, §3.6.1)', () => {
     deplete(b, 0.9, DREDGE, CAP);
     depleteAgain(b, 0.1, HAND, CAP, 0.92);
     expect(b.minedOutFraction).toBeCloseTo(0.92, 12);
+  });
+});
+
+describe('dredge workings (§3.6)', () => {
+  const gp = snapshotGenParams(baseTuning, ['northernFederal']);
+  const north = templateOf(gp, 'northernFederal');
+  // Every dredged parcel on this template is worked by a dredge.
+  const tpl: RegionTemplate = { ...north, oldTimerMix: { ...north.oldTimerMix, dredgedGround: { dredge: 1 } } };
+  const K = { depositType: 'dredgedGround', nAlong: 2, nAcross: 4 } as unknown as GenClaim;
+  const minF = gp.oldTimer.kinds.dredge.minF;
+  const fx = gp.oldTimer.dredgeEffects;
+
+  /** A 2 × 4 claim whose blocks straddle the dredge's f > minF threshold (row 0 outside, row 1 on the paystreak). */
+  function claimBlocks(): WorkBlock[] {
+    const fs = [0, 0.02, minF, 0.04, 0.06, 0.4, 0.8, 1];
+    return fs.map((f, k) => ({
+      ...block(0.02, [0.25, 0.4, 0.27, 0.08]),
+      i: Math.floor(k / 4),
+      j: k % 4,
+      paystreakFraction: f,
+      overburdenFt: 9 + k,
+      permafrost: 0.7,
+      boulders: 0.3,
+    }));
+  }
+
+  it('works and strips only the blocks with f > minF; the valley fill beside them keeps its cover and frost', () => {
+    for (let s = 0; s < 20; s++) {
+      const before = claimBlocks();
+      const after = claimBlocks();
+      const res = applyOldTimers(rng('dredge-unit', 'world', 'oldtimers', s), K, after, tpl, gp);
+      expect(res.kind).toBe('dredge');
+      after.forEach((b, k) => {
+        const orig = before[k] as WorkBlock;
+        if (orig.paystreakFraction > minF) {
+          expect(b.minedOutFraction).toBeGreaterThanOrEqual(0.8);
+          expect(b.overburdenFt).toBe(0);
+          expect(b.permafrost).toBe(0);
+          expect(b.boulders).toBeCloseTo(orig.boulders * fx.boulderMult, 12);
+          expect(b.verticalDecayFt).toBe(fx.decayFt);
+          expect(b.bedrockGoldShare).toBeGreaterThanOrEqual(fx.minBedrockShare);
+        } else {
+          expect(b).toEqual(orig);
+        }
+      });
+    }
+  });
+
+  it('takes one extraction draw per block whatever the paystreak', () => {
+    const count = (fs: number): number => {
+      const r = rng('dredge-draws', 'world', 'oldtimers', 0);
+      applyOldTimers(
+        r,
+        K,
+        claimBlocks().map((b) => ({ ...b, paystreakFraction: fs })),
+        tpl,
+        gp,
+      );
+      return r.drawCount;
+    };
+    expect(count(0)).toBe(count(1));
   });
 });

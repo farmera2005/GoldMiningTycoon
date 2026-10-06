@@ -839,6 +839,14 @@ export interface SampleResult {
   readonly methodId: string;
   readonly volumeBcy: number;
   readonly volumeMeasuredBcy: number;
+  /**
+   * The sampled interval as the sampler logged it, [top, bottom] in ft below the current surface; null when the sample
+   * never reached pay (overburden only) or came from a tailings pile. Built from the step-7 logging factors, never from
+   * truth (sample.ts loggedIntervalFt, §3.8): top = the logged gravel top (observed.overburdenFt) plus any gravel left
+   * above an explicit interval; bottom = the dug depth where a pit or hole stopped at its reach, the frost line or
+   * flooding, else the logged bedrock contact plus the bedrock dug when bedrock was reached, else the top plus the
+   * sampled gravel logged with the thickness factor. bottom ≥ top. §4 reads bottom as SampleRecord.depthReachedFt.
+   */
   readonly intervalDepthFt: readonly [number, number] | null;
   readonly reachedPay: boolean;
   readonly reachedBedrock: boolean;

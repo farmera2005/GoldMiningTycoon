@@ -181,13 +181,15 @@ export function applyOldTimers(
     case 'dredge': {
       const k = kinds.dredge;
       const fx = O.dredgeEffects;
+      // §3.6: the dredge worked every block with f > minF on its stretch, and its side effects belong to those blocks
+      // alone; valley fill beside the paystreak keeps its cover and frost. Every block takes its extraction draw, worked
+      // or not, so the draw count never depends on the paystreak.
       for (const b of blocks) {
         const x = Math.min(O.maxExtraction, uniformIn(r, k.extract));
-        if (b.paystreakFraction > k.minF) {
-          deplete(b, x, O.depleteWeights.dredge, cap);
-          // What the dredge left is fine gold or below dredge depth in bedrock.
-          b.bedrockGoldShare = Math.max(b.bedrockGoldShare, fx.minBedrockShare);
-        }
+        if (!(b.paystreakFraction > k.minF)) continue;
+        deplete(b, x, O.depleteWeights.dredge, cap);
+        // What the dredge left is fine gold or below dredge depth in bedrock.
+        b.bedrockGoldShare = Math.max(b.bedrockGoldShare, fx.minBedrockShare);
         b.overburdenFt = 0;
         b.permafrost = 0;
         b.boulders *= fx.boulderMult;

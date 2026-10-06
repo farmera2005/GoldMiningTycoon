@@ -1,7 +1,9 @@
 // NPC claim holders (DESIGN §3.10.1). Every NPC-held parcel belongs to a holder; contiguous held runs on a creek are
 // grouped under one holder w.p. groupRunP (1–6 parcels). Honesty is the holder's (D-3.13) and the situation tilts it.
-// Stream rng(seed,'world','holders',D.id); draws: one group u per run, then per holder situation, honesty, first-name
-// and last-name indices. Seller evidence is written at first listing (P1).
+// Stream rng(seed,'world','holders',D.id); draw order (fixed, stream rule e): one group u per run in heldRuns order,
+// then per held parcel in compareIds order, grouped or not: situation, honesty, first-name and last-name indices. A
+// holder takes the draws of its lowest-id parcel; a grouped holder's other parcels take theirs and leave them unused, so
+// a groupRunP retune never moves another holder's draws. Seller evidence is written at first listing (P1).
 import { holderNames } from '../../../data/regions';
 import { compareIds, type ClaimId, type HolderId } from '../../core/ids';
 import type { Rng } from '../../core/rng';
@@ -58,35 +60,57 @@ export function heldRuns(held: readonly HeldParcel[]): HeldParcel[][] {
   return runs.sort((a, b) => compareIds(first(a), first(b)));
 }
 
+interface HolderDraws {
+  readonly situation: HolderSituation;
+  readonly honesty: SellerHonesty;
+  readonly displayName: string;
+}
+
+/** One parcel's holder draws (situation, honesty, first and last name): 6 u32, always taken. */
+function drawHolder(r: Rng, gp: GeoGenParams): HolderDraws {
+  const situation = pickKey(r, HOLDER_SITUATIONS, gp.seller.situationMix);
+  const honesty = pickKey(r, SELLER_HONESTIES, honestyWeights(situation, gp));
+  const first = holderNames.first[r.int(0, holderNames.first.length - 1)] as string;
+  const last = holderNames.last[r.int(0, holderNames.last.length - 1)] as string;
+  return {
+    situation,
+    honesty,
+    displayName: situation === 'estate' ? `Estate of ${first} ${last}` : `${first} ${last}`,
+  };
+}
+
 export function assignHolders(
   r: Rng,
   held: readonly HeldParcel[],
   gp: GeoGenParams,
   nextHolderId: () => HolderId,
 ): SellerProfile[] {
+  const runs = heldRuns(held);
+  const groupUs = runs.map(() => r.next());
+  const parcelIds = held.map((p) => p.id).sort(compareIds);
+  const parcelDraws = parcelIds.map(() => drawHolder(r, gp));
+  const drawsOf = (id: ClaimId): HolderDraws => parcelDraws[parcelIds.indexOf(id)] as HolderDraws;
+
   const groups: ClaimId[][] = [];
-  for (const run of heldRuns(held)) {
-    const groupU = r.next();
+  runs.forEach((run, k) => {
     const ids = run.map((p) => p.id);
-    if (groupU < gp.seller.groupRunP) {
-      for (let k = 0; k < ids.length; k += gp.seller.maxParcelsPerHolder)
-        groups.push(ids.slice(k, k + gp.seller.maxParcelsPerHolder));
+    if ((groupUs[k] as number) < gp.seller.groupRunP) {
+      for (let g = 0; g < ids.length; g += gp.seller.maxParcelsPerHolder)
+        groups.push(ids.slice(g, g + gp.seller.maxParcelsPerHolder));
     } else {
       for (const id of ids) groups.push([id]);
     }
-  }
-  return groups.map((claimIds) => {
-    const situation = pickKey(r, HOLDER_SITUATIONS, gp.seller.situationMix);
-    const honesty = pickKey(r, SELLER_HONESTIES, honestyWeights(situation, gp));
-    const first = holderNames.first[r.int(0, holderNames.first.length - 1)] as string;
-    const last = holderNames.last[r.int(0, holderNames.last.length - 1)] as string;
+  });
+  return groups.map((group) => {
+    const claimIds = group.slice().sort(compareIds);
+    const d = drawsOf(claimIds[0] as ClaimId);
     return {
       id: nextHolderId(),
-      displayName: situation === 'estate' ? `Estate of ${first} ${last}` : `${first} ${last}`,
-      situation,
-      honesty,
-      knowledge: knowledgeOf(situation),
-      claimIds: claimIds.slice().sort(compareIds),
+      displayName: d.displayName,
+      situation: d.situation,
+      honesty: d.honesty,
+      knowledge: knowledgeOf(d.situation),
+      claimIds,
       evidence: {},
     };
   });
