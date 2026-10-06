@@ -171,9 +171,12 @@ describe('route tabs', () => {
       claimId: 'clm_000002',
       tab: 'evidence',
     });
-    expect(routeWithTab({ name: 'ops', claimId: 'clm_000002' as never, tab: 'site', lineId: 'L1' }, 'flow')).toEqual(
-      { name: 'ops', claimId: 'clm_000002', tab: 'flow', lineId: 'L1' },
-    );
+    expect(routeWithTab({ name: 'ops', claimId: 'clm_000002' as never, tab: 'site', lineId: 'L1' }, 'flow')).toEqual({
+      name: 'ops',
+      claimId: 'clm_000002',
+      tab: 'flow',
+      lineId: 'L1',
+    });
     expect(routeWithTab({ name: 'staff', tab: 'roster', employeeId: 'emp_owner' as never }, 'payroll')).toEqual({
       name: 'staff',
       tab: 'payroll',

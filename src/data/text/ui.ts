@@ -1,6 +1,8 @@
 // Player-facing UI copy for typed codes (DESIGN §13.19 "All strings go through a t() catalog", D-13.12). English
 // only; `{name}` placeholders are filled by ui/text.ts `t()`. Each code group mirrors its owner's code list: §1
-// setup codes (13.14), §13.21 UI action codes, and the §2.9 save errors and notices.
+// setup codes (13.14), §13.21 UI action codes, and the §2.9 save errors and notices. After `uiText`: the reason text
+// of every P1 engine action error and warning code (T24: a control that `validateAction` disables shows it), and the
+// labels of the engine enumerations that screens and alert templates print (`{cause:idleCause}`).
 export const uiText = {
   // §1 1.6 setup validation (13.14 wizard)
   'setup.NAME_EMPTY': 'Enter a company name.',
@@ -25,6 +27,14 @@ export const uiText = {
   'undo.NOTHING_TO_UNDO': 'Nothing to undo this week.',
   'undo.UNDO_NOT_ALLOWED': 'The last action cannot be undone: it drew dice, revealed information or made a commitment.',
   'undo.UNDO_IRONMAN': 'Ironman games have no undo.',
+  // §13.21 P1 UI action refusals
+  'run.NO_RUN': 'No run is in progress.',
+  'stopRules.RULE_INVALID': 'That stop rule setting is out of range.',
+  'inbox.CANNOT_SNOOZE_BLOCKING': 'Critical and blocking messages cannot be snoozed.',
+  'baseline.NO_ACTIVE_PLAN': 'This claim has no active mine plan to measure against.',
+  'export.EXPORT_EMPTY': 'There is nothing in this view to export.',
+  'explain.EXPLAIN_EXPIRED':
+    'The full breakdown of that week is no longer kept. The weekly history and the ledger still hold its values.',
 
   // §2.9 / §13.16 save errors and notices
   'save.SAVE_CORRUPT': 'That file could not be read. {message} Nothing was changed.',
@@ -43,3 +53,281 @@ export const uiText = {
 } as const satisfies Readonly<Record<string, string>>;
 
 export type UiTextKey = keyof typeof uiText;
+
+/**
+ * Why an engine action is refused (§2.2 error codes; P1 contract §5.2). A control disabled through `validateAction`
+ * shows this text as its reason; the engine's own message may add specifics. A code shared by several actions reads
+ * the same everywhere.
+ */
+export const actionCodeText = {
+  // Framework (§2.2)
+  ACTION_UNKNOWN: 'That action does not exist in this version.',
+  ACTION_MALFORMED: 'That action is missing something it needs.',
+  GAME_OVER: 'The run has ended; this save is read-only.',
+  DECISION_NOT_FOUND: 'That decision no longer exists.',
+  DECISION_CLOSED: 'That decision has already been answered or has defaulted.',
+  OPTION_INVALID: 'That option is not available.',
+  INSUFFICIENT_FUNDS: 'Not enough cash on hand to pay for this now.',
+  NOT_IMPLEMENTED: 'This action is not available yet in this build.',
+  ACTION_NOT_IN_PHASE: 'This action belongs to a later version of the rules than this game uses.',
+  // §1 company and owner
+  CLAIM_NOT_ACTIVE: 'That claim has no active site to work on.',
+  ASSIGNMENT_INVALID: 'That assignment is not possible.',
+  ROLE_NOT_AVAILABLE: 'That role is not available here.',
+  PROGRAM_NOT_ACTIVE: 'That prospecting program is not running.',
+  MACHINE_NOT_ON_CLAIM: 'That machine is not on this claim.',
+  OWNER_INJURED: 'You are injured and cannot do field work until you recover.',
+  FOREMAN_SLOT_TAKEN: 'This claim already has a foreman.',
+  NEGATIVE_AMOUNT: 'Enter an amount above zero.',
+  ABOVE_CAP_INVESTOR: "Your investor agreement caps the owner's salary below that.",
+  DISTRESS_BLOCKED: 'Not while payments are in arrears: clear the arrears first.',
+  INSUFFICIENT_PERSONAL_CASH: 'You do not have that much personal cash.',
+  EQUITY_LOCKED: 'Your investor agreement does not allow new owner equity now.',
+  BELOW_MINIMUM: 'The amount is below the minimum.',
+  CAP_REACHED: 'You have reached the limit for this.',
+  SCENARIO_ACTIVE: 'A scenario run cannot retire before its deadline.',
+  // §3 world
+  CLAIM_UNKNOWN: 'That claim does not exist.',
+  ACCESS_CLOSED: 'The way in is closed this week.',
+  VISIT_ALREADY_BOOKED: 'A site visit to this claim is already booked this week.',
+  UNKNOWN_TARGET: 'That district or claim does not exist.',
+  WATCH_LIMIT: 'You are watching as many claims as you can. Unwatch one first.',
+  // §4 knowledge and prospecting
+  NO_ACCESS: 'The holder has not given you access to sample this ground.',
+  NOT_IN_SEASON: 'The ground cannot be worked in this season.',
+  CREW_UNAVAILABLE: 'The people you picked are not free.',
+  METHOD_NOT_AVAILABLE: 'That sampling method is not available here.',
+  MACHINE_UNSUITABLE: 'That machine cannot do this kind of sampling.',
+  GEOLOGIST_REQUIRED: 'This method needs a geologist: you, a staff geologist or a consultant.',
+  GEOLOGIST_AT_CAPACITY: 'That geologist is already fully booked.',
+  INVALID_TARGET: 'Pick a target on the claim.',
+  BLOCK_BEING_MINED: 'That block is in the mine plan; sample it before it is cut.',
+  PROGRAM_NOT_FOUND: 'That program no longer exists.',
+  PROGRAM_CLOSED: 'That program has finished or was cancelled.',
+  NO_RIG_AVAILABLE: 'No contractor rig is free for that week.',
+  REVIEW_IN_PROGRESS: 'A records review of this target is already under way.',
+  CONSULTANT_UNAVAILABLE: 'No consultant of that tier is free.',
+  INVALID_VALUE: 'One of the values is out of range.',
+  // §5 land
+  LISTING_NOT_OPEN: 'That listing has closed.',
+  STRUCTURE_NOT_OFFERED: 'The seller does not offer that deal on this claim.',
+  NO_BUYDOWN_CLAUSE: 'This royalty has no buy-down clause.',
+  BUYDOWN_FLOOR: 'The royalty cannot be bought down any further.',
+  IN_DEFAULT: 'Not while this lease is in default.',
+  TENURE_NOT_FOUND: 'You no longer hold that ground.',
+  NO_OPTION: 'This lease has no purchase option.',
+  OPTION_EXPIRED: 'The purchase option has expired.',
+  NO_RENEWAL_RIGHT: 'This lease has no renewal right.',
+  NOT_LEASED: 'That ground is not leased.',
+  SURRENDER_PENDING: 'The surrender is already under way.',
+  SITE_ACTIVE: 'Demobilize the site on this claim first.',
+  TENURE_NOT_OWNED: 'Only owned ground can be sold.',
+  QUICK_SALE_PENDING: 'A quick sale of this claim is already closing.',
+  TENURE_CANNOT_RELINQUISH: 'This ground cannot be relinquished.',
+  // §6 obligations
+  OBLIGATION_NOT_FOUND: 'That obligation no longer exists.',
+  OBLIGATION_NOT_OPEN: 'That obligation is already settled.',
+  NOT_PAYABLE: 'That obligation cannot be paid yet.',
+  EMPTY_BATCH: 'Nothing is selected to pay.',
+  NOT_AUTOPAY_ELIGIBLE: 'This obligation cannot be paid automatically.',
+  // §7 operations
+  CLAIM_NOT_HELD: 'You do not hold this claim.',
+  FOREMAN_REQUIRED: 'This plan needs a foreman: hire one, assign yourself, or keep to a small crew.',
+  LINE_LIMIT: 'This claim cannot take another plant line.',
+  LINE_INVALID: 'That plant line does not exist.',
+  BLOCK_NOT_IN_CLAIM: 'That block is not on this claim.',
+  CUT_NOT_CONTIGUOUS: 'The cut must be one connected area.',
+  CUT_EMPTY: 'Pick at least one block to mine.',
+  BLOCK_RECLAIMED: 'That block has been mined out and reclaimed.',
+  BLOCK_OCCUPIED: 'That block is in another cut or under a plant site.',
+  BLOCK_EXCLUDED: 'That block is excluded from mining.',
+  ASSET_DOUBLE_BOOKED: 'That machine or person is already booked for the same hours.',
+  ROLE_INCOMPATIBLE: 'That person cannot fill that role.',
+  EMPLOYEE_NOT_AVAILABLE: 'That person is not available.',
+  SCHEDULE_INVALID: 'The schedule is outside the allowed days, shifts or hours.',
+  FEED_TARGET_TOO_HIGH: 'The feed target is above the most the plant can be overfed.',
+  PLANT_NO_FEED: 'The plant has no way to be fed: assign a digging or loading machine.',
+  BULK_SAMPLE_LIMIT: 'The bulk sample is over its volume limit.',
+  LINE_NEEDS_PLANT_OPERATOR: 'Each plant line needs its own plant operator.',
+  SITE_NOT_READY: 'The site is not ready yet.',
+  NO_PLANT: 'There is no plant on this claim.',
+  SITE_NOT_RUNNING: 'The site is not running.',
+  SITE_EXISTS: 'This claim already has a site.',
+  SITE_NOT_WINTERIZED: 'The site is not winterized.',
+  NO_CREW_ON_SITE: 'Nobody is assigned to this site.',
+  WELL_LIMIT: 'This site already has as many wells as it can take.',
+  NOT_ARID: 'Wells are drilled only on arid ground.',
+  NO_PLANT_OPERATOR: 'A tailings audit needs a plant operator on the claim.',
+  // §8 staff
+  CANDIDATE_GONE: 'That candidate has taken other work.',
+  ROLE_NOT_ELIGIBLE: 'That person cannot be hired for that role.',
+  START_TOO_SOON: 'They cannot start that soon.',
+  PAY_BELOW_ASK: 'The offer is below what they ask.',
+  BELOW_MIN_WAGE: 'The pay is below the minimum wage.',
+  SALARY_NOT_EXEMPT: 'That role must be paid by the hour.',
+  EMPLOYEE_NOT_FOUND: 'That person no longer works for you.',
+  NOT_PENDING: 'That hire has already started work.',
+  COVERAGE_ROLE_ONLY: 'That person can only cover their own role.',
+  CAUSE_NOT_DOCUMENTED: 'There is no documented cause for a dismissal for cause.',
+  NOT_ON_RECALL_LIST: 'That person is not on the recall list.',
+  // §9 fleet
+  LISTING_GONE: 'That machine has been sold.',
+  NOT_FOR_SALE: 'That machine is not for sale.',
+  DESTINATION_INVALID: 'Pick a claim you hold as the destination.',
+  MACHINE_NOT_FOUND: 'That machine is no longer in your fleet.',
+  MACHINE_IN_TRANSIT: 'That machine is on the road.',
+  // §10 gold
+  LOT_NOT_HELD: 'You no longer hold that lot.',
+  BUYER_NOT_IN_DISTRICT: 'That buyer does not buy in this district.',
+  AMOUNT_INVALID: 'Enter a valid amount.',
+  BUYER_NOT_FOUND: 'That buyer is not available.',
+  REFINERY_NOT_AVAILABLE: 'Refinery sales arrive in a later version.',
+  // §11 finance
+  BILL_NOT_FOUND: 'That bill no longer exists.',
+  LOAN_CLOSED: 'That loan is paid off.',
+} as const satisfies Readonly<Record<string, string>>;
+
+/** Non-blocking warnings (§2.2 `ValidationResult.warnings`, S13-3): shown before the player commits, never refusing. */
+export const warningCodeText = {
+  SMALL_CREW_ENDS: 'This makes more than a small crew: the claim will need a foreman, or its plan stands down.',
+  CAMP_FULL: 'The camp is full; more people will need more camp capacity.',
+  DESK_DAYS_QUEUED: 'Your desk days this week are booked; this waits in your queue.',
+  NOT_IN_SEASON: 'The ground cannot be worked now; the program waits for the season.',
+  PERMIT_REQUIRED: 'This needs a permit first; the program waits until it is approved.',
+  RENEWAL_OPT_OUT_SITE_ACTIVE: 'The lease will end with a site still on the claim.',
+  BATCH_PARTIAL: 'Only some of the selected items can be paid.',
+  TRUCKS_UNDERMATCHED: 'Too few trucks for the excavator: the plant will wait on haul.',
+  WATER_SHORT: 'Not enough water for the plant at this feed rate.',
+  POWER_SHORT: 'Not enough power for everything on the site.',
+  FUEL_SHORT: 'Fuel on hand will not last the week.',
+  ONE_PLANT_OPERATOR_TWO_SHIFTS: 'One plant operator cannot cover two shifts.',
+  STRIP_BELOW_NEED: 'Stripping is not keeping up with mining.',
+  PILE_STRIPPED_AS_WASTE: 'A surface pile in the cut will be stripped as waste.',
+  SMALL_CREW_NO_FOREMAN: 'A small crew with no foreman works at 92% efficiency and runs higher incident odds.',
+  FIELD_IGNORED_THIS_PHASE: 'Some settings are not used in this version of the rules.',
+  LINE_LEAD_HAND: "A lead hand will run this line, beyond the foreman's span.",
+  PAY_UNDER_PLANT_SITE: 'The plant would sit on pay gravel.',
+  MACHINES_ON_SITE: 'Machines are still on the site.',
+  TRANSPORT_WINDOW_RISK: 'The road or trail may close before the move arrives.',
+  TRANSPORT_UNFUNDED: 'Cash on hand may not cover the transport when it is billed.',
+  MACHINE_IN_PLAN: 'This machine is in a mine plan; the plan will be short of it.',
+} as const satisfies Readonly<Record<string, string>>;
+
+export type ActionCodeWithText = keyof typeof actionCodeText;
+export type WarningCodeWithText = keyof typeof warningCodeText;
+
+/**
+ * Labels of engine enumerations, for screens and for `{param:<set>}` placeholders in alert templates. Each set lists
+ * its owner's values: §1 SeasonPhase, §5 deal structure, §6 ObligationCategory, §7 IdleCause (13.7's label table),
+ * Stage and SiteStatus, §8 Role, §11 PayCategory.
+ */
+export const enumLabels = {
+  seasonPhase: { winter: 'winter', breakup: 'breakup', operating: 'operating season', freezeup: 'freeze-up' },
+  dealStructure: { sale: 'for sale', lease: 'for lease' },
+  idleCause: {
+    unstaffed: 'No operator',
+    operatorAbsent: 'Operator absent',
+    servicing: 'Servicing',
+    coordination: 'Coordination losses',
+    weather: 'Weather',
+    season: 'Season',
+    breakdown: 'Breakdown',
+    cleanup: 'Cleanup',
+    plantMove: 'Plant move',
+    startup: 'Start-up',
+    program: 'Lent to prospecting',
+    starved: 'Starved',
+    blocked: 'Blocked',
+    water: 'Water short',
+    power: 'Power short',
+    fuel: 'Fuel short',
+    tailings: 'Tailings handling',
+    noWork: 'No work',
+    permitLimit: 'Permit limit',
+    redeployed: 'Redeployed (worked elsewhere)',
+  },
+  stage: {
+    strip: 'stripping',
+    pay: 'exposed pay',
+    thaw: 'thaw',
+    dig: 'digging',
+    haul: 'haul',
+    feed: 'feed',
+    plant: 'the plant',
+    water: 'water',
+    power: 'power',
+    fuel: 'fuel',
+    tailings: 'tailings',
+    crew: 'crew',
+  },
+  siteStatus: {
+    none: 'No site',
+    mobilizing: 'Mobilizing',
+    ready: 'Ready',
+    running: 'Running',
+    winterizing: 'Winterizing',
+    winterized: 'Winterized',
+    demobilizing: 'Demobilizing',
+  },
+  obligationCategory: {
+    land: 'Land',
+    permit: 'Permit',
+    bond: 'Bond',
+    safety: 'Safety',
+    water: 'Water',
+    reclamation: 'Reclamation',
+    tax: 'Tax',
+    finance: 'Loan',
+    lease: 'Lease',
+    insurance: 'Insurance',
+    reporting: 'Reporting',
+    enforcement: 'Enforcement',
+  },
+  /** The grouped-message noun (13.10: "12 claim maintenance fees due Wk 35 · $2,400"). */
+  obligationCategoryPlural: {
+    land: 'claim and land payments',
+    permit: 'permit payments',
+    bond: 'bond payments',
+    safety: 'safety items',
+    water: 'water filings',
+    reclamation: 'reclamation items',
+    tax: 'tax payments',
+    finance: 'loan payments',
+    lease: 'lease payments',
+    insurance: 'insurance payments',
+    reporting: 'reports',
+    enforcement: 'enforcement items',
+  },
+  payCategory: {
+    autoDebit: 'Automatic debits',
+    'payroll.net': 'Payroll',
+    'payroll.taxDeposit': 'Payroll taxes',
+    margin: 'Margin calls',
+    'regulatory.critical': 'Regulatory payments',
+    'debt.secured': 'Secured debt',
+    insurance: 'Insurance',
+    'vendor.critical': 'Fuel and parts',
+    'royalty.cash': 'Royalties',
+    tax: 'Taxes',
+    'debt.unsecured': 'Unsecured debt',
+    'vendor.other': 'Other vendors',
+    owner: 'Owner draws',
+  },
+  role: {
+    foreman: 'Foreman',
+    operator: 'Operator',
+    mechanic: 'Mechanic',
+    welder: 'Welder',
+    plantOperator: 'Plant operator',
+    geologist: 'Geologist',
+    driller: 'Driller',
+    landSpecialist: 'Land specialist',
+    safetyOfficer: 'Safety officer',
+    bookkeeper: 'Bookkeeper',
+    controller: 'Controller',
+    cook: 'Cook',
+    laborer: 'Laborer',
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+export type EnumLabelSet = keyof typeof enumLabels;

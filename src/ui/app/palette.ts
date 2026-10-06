@@ -42,21 +42,53 @@ export type PaletteEntityProvider = (state: GameState) => readonly PaletteEntity
 export const PALETTE_VERBS: readonly { label: string; keywords: string; route: KnownRoute }[] = [
   { label: 'Sell gold', keywords: 'lot buyer cash', route: { name: 'gold', tab: 'sell' } },
   { label: 'Set a standing sale order', keywords: 'gold sell cleanup keep cash', route: { name: 'gold', tab: 'sell' } },
-  { label: 'Hire staff', keywords: 'candidates crew operator foreman hand', route: { name: 'staff', tab: 'candidates', employeeId: null } },
-  { label: 'Buy equipment', keywords: 'machine fleet excavator truck dealer', route: { name: 'equipment', tab: 'market', machineId: null } },
-  { label: 'Sell or move a machine', keywords: 'fleet dealer transport', route: { name: 'equipment', tab: 'fleet', machineId: null } },
+  {
+    label: 'Hire staff',
+    keywords: 'candidates crew operator foreman hand',
+    route: { name: 'staff', tab: 'candidates', employeeId: null },
+  },
+  {
+    label: 'Buy equipment',
+    keywords: 'machine fleet excavator truck dealer',
+    route: { name: 'equipment', tab: 'market', machineId: null },
+  },
+  {
+    label: 'Sell or move a machine',
+    keywords: 'fleet dealer transport',
+    route: { name: 'equipment', tab: 'fleet', machineId: null },
+  },
   { label: 'Lease or buy a claim', keywords: 'ground land listing ask', route: { name: 'claims', tab: 'market' } },
   { label: 'Watch a claim', keywords: 'star listing market', route: { name: 'claims', tab: 'market' } },
-  { label: 'Start a prospecting program', keywords: 'test pit pan sample', route: { name: 'prospecting', tab: 'programs', programId: null } },
-  { label: 'Review records or hire a consultant', keywords: 'records geologist', route: { name: 'prospecting', tab: 'records', programId: null } },
-  { label: 'Write a mine plan', keywords: 'cut plan operations', route: { name: 'ops', claimId: null, tab: 'plan', lineId: null } },
-  { label: 'Mobilize a site', keywords: 'camp site operations', route: { name: 'ops', claimId: null, tab: 'site', lineId: null } },
+  {
+    label: 'Start a prospecting program',
+    keywords: 'test pit pan sample',
+    route: { name: 'prospecting', tab: 'programs', programId: null },
+  },
+  {
+    label: 'Review records or hire a consultant',
+    keywords: 'records geologist',
+    route: { name: 'prospecting', tab: 'records', programId: null },
+  },
+  {
+    label: 'Write a mine plan',
+    keywords: 'cut plan operations',
+    route: { name: 'ops', claimId: null, tab: 'plan', lineId: null },
+  },
+  {
+    label: 'Mobilize a site',
+    keywords: 'camp site operations',
+    route: { name: 'ops', claimId: null, tab: 'site', lineId: null },
+  },
   { label: 'Pay bills', keywords: 'payments arrears', route: { name: 'bank', tab: 'bills' } },
   { label: 'Prepay or pay off a loan', keywords: 'debt loan', route: { name: 'bank', tab: 'loans' } },
   { label: 'Read the ledger', keywords: 'transactions postings', route: { name: 'bank', tab: 'ledger' } },
   { label: 'Cash forecast (13 weeks)', keywords: 'runway forecast', route: { name: 'reports', report: '13-week' } },
   { label: 'Cost per ounce', keywords: 'cash cost aisc', route: { name: 'reports', report: 'cost-per-oz' } },
-  { label: 'Set your own role', keywords: 'owner foreman operator office salary draw inject', route: { name: 'company', tab: 'owner' } },
+  {
+    label: 'Set your own role',
+    keywords: 'owner foreman operator office salary draw inject',
+    route: { name: 'company', tab: 'owner' },
+  },
   { label: 'Edit stop rules', keywords: 'run settings stops', route: { name: 'settings' } },
   { label: 'Save or load a game', keywords: 'slot export import', route: { name: 'saves' } },
   { label: 'Start a new game', keywords: 'wizard setup', route: { name: 'newGame' } },
@@ -150,7 +182,10 @@ const KIND_RANK: Readonly<Record<PaletteKind, number>> = { screen: 0, verb: 1, e
  * first, then screens before verbs before entities, then label. Duplicate keys keep their first item.
  */
 export function searchPalette(query: string, items: readonly PaletteItem[], limit = 30): PaletteItem[] {
-  const words = query.toLowerCase().split(/\s+/).filter((w) => w !== '');
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w !== '');
   const byId = idItem(query);
   if (words.length === 0) return items.filter((i) => i.kind === 'screen').slice(0, limit);
   const scored = items

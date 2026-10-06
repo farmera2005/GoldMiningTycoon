@@ -49,8 +49,8 @@ export function PlaceholderScreen({ route }: { route: KnownRoute }) {
       <EmptyState title="This screen is being built" id="placeholder">
         <p>
           {screen.title}
-          {current === null ? '' : ` · ${screen.tabs.find((t) => t.slug === current)?.label ?? current}`} arrives
-          with its system in this phase.
+          {current === null ? '' : ` · ${screen.tabs.find((t) => t.slug === current)?.label ?? current}`} arrives with
+          its system in this phase.
         </p>
       </EmptyState>
       {subjects.length === 0 ? null : (

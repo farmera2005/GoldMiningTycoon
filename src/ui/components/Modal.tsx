@@ -52,8 +52,7 @@ export function Modal({
   const openerRef = useRef<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    openerRef.current =
-      returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    openerRef.current = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const root = dialogRef.current;
     if (root === null) return;
     const target = initialFocus?.current ?? focusableIn(root)[0] ?? root;

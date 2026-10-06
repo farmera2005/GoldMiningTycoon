@@ -29,10 +29,7 @@ function PaletteDialog({ returnFocus }: { returnFocus: HTMLElement | null }) {
   const listId = useId();
   const optionId = (i: number): string => `${listId}-opt-${i}`;
 
-  const items = useMemo(
-    () => [...screenItems(), ...verbItems(), ...entityItems(paletteEntities(state))],
-    [state],
-  );
+  const items = useMemo(() => [...screenItems(), ...verbItems(), ...entityItems(paletteEntities(state))], [state]);
   const results = useMemo(() => searchPalette(query, items), [query, items]);
   const activeIndex = Math.min(active, Math.max(0, results.length - 1));
 
@@ -70,7 +67,14 @@ function PaletteDialog({ returnFocus }: { returnFocus: HTMLElement | null }) {
   };
 
   return (
-    <Modal title="Command palette" onClose={close} initialFocus={inputRef} returnFocus={returnFocus} width={560} id="palette">
+    <Modal
+      title="Command palette"
+      onClose={close}
+      initialFocus={inputRef}
+      returnFocus={returnFocus}
+      width={560}
+      id="palette"
+    >
       <div className="mb-2 flex items-center gap-2 rounded-control border border-border-control bg-surface-1 px-2">
         <SearchIcon />
         <input

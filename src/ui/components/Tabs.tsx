@@ -92,7 +92,12 @@ export function Tabs<T extends string>({ label, tabs, selected, onSelect, childr
   const panelId = `${base}-panel`;
   return (
     <div>
-      <div role="tablist" aria-label={label} className="mb-4 flex flex-wrap gap-1 border-b border-hairline" onKeyDown={onKeyDown}>
+      <div
+        role="tablist"
+        aria-label={label}
+        className="mb-4 flex flex-wrap gap-1 border-b border-hairline"
+        onKeyDown={onKeyDown}
+      >
         {tabs.map((t) => {
           const on = t.id === selected;
           return (
