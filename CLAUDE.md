@@ -15,7 +15,10 @@ Single-player browser business simulation: the player founds and runs a small **
 
 ## Current status
 
-- **Phase:** planning complete. The owner's rulings of 2026-10-05 are recorded in DESIGN §0 and applied throughout `DESIGN.md`, `BALANCE.md` and this file; no question is open. **Phase 0 starts on the owner's go-ahead, not before.** If a new expensive-to-reverse question arises, add it to DESIGN §0 and implement its stated default until the owner answers.
+- **Phase:** Phase 0 (Foundation) implemented on 2026-10-06 and awaiting the owner's review. **Do not start Phase 1 until the owner has reviewed P0 and said to go on.** If a new expensive-to-reverse question arises, add it to DESIGN §0 and implement its stated default until the owner answers.
+- **P0 headline numbers:** 1,119 unit and property tests, 20 e2e tests; advanceWeek 0.43 ms mean / 0.62 ms p95 per simulated week (stub pipeline); §3 world calibration passes every gating band on 500 worlds per template; §4 estimator calibration (1,000 claims per cell) passes every gated cell × evidence mix but one: arid recent-cat ground at sonic + bulk, coverage 0.886 ± 0.011 against 0.88 (AT-RISK). Report: `docs/balance/phase-0.md`.
+- **For the owner's review:** the §4 calibration-cell definition (D-4.47: gated cells are defined by player-visible information; hidden-attribute cells gate only from the pit grid on), which interprets the P0 exit gate below; the AT-RISK cell above; a possible calibration-protocol change (at most k claims per world per cell); and the open questions in DESIGN §0.
+- **Known gaps:** no gameplay economics (P1); the estimator is not yet in the weekly pipeline and is over its §2.13 time budget until the incremental path (P1); BALANCE T-01 (a)/(b) sit at their lines (P1 gates).
 - Update this block at the end of every phase (phase, date, sim headline numbers, known gaps).
 
 ## Working rules
@@ -31,7 +34,7 @@ Single-player browser business simulation: the player founds and runs a small **
 
 ## Commands
 
-> Phase 0 creates these. Until then the repo contains only planning documents.
+> All of these exist from Phase 0.
 
 | Command | Does |
 |---|---|
