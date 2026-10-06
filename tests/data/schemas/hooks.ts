@@ -38,7 +38,10 @@ export const hookDefSchema = z
     ops: uniqueList(z.enum(HOOK_OPS)),
     scopeDims: uniqueList(z.enum(HOOK_SCOPE_DIMS)),
     base: z.enum(['neutral', 'tuning']),
-    baseKey: z.string().regex(/^[a-z]+\.[A-Za-z0-9.]+$/).optional(),
+    baseKey: z
+      .string()
+      .regex(/^[a-z]+\.[A-Za-z0-9.]+$/)
+      .optional(),
     consumerPhase: z.number().int().min(1).max(6),
     mulBounds: bounds,
     addBounds: bounds,

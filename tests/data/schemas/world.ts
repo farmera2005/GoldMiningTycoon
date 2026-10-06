@@ -1,19 +1,7 @@
 // §3 world content: enumerations, the sample-method row §3's drawSample consumes, region templates (§3.2), the bedrock,
 // town and holder-name tables. Owned by the §3 package after P1 Wave 0.
 import { z } from 'zod';
-import {
-  keyed,
-  mixArray,
-  mixOf,
-  nonNeg,
-  partialMixOf,
-  pos,
-  posInt,
-  prob,
-  range,
-  sizeRecord,
-  someOf,
-} from './common';
+import { keyed, mixArray, mixOf, nonNeg, partialMixOf, pos, posInt, prob, range, sizeRecord, someOf } from './common';
 
 export const DEPOSIT_TYPES = ['creek', 'bench', 'deepMuck', 'dredgedGround', 'desertFan', 'gulch'] as const;
 export const BEDROCK_TYPES = [

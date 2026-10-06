@@ -249,9 +249,9 @@ describe('converse Diff-cell scan of every tuning table (§1 1.22, D-1.67, §2.1
     for (const r of keyRows) if (r.diff === 'yes') for (const k of r.keys) yesKeys.set(k, r.section);
     const missing = ROWS.filter((r) => !yesKeys.has(r.key)).map((r) => r.key);
     expect(missing).toEqual([]);
-    const wrongOwner = ROWS.filter(
-      (r) => r.owner !== null && yesKeys.get(r.key)?.split('.')[0] !== r.owner,
-    ).map((r) => `${r.key}: 1.11 owner §${r.owner}, yes row in §${yesKeys.get(r.key) ?? '—'}`);
+    const wrongOwner = ROWS.filter((r) => r.owner !== null && yesKeys.get(r.key)?.split('.')[0] !== r.owner).map(
+      (r) => `${r.key}: 1.11 owner §${r.owner}, yes row in §${yesKeys.get(r.key) ?? '—'}`,
+    );
     expect(wrongOwner).toEqual([]);
     const freeze = keyRows.find((r) => r.keys.includes('ops.freezeDamageProb'));
     expect(freeze?.diff).toBe('no');

@@ -1,6 +1,7 @@
 // zod validation of every data file under src/data (CLAUDE.md "Content and tuning": catalogs and tuning are
 // zod-validated and cross-reference-checked in tests; DESIGN §2.10, §2.14 "Data validation", D-2.7). Schemas are in
-// tests/data/schemas.ts; this file runs them, checks the cross-references and guards that no data file goes unchecked.
+// tests/data/schemas.ts (an index of per-area files under tests/data/schemas/); this file runs them, checks the
+// cross-references and guards that no data file goes unchecked.
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -98,7 +99,7 @@ describe('tuning tables (DESIGN §2.10; each namespace file)', () => {
     const missing = Object.entries(BASE)
       .filter(([k, v]) => typeof v === 'object' && !has(TUNING_KEY_SCHEMAS, k))
       .map(([k]) => k);
-    expect(missing, 'add a schema to tests/data/schemas.ts TUNING_KEY_SCHEMAS').toEqual([]);
+    expect(missing, 'add a schema to the namespace file under tests/data/schemas/tuning/').toEqual([]);
   });
 
   it('names only keys that exist (no stale schema)', () => {
@@ -187,6 +188,41 @@ describe('prospecting content (DESIGN §4.2, §4.4.4, §4.13)', () => {
     for (const [k, v] of Object.entries(s3)) expect(draw[k], k).toEqual(v);
   });
 
+  it('methods.ts: the P1 rows’ cost and rate fields equal their geology.method.<id>.<field> keys (D-4.68)', () => {
+    // s04 #11: the keys are the balance levers; until §4 reads them from tuning (as it reads churnHistoric), the row
+    // fields must carry the same numbers. `own<Field>` is the row's own.<field>, `contract<Field>` its contractor.<field>.
+    const P1_METHODS = ['pan', 'handPit', 'drywasher', 'excavatorPit'] as const;
+    const fieldOf = (s: string): string => s.charAt(0).toLowerCase() + s.slice(1);
+    let pinned = 0;
+    for (const id of P1_METHODS) {
+      const row = METHODS[id] as { own?: Record<string, unknown>; contractor?: Record<string, unknown> };
+      const prefix = `geology.method.${id}.`;
+      const keys = Object.keys(BASE).filter((k) => k.startsWith(prefix));
+      for (const key of keys) {
+        const field = key.slice(prefix.length);
+        const own = /^own([A-Z].*)$/.exec(field);
+        const contract = /^contract([A-Z].*)$/.exec(field);
+        const block = own ? row.own : contract ? row.contractor : undefined;
+        const name = fieldOf((own ?? contract)?.[1] ?? field);
+        expect(block, `${key}: no ${own ? 'own' : 'contractor'} block on ${id}`).toBeDefined();
+        expect(block?.[name], key).toEqual(BASE[key]);
+        pinned++;
+      }
+      // Every cost and rate field of the row's own delivery has its key (machine classes are content, not a lever).
+      for (const f of Object.keys(row.own ?? {})) {
+        if (f === 'machineClasses') continue;
+        const key = `${prefix}own${f.charAt(0).toUpperCase()}${f.slice(1)}`;
+        expect(has(BASE, key), key).toBe(true);
+      }
+    }
+    // P1 contractors deliver excavator pits only (D-4.66): their terms are keys too.
+    for (const f of Object.keys((METHODS['excavatorPit'] as { contractor: object }).contractor)) {
+      const key = `geology.method.excavatorPit.contract${f.charAt(0).toUpperCase()}${f.slice(1)}`;
+      expect(has(BASE, key), key).toBe(true);
+    }
+    expect(pinned).toBe(17); // pan 3, handPit 4, drywasher 4, excavatorPit 3 own + 3 contract
+  });
+
   it('smallCountTable.ts is valid and is the tuning value geology.estSmallCountTable', () => {
     expect(problems(smallCountTableSchema, smallCountTable)).toEqual([]);
     expect(BASE['geology.estSmallCountTable']).toEqual(smallCountTable);
@@ -221,10 +257,10 @@ describe('the other data files', () => {
     expect(problems(uiTextSchema, uiText)).toEqual([]);
   });
 
-  it('events/hooks.ts (DESIGN §2.10, §12 12.3)', () => {
+  it('events/hooks.ts (DESIGN §2.10, §12 12.3; tests/data/hooks.test.ts checks the rows against tuning)', () => {
     expect(problems(hookRegistrySchema, hookRegistry)).toEqual([]);
-    const dup = { key: 'ops.digMult', ownerSection: 7, neutral: 1, unit: '×' };
-    expect(problems(hookRegistrySchema, [dup, dup])).not.toEqual([]);
+    const row = hookRegistry[0];
+    expect(problems(hookRegistrySchema, [row, row])).not.toEqual([]);
   });
 });
 
@@ -252,6 +288,8 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'tuning/types.ts': 'types only',
   'tuning/ui.ts': 'uiConfigSchema',
   ...Object.fromEntries(Object.keys(tuningNamespaces).map((ns) => [`tuning/${ns}.ts`, 'TUNING_KEY_SCHEMAS'])),
+  // MERGE POINTS (P1 Wave 0): fleet-catalog's src/data/equipment/** (schemas/equipment.ts) and ui-foundation's
+  // src/data/text/{alerts,decisions,glossary,tutorial}.ts (its text schema file) join here when they merge.
 };
 
 function dataFiles(dir: string, root: string): string[] {
