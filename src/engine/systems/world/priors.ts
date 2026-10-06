@@ -205,21 +205,13 @@ export function oldTimerOdds(
   return out;
 }
 
-/** The claim's size-mix key from visible geometry (§3.9: proximal = top 30% of the creek's rows or an order-3 creek). */
+/** The claim's size-mix key and proximal flag, from visible geometry (§3.9: proximal = top 30% of the creek's rows or an order-3 creek). */
 export function visibleSizeSetting(world: WorldSlice, claim: Claim): { setting: SizeSetting; proximal: boolean } {
-  const gp = world.genParams;
-  const d = world.districts[claim.districtId] as District;
-  const tpl = templateOf(gp, d.templateId);
   const creek = world.creeks[claim.creekId];
   if (creek === undefined) throw new RangeError(`claim ${claim.id} has no creek`);
   const mid = claim.geometry.rowStart + claim.nAlong / 2;
-  const proximal = creek.order === 3 || mid >= (1 - gp.world.proximalTopFrac) * creek.rows;
-  if (claim.setting === 'bench') return { setting: 'bench', proximal };
-  if (tpl.valley.kind === 'wash') {
-    const fan = creek.order === 1 && claim.geometry.rowStart < tpl.valley.fanLowerFrac * creek.rows;
-    return { setting: fan ? 'fan' : 'gulch', proximal };
-  }
-  return { setting: proximal ? 'proximal' : 'midReach', proximal };
+  const proximal = creek.order === 3 || mid >= (1 - world.genParams.world.proximalTopFrac) * creek.rows;
+  return { setting: claim.sizeSetting, proximal };
 }
 
 function buildClaimPriors(world: WorldSlice, claim: Claim, priorStatus: PriorStatus): ClaimPriors {

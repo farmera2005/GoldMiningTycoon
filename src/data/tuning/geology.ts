@@ -15,12 +15,13 @@ export const geologyTuning = {
   'geology.world.headingStepSdDeg': 12, // (prose) heading += N(0, 12°) per step
   'geology.world.edgeMarginMi': 1, // (prose) polylines reflect 1 mi inside the map edge
   'geology.world.outletEdgeFrac': [0.25, 0.75], // (prose) where along its edge the outlet sits
-  'geology.world.nTrib': [3, 6],
+  // P0 calibration (§3.18 parcels 65–75 per district): DESIGN U{3..6} / U(1.5, 4) / 0.4 laid ≈ 62 parcels.
+  'geology.world.nTrib': [5, 8],
   'geology.world.tribPosFrac': [0.1, 0.9], // (prose)
   'geology.world.tribMinSpacingMi': 0.6, // (prose)
   'geology.world.tribAngleDeg': [35, 70], // (prose)
-  'geology.world.tribLengthMi': [1.5, 4],
-  'geology.world.branchP': 0.4,
+  'geology.world.tribLengthMi': [2.5, 5],
+  'geology.world.branchP': 0.5,
   'geology.world.branchPosFrac': [0.3, 0.8], // (prose)
   'geology.world.branchLengthMi': [0.75, 2],
   'geology.world.valleyHalfWidthFt': [
@@ -33,7 +34,7 @@ export const geologyTuning = {
   'geology.world.noTrailCreekP': 0.15,
   'geology.world.withdrawnStretchFrac': [0.1, 0.25], // (prose) share of the main stem
   'geology.world.specialStretchFrac': [0.15, 0.3], // (prose) share of a tributary
-  'geology.world.benchSideP': 0.6,
+  'geology.world.benchSideP': 0.6, // fallback; each P1 template sets its own (§3.4: tuned to its bench share)
   'geology.world.benchMinHalfWidthFt': 400, // (prose) benches on order-1 creeks or valleys ≥ 400 ft half-width
   'geology.world.benchStretchFrac': [0.3, 0.7], // (prose)
   'geology.world.benchOffsetFt': [100, 600], // (prose) beyond the valley half-width
@@ -357,8 +358,6 @@ export const geologyTuning = {
   'geology.refEcon.goodMargin': 0.4,
   'geology.refEcon.excellentCdvUsd': 3000000,
   'geology.refEcon.excellentMargin': 0.6,
-  // Fallback for the yardstick's spot when market.openingSpotUsdPerFineOz is not in the resolved tuning.
-  'geology.refEcon.spotFallbackUsdPerFineOz': 4200,
 
   // ---- Site visits (§3.12)
   'geology.siteVisit.costUsd': { highway: 400, seasonalRoad: 800, winterTrail: 1800, flyIn: 3500 },

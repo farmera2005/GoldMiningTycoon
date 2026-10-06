@@ -333,7 +333,7 @@ export function genCreekNetwork(
   if (sU < tpl.overlayP.specialStatus) {
     if (tpl.valley.kind === 'wash') {
       // Arid: the tortoise-habitat stretch lies on the fan rows of the main stem (§3.3.1).
-      const fanRows = Math.max(1, Math.floor(tpl.valley.fanLowerFrac * (rows[0] as number)));
+      const fanRows = Math.max(1, Math.floor(tpl.valley.overlayFanMainFrac * (rows[0] as number)));
       const [from, to] = stretch(fanRows, sFrac, sStartU);
       overlays.push({ kind: 'specialStatus', label: tpl.overlayLabels.specialStatus, creekId: ids[0] as CreekId, rowFrom: from, rowTo: to });
     } else if (tribGeomIdx.length > 0) {

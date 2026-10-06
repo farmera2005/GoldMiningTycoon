@@ -33,7 +33,7 @@ export function layParcels(r: Rng, d: GenDistrict, net: GenNetwork, gp: GeoGenPa
   const tpl = d.tpl;
   const creeks = net.creeks;
   const main = creeks[0] as GenCreek;
-  const out: Omit<ParcelSpec, 'depositType'>[] = [];
+  const out: Omit<ParcelSpec, 'depositType' | 'fanZone'>[] = [];
   const nTarget = d.nTarget;
 
   // ---- the reserved family run: consecutive 20-ac valley parcels on the main stem, outside every overlay (§3.4, §3.6.1)
@@ -140,10 +140,42 @@ export function layParcels(r: Rng, d: GenDistrict, net: GenNetwork, gp: GeoGenPa
   return assignDepositTypes(r, out, d, net, gp);
 }
 
+/** Channel miles from the district outlet to a parcel's middle row (the trail distance before tortuosity). */
+function outletMiOf(p: Pick<ParcelSpec, 'creekIdx' | 'rowStart' | 'nAlong'>, creeks: readonly GenCreek[]): number {
+  const c = creeks[p.creekIdx] as GenCreek;
+  return c.mouthMiFromOutlet + (p.rowStart + p.nAlong / 2) * ROW_MI;
+}
+
+/**
+ * The fan zone of a desert district (§3.4 valleyType, revised; design delta): washes drain to a bajada that spreads
+ * from the outlet across the lower reach of every wash, so the fan parcels are the non-dredged valley parcels nearest
+ * the outlet by channel miles, until fan / (fan + gulch) reaches the template's desertFan / (desertFan + gulch).
+ * DESIGN's literal "lower 30% of main-stem rows" yields ≈ 7% fan against the template's 45% (the §3.7 harness drew
+ * fan at 45%). A dredged parcel inside the zone's reach is fan ground for its size mix. No draws.
+ */
+function fanZoneOf(
+  parcels: readonly Omit<ParcelSpec, 'depositType' | 'fanZone'>[],
+  dredged: readonly boolean[],
+  creeks: readonly GenCreek[],
+  fanShare: number,
+): boolean[] {
+  const zone = new Array<boolean>(parcels.length).fill(false);
+  const valley = parcels
+    .map((p, i) => ({ p, i, mi: outletMiOf(p, creeks) }))
+    .filter((x) => x.p.side === 0 && !x.p.familyRun);
+  const open = valley.filter((x) => dredged[x.i] !== true).sort((a, b) => a.mi - b.mi || a.i - b.i);
+  const nFan = Math.round(fanShare * open.length);
+  if (nFan <= 0) return zone;
+  for (const x of open.slice(0, nFan)) zone[x.i] = true;
+  const reachMi = (open[nFan - 1] as { mi: number }).mi;
+  for (const x of valley) if (dredged[x.i] === true && x.mi <= reachMi) zone[x.i] = true;
+  return zone;
+}
+
 /** valleyType (§3.4): dredged stretches until the dredged share of valley parcels reaches its target, then deep muck. */
 function assignDepositTypes(
   r: Rng,
-  parcels: readonly Omit<ParcelSpec, 'depositType'>[],
+  parcels: readonly Omit<ParcelSpec, 'depositType' | 'fanZone'>[],
   d: GenDistrict,
   net: GenNetwork,
   gp: GeoGenParams,
@@ -178,10 +210,15 @@ function assignDepositTypes(
       if (mid >= start && mid < start + lenRows) dredged[x.i] = true;
     }
   }
+  const wash = tpl.valley.kind === 'wash';
+  const fanW = tpl.depositMix.desertFan ?? 0;
+  const gulchW = tpl.depositMix.gulch ?? 0;
+  const fanZone = wash
+    ? fanZoneOf(parcels, dredged, creeks, fanW + gulchW > 0 ? fanW / (fanW + gulchW) : 0)
+    : new Array<boolean>(parcels.length).fill(false);
   // Deep muck w.p. depositMix.deepMuck renormalized over the valley types (§3.4).
   const valleyMix = (tpl.depositMix.creek ?? 0) + (tpl.depositMix.deepMuck ?? 0) + (tpl.depositMix.dredgedGround ?? 0);
   const pDeepMuck = valleyMix > 0 ? (tpl.depositMix.deepMuck ?? 0) / valleyMix : 0;
-  const mainRows = (creeks[0] as GenCreek).rows;
   return parcels.map((p, i) => {
     let depositType: DepositType;
     if (p.side !== 0) {
@@ -190,11 +227,10 @@ function assignDepositTypes(
       const u = r.next();
       if (p.familyRun) depositType = 'creek';
       else if (dredged[i] === true) depositType = 'dredgedGround';
-      else if (tpl.valley.kind === 'wash')
-        depositType = p.creekIdx === 0 && p.rowStart < tpl.valley.fanLowerFrac * mainRows ? 'desertFan' : 'gulch';
+      else if (wash) depositType = fanZone[i] === true ? 'desertFan' : 'gulch';
       else depositType = u < pDeepMuck ? 'deepMuck' : 'creek';
     }
-    return { ...p, depositType };
+    return { ...p, depositType, fanZone: fanZone[i] === true };
   });
 }
 
@@ -209,11 +245,10 @@ export function isProximal(p: ParcelSpec, c: GenCreek, gp: GeoGenParams): boolea
   return mid >= (1 - gp.world.proximalTopFrac) * c.rows;
 }
 
-/** The size-mix prior key of a parcel (§3.2, §3.9): bench; fan / gulch on washes; proximal / mid-reach on creeks. */
-export function sizeSettingOf(p: ParcelSpec, c: GenCreek, d: GenDistrict, gp: GeoGenParams, mainRows: number): SizeSetting {
+/** The size-mix prior key of a parcel (§3.2, §3.9): bench; fan / gulch on washes; proximal / mid-reach on creeks. Visible. */
+export function sizeSettingOf(p: ParcelSpec, c: GenCreek, d: GenDistrict, gp: GeoGenParams): SizeSetting {
   if (p.depositType === 'bench') return 'bench';
-  const v = d.tpl.valley;
-  if (v.kind === 'wash') return c.idx === 0 && p.rowStart < v.fanLowerFrac * mainRows ? 'fan' : 'gulch';
+  if (d.tpl.valley.kind === 'wash') return p.fanZone ? 'fan' : 'gulch';
   return isProximal(p, c, gp) ? 'proximal' : 'midReach';
 }
 

@@ -340,6 +340,7 @@ function claimRecord(
       widthFt: K.nAcross * BLOCK_FT,
     },
     setting: listingSettingOf(K.depositType),
+    sizeSetting: K.sizeSetting,
     titleKind: b.titleKind,
     regime: b.regime,
     status: b.status,
@@ -401,7 +402,6 @@ export function generateWorld(seed: string, opts: WorldGenOptions, tuning: Tunin
     const net = genCreekNetwork(rng(seed, 'world', 'creeks', D.id), D, gp, () => formatId('crk', ++n.crk));
     const profiles = net.creeks.map((c) => genCreekProfile(rng(seed, 'world', 'creek', c.id), c, D, net.creeks, gp));
     const parcels = layParcels(rng(seed, 'world', 'layout', D.id), D, net, gp);
-    const mainRows = (net.creeks[0] as GenCreek).rows;
     const gclaims: GenClaim[] = parcels.map((p) => {
       const c = net.creeks[p.creekIdx] as GenCreek;
       const id = formatId('clm', ++n.clm);
@@ -412,7 +412,7 @@ export function generateWorld(seed: string, opts: WorldGenOptions, tuning: Tunin
         ...p,
         id,
         blockIdBase,
-        sizeSetting: sizeSettingOf(p, c, D, gp, mainRows),
+        sizeSetting: sizeSettingOf(p, c, D, gp),
         proximal: isProximal(p, c, gp),
         northness: place.northness,
         centerMi: place.centerMi,

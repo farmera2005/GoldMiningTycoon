@@ -80,9 +80,12 @@ export type ValleyRule =
   | { readonly kind: 'creek' }
   | {
       readonly kind: 'wash';
-      /** Lower share of main-stem rows that is desertFan (§3.4: 0.30). */
-      readonly fanLowerFrac: number;
-      /** The special-status stretch covers this share of the fan rows (§3.3.1: 20–40%). */
+      /**
+       * The lower share of main-stem rows on which the special-status (tortoise ACEC) stretch is drawn: the main
+       * stem's part of the fan at the outlet (§3.3.1, 0.30). Fan deposit types follow the fan zone (§3.4, layout.ts).
+       */
+      readonly overlayFanMainFrac: number;
+      /** The special-status stretch covers this share of those rows (§3.3.1: 20–40%). */
       readonly specialFanFrac: readonly [number, number];
     };
 
@@ -647,6 +650,11 @@ export interface Claim {
   readonly blockIdBase: number;
   readonly geometry: ClaimGeometry;
   readonly setting: ListingSetting;
+  /**
+   * The size-mix prior key (§3.2, §3.9), derived from visible geometry only: proximal (top 30% of a creek's rows or
+   * an order-3 creek) / midReach on creeks, fan / gulch on desert washes (the fan spreads from the outlet), bench.
+   */
+  readonly sizeSetting: SizeSetting;
   readonly titleKind: TitleKind;
   readonly regime: LandRegime;
   readonly status: ClaimStatus;

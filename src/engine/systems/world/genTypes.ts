@@ -77,6 +77,11 @@ export interface ParcelSpec {
   readonly axisOffsetFt: number;
   readonly depositType: DepositType;
   readonly familyRun: boolean;
+  /**
+   * Arid washes: the valley parcel lies on the fan that spreads from the district outlet (§3.4 valleyType, as revised:
+   * the parcels nearest the outlet by channel miles until the template's fan share is met). False on creek templates.
+   */
+  readonly fanZone: boolean;
 }
 
 /** A laid parcel with its id, position and claim-level derived facts. */

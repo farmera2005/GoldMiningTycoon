@@ -158,14 +158,6 @@ function readMethod(t: TuningResolved, key: TuningKey, id: string): MethodParams
   return m;
 }
 
-/** §3.7: the yardstick values ground at the opening spot (`market.openingSpotUsdPerFineOz`, §10's key). */
-function openingSpot(t: TuningResolved): number {
-  const loose = t as unknown as Readonly<Record<string, TuningValue | undefined>>;
-  const v = loose['market.openingSpotUsdPerFineOz'];
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  return tNum(t, 'geology.refEcon.spotFallbackUsdPerFineOz');
-}
-
 function accessClasses(t: TuningResolved): GeoGenParams['access']['classes'] {
   const out = {} as Record<Access, { fuelAdder: number; partsLead: number; mobMult: number; refMi: number }>;
   for (const a of ACCESS_CLASSES) {
@@ -385,7 +377,7 @@ export function snapshotGenParams(t: TuningResolved, templateIds: readonly strin
       coarseMassLogSd: tNum(t, 'geology.prior.coarseMassLogSd'),
     },
     refEcon: {
-      spotUsdPerFineOz: openingSpot(t),
+      spotUsdPerFineOz: tNum(t, 'market.openingSpotUsdPerFineOz'),
       payable: tNum(t, 'geology.refEcon.payable'),
       capture: tNums4(t, 'geology.refEcon.capture'),
       clayRecoveryPenalty: tNum(t, 'geology.refEcon.clayRecoveryPenalty'),
