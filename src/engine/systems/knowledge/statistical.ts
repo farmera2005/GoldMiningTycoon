@@ -8,11 +8,18 @@ import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { SizeRecord } from '../world/types';
 import { blockMeans, summarizeSet, type AggregateInputs, type SetSummary } from './aggregate';
 import { coarseMeanMass, coarsePosterior, coarseTerms, type CoarsePosterior } from './coarse';
-import { coarseDepletionMult, depletionModel, streakMeans, type DepletionModel } from './depletion';
+import {
+  coarseDepletionMult,
+  depletionModel,
+  hypothesisPsProb,
+  selectionVarRatio,
+  streakMeans,
+  type DepletionModel,
+} from './depletion';
 import { geometryPosterior, type GeometryPosterior } from './geometry';
 import { mixtureQuantile, type Mixture } from './mixture';
 import { allHypotheses, blockCovariance, pruneHypotheses, refineSites, solvePosterior, type Hyps } from './posterior';
-import type { PriorModel } from './prior';
+import { withBlockFieldScale, type PriorModel } from './prior';
 import { buildRows, pocketHits, positionOf, type Position } from './rows';
 import {
   bedrockPosterior,
@@ -187,14 +194,14 @@ function fineness(model: PriorModel, evidence: EvidenceSet): { p50: number; sd: 
   return { p50: num / prec, sd: sqrt(1 / prec) };
 }
 
-export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): StatLayer {
-  const P = model.params;
-  const n = model.n;
-  const samples = prepareSamples(model, evidence.samples, evidence.geologistOnClaim, P);
-  const bs = blockStateArrays(model, evidence);
-  const bed = bedrockPosterior(samples, model);
-  const depl = depletionModel(model, evidence, samples, bs.minedFrac, bs.strippedFt);
-  const geo = geometryPosterior(model, samples, bed, bs.strippedFt);
+export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): StatLayer {
+  const P = model0.params;
+  const n = model0.n;
+  const samples = prepareSamples(model0, evidence.samples, evidence.geologistOnClaim, P);
+  const bs = blockStateArrays(model0, evidence);
+  const bed = bedrockPosterior(samples, model0);
+  const depl = depletionModel(model0, evidence, samples, bs.minedFrac, bs.strippedFt);
+  const geo = geometryPosterior(model0, samples, bed, bs.strippedFt);
   const handCutEligible = new Float64Array(n);
   for (let b = 0; b < n; b++) {
     const D50 = exp(geo.D.mean[b] as number);
@@ -203,7 +210,10 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
     const sd = sqrt(D50 * D50 * (geo.D.varDiag[b] as number) + T50b * T50b * (geo.T.varDiag[b] as number));
     handCutEligible[b] = normCdf((P.handCutMaxObFt - ob) / Math.max(sd, 1e-6));
   }
-  const { mu: muE, removal, penalty } = streakMeans(model, depl, handCutEligible);
+  const { mu: muE, removal, penalty } = streakMeans(model0, depl, handCutEligible);
+  // The old-timers' selection also narrows the block field on worked and passed-over blocks (depletion.ts).
+  const selRatio = selectionVarRatio(model0, depl, hypothesisPsProb(model0, penalty), handCutEligible);
+  const model = selRatio === null ? model0 : withBlockFieldScale(model0, selRatio);
   const Vm = model.VmBase + depl.vDepl;
 
   const positions: (Position | null)[] = samples.map((s) => positionOf(model, geo, depl, bed.sbHat, s));

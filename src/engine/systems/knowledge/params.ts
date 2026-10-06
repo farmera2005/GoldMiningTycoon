@@ -153,6 +153,12 @@ export interface EstimatorParams {
   readonly workedShare: Readonly<Record<DepletionKind, number>>;
   readonly removalLog: Readonly<Record<DepletionKind, number>>;
   readonly workedOffStreakLik: number;
+  /** §3.6 worked share of the paystreak blocks by kind: U(lo, hi) × N, each block worked with probability p. */
+  readonly workedCount: Readonly<
+    Record<'drift' | 'handCut' | 'dryWash' | 'recentCat', { readonly lo: number; readonly hi: number; readonly p: number }>
+  >;
+  readonly workedCountSlackBlocks: number;
+  readonly workedSetTemper: number;
   readonly geoNoiseMultBase: number;
   readonly geoNoiseMultPerSkill: number;
   readonly unloggedNoiseMult: number;
@@ -351,6 +357,14 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     workedShare: kindTable(t, 'geology.recordsWorkedShare'),
     removalLog: kindTable(t, 'geology.recordsRemovalLog'),
     workedOffStreakLik: num(t, 'geology.estWorkedOffStreakLik'),
+    workedCount: {
+      drift: { lo: gp.oldTimer.kinds.drift.top[0], hi: gp.oldTimer.kinds.drift.top[1], p: gp.oldTimer.kinds.drift.workP },
+      handCut: { lo: gp.oldTimer.kinds.handCut.top, hi: gp.oldTimer.kinds.handCut.top, p: 1 },
+      dryWash: { lo: gp.oldTimer.kinds.dryWash.top, hi: gp.oldTimer.kinds.dryWash.top, p: 1 },
+      recentCat: { lo: recent[0], hi: recent[1], p: 1 },
+    },
+    workedCountSlackBlocks: num(t, 'geology.estWorkedCountSlackBlocks'),
+    workedSetTemper: num(t, 'geology.estWorkedSetTemper'),
     geoNoiseMultBase: num(t, 'geology.geoNoiseMultBase'),
     geoNoiseMultPerSkill: num(t, 'geology.geoNoiseMultPerSkill'),
     unloggedNoiseMult: num(t, 'geology.unloggedNoiseMult'),

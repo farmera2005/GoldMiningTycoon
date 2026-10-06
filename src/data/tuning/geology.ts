@@ -379,8 +379,9 @@ export const geologyTuning = {
   // =================================================================================================================
 
   // ---- Estimator: prior and paystreak hypotheses (§4.5.1)
-  // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10.
-  'geology.estPriorMedianAdj': { northernFederal: 0, aridFederal: 0 },
+  // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration
+  // (1,000 claims per cell, seed base 1000): north 0 → +0.03, arid 0 → −0.02 centre the visible cells.
+  'geology.estPriorMedianAdj': { northernFederal: 0.03, aridFederal: -0.02 },
   'geology.estStreakResidLogSd': 0.35,
   'geology.estStreakNodes': 9,
   'geology.estStreakHwNodes': 3,
@@ -390,8 +391,19 @@ export const geologyTuning = {
   'geology.estStreakRangeAlongFt': 2000,
   'geology.estHypPruneWeight': 1e-4,
   // (P0 addition, design delta) Old-timers worked only paystreak blocks (§3.6), so a hypothesis that puts a known
-  // worked block off the paystreak keeps this likelihood factor per such block.
-  'geology.estWorkedOffStreakLik': 1e-3,
+  // worked block off the paystreak keeps this likelihood factor per such block. Soft, because §3's paystreak wanders
+  // and changes width row by row while a configuration is rigid (centre linear along the claim, one half-width): at
+  // 1e-3 the footprint forced wide configurations and overstated worked claims by 0.1–0.2 (ln) at the prior.
+  'geology.estWorkedOffStreakLik': 0.1,
+  // (P0 addition, design delta) Old-timers worked a share of the paystreak blocks (§3.6: dry-washers and hand-cutters
+  // the top share, recent operators U(15%, 50%), drift miners a share with a work probability), so a complete set of
+  // known worked blocks also tells the paystreak's size. A hypothesis's paystreak block count is uncertain by this sd
+  // (blocks) around its configuration (the hypothesis grid is coarse), which softens the count likelihood.
+  'geology.estWorkedCountSlackBlocks': 2,
+  // (P0 addition, design delta) Which blocks were worked also tells the paystreak's size: among N paystreak blocks the
+  // chance that the top W are exactly the known ones falls as 1/C(N, W) when the grade ranking is exchangeable. The
+  // ranking is partly predictable (centre blocks and rich stretches lead), so the term is tempered by this exponent.
+  'geology.estWorkedSetTemper': 1,
   // ---- Estimator: measurement model (§4.4)
   // Calibration floor: tune so P10–P90 coverage stays 0.72–0.88.
   'geology.estModelErrorLogSd': 0.1,
@@ -453,7 +465,9 @@ export const geologyTuning = {
   // ---- Records review (§4.10.2). Offsets: [worked, passed-over] log-grade offsets on paystreak blocks.
   'geology.recordsWorkedLogOffset': {
     drift: [-0.45, -0.38],
-    handCut: [-0.47, -0.25],
+    // §3's hand-cutters work only blocks under thin cover (maxObFt), so the worked blocks are chosen by cover more
+    // than by grade: measured on §3's generator the worked block's virgin offset is +0.25, not +0.58 (P0 calibration).
+    handCut: [-0.84, -0.25],
     dredge: [-1.97, -1.97],
     dryWash: [0.29, -0.52],
   },

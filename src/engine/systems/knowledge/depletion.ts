@@ -8,7 +8,7 @@
 // The kinds and worked blocks come from visible features (§3.9: piles, dredge tailings, recent disturbance and their
 // blocks), a records footprint, or a pit that hits old workings. Drift workings are hidden from the air, so on a
 // feature-free claim P(drift) is updated by every bedrock sample that did not hit workings.
-import { exp, log, normInv } from '../../core/dmath';
+import { exp, lgamma, log, normInv } from '../../core/dmath';
 import type { BlockId } from '../../core/ids';
 import { depletionRemoval } from '../world/oldTimers';
 import { cumulativeGoldShare } from '../world/vertical';
@@ -34,6 +34,12 @@ export interface DepletionModel {
   readonly state: Uint8Array;
   /** Blocks known worked: hypotheses that put them off the paystreak are penalized (estWorkedOffStreakLik). */
   readonly workedBlocks: readonly number[];
+  /**
+   * The kind whose worked blocks are all known (visible from the air or a records footprint), so their count tells
+   * the paystreak's size (estWorkedCountSlackBlocks); null when the set may be incomplete (pit hits) or for dredges
+   * (every paystreak block, handled by the passed-block penalty).
+   */
+  readonly countKind: 'drift' | 'handCut' | 'dryWash' | 'recentCat' | null;
   /** Claim-level variance from the unknown-kind mixture, added to V_m (§4.5.1 v_depl). */
   readonly vDepl: number;
   /** Profile changes on worked blocks (§3.6: drift doubles λg and cuts s_b by 0.6; dredge sets λg 6, s_b ≥ 0.5). */
@@ -187,11 +193,15 @@ export function depletionModel(
   const prior = normalized(model.priors.oldTimer.pKind);
   let kinds: KindProb[] = prior.kinds;
   let resolved = false;
+  let countKind: DepletionModel['countKind'] = null;
+  const completeSet = (k: DepletionKind | 'recentCat' | null): DepletionModel['countKind'] =>
+    k === null || k === 'dredge' ? null : k;
 
   if (footprint !== null) {
     const dk = depletionKindOf(footprint.kind);
     kinds = dk === null ? [] : [{ kind: dk, p: 1 }];
     resolved = true;
+    countKind = completeSet(dk);
     for (const id of footprint.blocks) {
       const b = model.indexOf[id];
       if (b !== undefined && dk !== null) markWorked(b, dk);
@@ -199,6 +209,7 @@ export function depletionModel(
   } else if (visible.some((v) => v) && kinds.length > 0 && prior.pNone === 0) {
     // Visible workings: the kind is the visible one and the worked blocks are the ones that show (§3.9).
     resolved = true;
+    countKind = completeSet(kinds.reduce((a, k) => (k.p > a.p ? k : a)).kind);
     for (let b = 0; b < n; b++) {
       if (!visible[b]) continue;
       const recent = kinds.some((k) => k.kind === 'recentCat');
@@ -260,7 +271,38 @@ export function depletionModel(
     }
     vDepl = Math.max(0, m2 - m1 * m1);
   }
-  return { kinds, state, workedBlocks: worked.sort((a, b) => a - b), vDepl, lambdaMult, sbMult, sbFloor, workedKind };
+  return {
+    kinds,
+    state,
+    workedBlocks: worked.sort((a, b) => a - b),
+    countKind,
+    vDepl,
+    lambdaMult,
+    sbMult,
+    sbFloor,
+    workedKind,
+  };
+}
+
+/** P(f_b ≥ 0.4) under the configuration prior times the worked-block likelihood terms (penalty, per configuration). */
+export function hypothesisPsProb(model: PriorModel, penalty: Float64Array): Float64Array {
+  const n = model.n;
+  const S = model.S;
+  let mx = -Infinity;
+  for (let s = 0; s < S; s++) mx = Math.max(mx, penalty[s] as number);
+  const w = new Float64Array(S);
+  let tot = 0;
+  for (let s = 0; s < S; s++) {
+    w[s] = (model.streakPrior[s] as number) * exp((penalty[s] as number) - mx);
+    tot += w[s] as number;
+  }
+  const out = new Float64Array(n);
+  if (!(tot > 0)) return out;
+  for (let s = 0; s < S; s++) {
+    const ws = (w[s] as number) / tot;
+    for (let b = 0; b < n; b++) if ((model.streakF[s * n + b] as number) >= model.params.streakMinF) out[b] = (out[b] as number) + ws;
+  }
+  return out;
 }
 
 /** Prior P(f_b ≥ 0.4) over the paystreak configurations. */
@@ -326,11 +368,17 @@ export function streakMeans(
     let pen = 0;
     for (const b of depl.workedBlocks) {
       const wk = depl.workedKind[b];
+      // Dredged blocks carry no such term (design delta, P0): a dredge took every block with any paystreak, so its
+      // footprint is fixed by the unworked blocks (below). §3's paystreak wanders and changes width row by row, so a
+      // dredged block of small f often falls off a rigid configuration; requiring every dredged block on the
+      // configuration's streak favours wide paystreaks and overstated the gold left on dredged ground by ~0.2 (ln).
+      if (wk === 'dredge') continue;
       const k = kp.find((x) => x.kind === wk);
       const minF = k?.minF ?? model.params.streakMinF;
       const f = model.streakF[s * n + b] as number;
-      if (!(wk === 'dredge' ? f > minF : f >= minF)) pen += lnPen;
+      if (!(f >= minF)) pen += lnPen;
     }
+    pen += workedCountLogLik(model, depl, s, handCutEligible);
     // A dredge worked every block of its stretch with any paystreak (q = 1, §3.6): an unworked block that a
     // hypothesis puts on the streak would have been dredged too.
     const dredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
@@ -342,4 +390,100 @@ export function streakMeans(
     penalty[s] = pen;
   }
   return { mu, removal, penalty };
+}
+
+/**
+ * Log likelihood of the known worked-block count W under paystreak configuration s (design delta to §4.10.2, P0):
+ * §3.6 works round(U(lo, hi) × N) of the N paystreak blocks (hand-cutters only those under thin cover; drift miners
+ * each with probability p), so W ≈ p·U·N' with N' the configuration's count give or take estWorkedCountSlackBlocks.
+ * Without it the worked-block penalty alone favours wide paystreaks (they cover the worked blocks most easily) and the
+ * prior overstates the gold on worked ground.
+ */
+export function workedCountLogLik(model: PriorModel, depl: DepletionModel, s: number, handCutEligible: Float64Array): number {
+  const kind = depl.countKind;
+  if (kind === null) return 0;
+  const n = model.n;
+  const P = model.params;
+  const wc = P.workedCount[kind];
+  let N = 0;
+  let nEl = 0;
+  let elVar = 0;
+  for (let b = 0; b < n; b++) {
+    if ((model.streakF[s * n + b] as number) < P.streakMinF) continue;
+    N++;
+    const el = handCutEligible[b] as number;
+    nEl += el;
+    elVar += el * (1 - el);
+  }
+  const mid = (wc.lo + wc.hi) / 2;
+  const varU = ((wc.hi - wc.lo) * (wc.hi - wc.lo)) / 12;
+  const slack2 = P.workedCountSlackBlocks * P.workedCountSlackBlocks;
+  let mu = wc.p * mid * N;
+  let v = 1 / 12 + wc.p * (1 - wc.p) * mid * N + wc.p * wc.p * (varU * N * N + mid * mid * slack2);
+  if (kind === 'handCut') {
+    // Hand-cutters took the top share but only where the cover was thin (§3.6): W = min(round(top·N), eligible).
+    mu = Math.min(mu, nEl);
+    v += elVar;
+  }
+  const W = depl.workedBlocks.length;
+  // Which W of the N: 1/C(N, W) under an exchangeable grade ranking, tempered (estWorkedSetTemper).
+  const pool = kind === 'handCut' ? Math.max(nEl, W) : N;
+  const lnChoose = pool > W ? lgamma(pool + 1) - lgamma(W + 1) - lgamma(pool - W + 1) : 0;
+  return -0.5 * ((W - mu) * (W - mu)) / v - 0.5 * log(v) - P.workedSetTemper * lnChoose;
+}
+
+/** Var[Z | Z > Φ⁻¹(1 − q)] for Z ~ N(0, 1): the spread left among the richest share q (upper truncation). */
+export function upperTruncVar(q: number): number {
+  if (q >= 1) return 1;
+  const c = normInv(1 - q);
+  const lam = phi(c) / q;
+  return Math.max(0, 1 + c * lam - lam * lam);
+}
+
+/** Var[Z | Z < Φ⁻¹(1 − q)]: the spread left among the passed-over 1 − q (lower truncation). */
+export function lowerTruncVar(q: number): number {
+  if (q >= 1) return 1;
+  const c = normInv(1 - q);
+  const lam = phi(c) / (1 - q);
+  return Math.max(0, 1 - c * lam - lam * lam);
+}
+
+/**
+ * Per-block ratio of the block-field variance left after the old-timers' selection (design delta to §4.10.2, P0):
+ * a worked block is one of the richest q of the paystreak and a passed-over paystreak block one of the rest, so the
+ * block-field term z_b is truncated, not just shifted by the §4.10.2 offsets. Keeping the full σ_block² there
+ * inflates the gold on worked ground by e^{(1 − ratio)σ²/2} per block. Passed blocks apply it with their probability
+ * of being on the paystreak (pPS, under the hypothesis prior with the worked-block terms).
+ */
+export function selectionVarRatio(
+  model: PriorModel,
+  depl: DepletionModel,
+  pPS: Float64Array,
+  handCutEligible: Float64Array,
+): Float64Array | null {
+  const n = model.n;
+  const out = new Float64Array(n).fill(1);
+  let any = false;
+  const kp = depl.kinds.map((k) => ({ ...kindParams(k.kind, model), kind: k.kind, p: k.p }));
+  for (let b = 0; b < n; b++) {
+    const st = depl.state[b];
+    if (st === DEPL_WORKED) {
+      const k = kp.find((x) => x.kind === depl.workedKind[b]);
+      if (k === undefined || k.kind === 'recentCat' || k.q >= 1) continue;
+      out[b] = upperTruncVar(k.q);
+      any = true;
+    } else if (st === DEPL_PASSED) {
+      let loss = 0;
+      for (const k of kp) {
+        if (k.q >= 1) continue;
+        const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
+        loss += k.p * el * (pPS[b] as number) * (1 - lowerTruncVar(k.q));
+      }
+      if (loss > 0) {
+        out[b] = 1 - loss;
+        any = true;
+      }
+    }
+  }
+  return any ? out : null;
 }

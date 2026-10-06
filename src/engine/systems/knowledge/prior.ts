@@ -212,6 +212,29 @@ function hypothesisNodes(nodes: number): number[] {
   return out;
 }
 
+/**
+ * The model with the block-field term of Σ_e rescaled per block: Σ_e' = Σ_e + (d_a d_b − 1) σ_block² ρ_ab, d_b =
+ * √ratio_b (D Σ_block D stays positive semi-definite). Used for the old-timers' selection (depletion.ts).
+ */
+export function withBlockFieldScale(model: PriorModel, ratio: Float64Array): PriorModel {
+  const n = model.n;
+  const p = model.priors;
+  const sb2 = model.sigmaBlock * model.sigmaBlock;
+  const d = new Float64Array(n);
+  for (let b = 0; b < n; b++) d[b] = sqrt(Math.max(0, ratio[b] as number));
+  const Se = new Float64Array(model.Se);
+  for (let a = 0; a < n; a++) {
+    for (let b = 0; b < n; b++) {
+      const k = (d[a] as number) * (d[b] as number) - 1;
+      if (k === 0) continue;
+      const da = Math.abs((model.bi[a] as number) - (model.bi[b] as number)) * BLOCK_FT;
+      const dc = Math.abs((model.bj[a] as number) - (model.bj[b] as number)) * BLOCK_FT;
+      Se[a * n + b] = (Se[a * n + b] as number) + k * sb2 * exp(-da / p.rangeAlongFt - dc / p.rangeAcrossFt);
+    }
+  }
+  return { ...model, Se };
+}
+
 function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorModel {
   const tpl = params.templates[priors.templateId];
   if (tpl === undefined) throw new RangeError(`estimator: no template constants for ${priors.templateId}`);
