@@ -7,6 +7,7 @@ export {
   anchoredStatisticalEstimate,
   estimateAnchored,
   estimateFromEvidence,
+  estimatorMemoStats,
   statisticalEstimate,
   type EstimateContext,
   type StatisticalEstimate,

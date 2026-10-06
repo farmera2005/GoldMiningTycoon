@@ -4,24 +4,18 @@
 // case, quantized planning price, recovery). Identical keys return the identical object; a cold cache never changes a
 // result (§2.3 item 6).
 import { exp, sqrt } from '../../core/dmath';
-import { hashValue } from '../../core/hash';
+import { canonicalJson } from '../../core/hash';
 import { compareIds } from '../../core/ids';
 import { createMemo } from '../../core/memo';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { ClaimPriors } from '../world/types';
 import { confidence } from './confidence';
 import { economicLayer, planningPrice } from './economic';
-import { canonicalEvidence, evidenceHash, itemHash, priorsHash } from './evidence';
-import {
-  appendProduction,
-  fullSolveAnchor,
-  splitAtAnchor,
-  type AppendedSolve,
-  type EstimateAnchor,
-} from './incremental';
+import { canonicalEvidence, evidenceHash, hashList, itemHash, priorsHash } from './evidence';
+import { appendProduction, fullSolveAnchor, type AppendedSolve, type EstimateAnchor } from './incremental';
 import type { EstimatorParams } from './params';
 import { priorModel } from './prior';
-import { prepareProduction } from './production';
+import { prepareProduction, type PreparedProduction } from './production';
 import {
   anchorPosterior,
   anchorSolve,
@@ -39,6 +33,7 @@ import type {
   EvidenceSet,
   PlanningAssumptions,
   PlanningContext,
+  SampleRecord,
 } from './types';
 
 export interface EstimateContext extends PlanningContext {
@@ -51,6 +46,24 @@ const summaryMemo = createMemo<string, SolveSummary>('knowledge.solveSummary', 2
 const statMemo = createMemo<string, StatLayer>('knowledge.statLayer', 256);
 const estimateMemo = createMemo<string, EstimateResult>('knowledge.estimate', 512);
 
+/** Hit/miss counts of the estimator's memo layers (diagnostics: how many full solves, appends and reruns ran). */
+export function estimatorMemoStats(): Record<
+  'anchor' | 'appended' | 'summary' | 'state' | 'estimate',
+  { hits: number; misses: number }
+> {
+  const of = (m: { stats: { hits: number; misses: number } }): { hits: number; misses: number } => ({
+    hits: m.stats.hits,
+    misses: m.stats.misses,
+  });
+  return {
+    anchor: of(anchorMemo),
+    appended: of(appendMemo),
+    summary: of(summaryMemo),
+    state: of(statMemo),
+    estimate: of(estimateMemo),
+  };
+}
+
 export interface StatisticalEstimate {
   readonly key: string;
   readonly evidenceHash: string;
@@ -59,12 +72,6 @@ export interface StatisticalEstimate {
   readonly anchor: AnchorSolve;
 }
 
-function hashesById(items: readonly { readonly id: string }[]): string[] {
-  return items
-    .slice()
-    .sort((a, b) => compareIds(a.id, b.id))
-    .map((x) => itemHash(x));
-}
 
 /**
  * The statistical layer of the evidence anchored at `anchor` (§4.5.2): the anchor solve over the evidence up to the
@@ -80,28 +87,37 @@ export function anchoredStatisticalEstimate(
   if (evidence.claimId !== priors.claimId) {
     throw new RangeError(`estimator: evidence for ${evidence.claimId}, priors for ${priors.claimId}`);
   }
+  // Memo keys are plain concatenations of the evidence items' cached content hashes (the Map hashes the string
+  // natively): a weekly refresh that hits every layer costs a sort and a few joins (§2.13).
   const canon = canonicalEvidence(evidence);
-  const split = splitAtAnchor(canon.samples, anchor.turn);
-  const base = `${priors.claimId}|${params.key}|${priorsHash(priors)}`;
-  const aKey = `${base}|A${hashValue({
-    samples: hashesById(split.anchored),
-    records: canon.records.map((r) => itemHash(r)),
-    mined: anchor.minedBlockIds.slice().sort(compareIds),
-    stripped: anchor.strippedFt,
-  })}`;
+  const anchored: SampleRecord[] = [];
+  const appendedRecs: SampleRecord[] = [];
+  for (const s of canon.samples) {
+    if (s.source === 'production' && s.production !== undefined && s.production.cleanupTurn > anchor.turn) {
+      appendedRecs.push(s);
+    } else anchored.push(s);
+  }
+  const recordHashes = hashList(canon.records);
+  const aKey =
+    `${priors.claimId}|${params.key}|${priorsHash(priors)}|A${hashList(anchored)}#${recordHashes}` +
+    `#${anchor.minedBlockIds.slice().sort(compareIds).join(',')}#${canonicalJson(anchor.strippedFt)}`;
   const an = anchorMemo.getOrCompute(aKey, () =>
     anchorSolve(priorModel(priors, params), {
-      samples: split.anchored,
+      samples: anchored,
       records: canon.records,
       state: anchor,
     }),
   );
-  const appended = prepareProduction(an.model.indexOf, split.appended, params);
-  const pKey = appended.length === 0 ? aKey : `${aKey}|P${hashValue(appended.map((p) => itemHash(p.rec)))}`;
+  let prepared: PreparedProduction[] | null = null;
+  const appended = (): PreparedProduction[] =>
+    (prepared ??= prepareProduction(an.model.indexOf, appendedRecs, params));
+  const pKey = appendedRecs.length === 0 ? aKey : `${aKey}|P${hashList(appendedRecs)}`;
   const ap: AppendedSolve =
-    appended.length === 0 ? anchorPosterior(an) : appendMemo.getOrCompute(pKey, () => appendProduction(an, appended));
+    appendedRecs.length === 0
+      ? anchorPosterior(an)
+      : appendMemo.getOrCompute(pKey, () => appendProduction(an, appended()));
   const sum = summaryMemo.getOrCompute(pKey, () => solveSummary(an, ap.sol, ap.CG));
-  const sKey = `${pKey}|S${hashValue({ blockState: canon.blockState, assays: canon.assays })}`;
+  const sKey = `${pKey}|S${canonicalJson({ blockState: canon.blockState, assays: canon.assays })}`;
   const stat = statMemo.getOrCompute(sKey, () =>
     stateLayer(
       an,
@@ -109,10 +125,17 @@ export function anchoredStatisticalEstimate(
       sum,
       continuousState(an.model, canon.blockState),
       canon.assays,
-      appended.length === 0 ? an.production : [...an.production, ...appended],
+      appendedRecs.length === 0 ? an.production : [...an.production, ...appended()],
     ),
   );
-  return { key: sKey, evidenceHash: evidenceHash(evidence), stat, anchor: an };
+  return {
+    key: sKey,
+    get evidenceHash(): string {
+      return evidenceHash(canon);
+    },
+    stat,
+    anchor: an,
+  };
 }
 
 /** The statistical layer of a full solve (no incremental path), memoized by content (no prices or planning in it). */
@@ -145,10 +168,10 @@ export function estimateAnchored(
   planning: PlanningAssumptions,
   ctx: EstimateContext,
 ): EstimateResult {
-  const { key, evidenceHash: eh, stat } = anchoredStatisticalEstimate(priors, evidence, anchor, ctx.params);
+  const st = anchoredStatisticalEstimate(priors, evidence, anchor, ctx.params);
   const price = planningPrice(planning, ctx, ctx.params.repriceStep);
-  const ekey = `${key}|${hashValue(planning)}|${price}|${hashValue(ctx.recoveryBySize)}`;
-  return estimateMemo.getOrCompute(ekey, () => buildEstimate(stat, eh, planning, ctx));
+  const ekey = `${st.key}|${itemHash(planning)}|${price}|${itemHash(ctx.recoveryBySize)}`;
+  return estimateMemo.getOrCompute(ekey, () => buildEstimate(st.stat, st.evidenceHash, planning, ctx));
 }
 
 function buildEstimate(
