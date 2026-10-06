@@ -102,6 +102,8 @@ export interface EstimatorParams {
   readonly driftBedrockShareMult: number;
   readonly dredgeDecayFt: number;
   readonly dredgeMinBedrockShare: number;
+  /** §3.6: a dredge's worked blocks keep this share of their boulders (the stacker dropped the oversize). */
+  readonly dredgeBoulderMult: number;
   readonly sluiceCapture: SizeRecord;
   readonly recentWorkedShare: number;
   /** §3.6 deplete(): expected extraction per kind, size weights, class cap, drift's bottom interval. */
@@ -311,6 +313,7 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     driftBedrockShareMult: gp.oldTimer.driftBottom.bedrockShareMult,
     dredgeDecayFt: gp.oldTimer.dredgeEffects.decayFt,
     dredgeMinBedrockShare: gp.oldTimer.dredgeEffects.minBedrockShare,
+    dredgeBoulderMult: gp.oldTimer.dredgeEffects.boulderMult,
     sluiceCapture: {
       coarse: gp.refEcon.capture[0],
       medium: gp.refEcon.capture[1],

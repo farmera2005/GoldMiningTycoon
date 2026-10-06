@@ -19,8 +19,32 @@ export function canonicalEvidence(e: EvidenceSet): EvidenceSet {
   };
 }
 
+// Sample records and record findings are immutable once made (state objects; Immer replaces a changed one), so each
+// one's content hash is computed once and the evidence hash combines them: an unchanged sample is not re-serialized
+// when the evidence set grows or is rebuilt (the economic-layer rerun and the weekly refresh hash the same records
+// again, §2.13). The key is the object and the value depends only on its content, so a cold cache never changes a
+// hash. The small parts (block states, assays) are hashed as they are.
+const itemHashMemo = createWeakMemo<object, { readonly hash: string }>('knowledge.evidenceItemHash');
+
+function itemHash(x: object): string {
+  return itemHashMemo.getOrCompute(x, () => ({ hash: hashValue(x) })).hash;
+}
+
+/**
+ * The content hash of an evidence set (the estimate memo's key): claim, samples and records in ascending id order (by
+ * their own content hashes), the known block states, assays by value and the logging flag. Acquisition order never
+ * changes it.
+ */
 export function evidenceHash(e: EvidenceSet): string {
-  return hashValue(canonicalEvidence(e));
+  const c = canonicalEvidence(e);
+  return hashValue({
+    claimId: c.claimId,
+    samples: c.samples.map(itemHash),
+    records: c.records.map(itemHash),
+    blockState: c.blockState,
+    assays: c.assays,
+    geologistOnClaim: c.geologistOnClaim,
+  });
 }
 
 const priorsHashMemo = createWeakMemo<ClaimPriors, { readonly hash: string }>('knowledge.priorsHash');

@@ -63,6 +63,10 @@ export interface StageScore {
   /** PIT z of each scored block: Φ⁻¹(F(ln G_true)) under the block's posterior mixture. */
   readonly blockZ: readonly number[];
   readonly confidence: string;
+  /** The first failing gate of the inferred class (null when the claim is at least inferred), for diagnostics. */
+  readonly inferredGate: string | null;
+  /** Bedrock-logged samples behind the estimate (the inferred class's support gate, §4.8). */
+  readonly bedrockSamples: number;
   readonly ms: number;
 }
 
@@ -271,6 +275,8 @@ function score(
     p90: est.claim.containedOzP90,
     blockZ: z,
     confidence: est.claim.confidence,
+    inferredGate: est.claim.gates.failing.find((f) => f.cls === 'inferred')?.gate ?? null,
+    bedrockSamples: est.claim.gates.bedrockSamples,
     ms,
     bestBlock: best,
   };

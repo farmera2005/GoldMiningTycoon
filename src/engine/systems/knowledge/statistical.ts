@@ -181,7 +181,10 @@ function groundAndStats(
   const cement = new Float64Array(n).fill(cementMed);
   for (let b = 0; b < n; b++) {
     clay[b] = (clayN[b] as number) > 0 ? (clayS[b] as number) / (clayN[b] as number) : tpl.clayMed;
-    boulders[b] = (bouN[b] as number) > 0 ? (bouS[b] as number) / (bouN[b] as number) : tpl.boulderMed;
+    // A visible dredge worked these blocks and left their boulders behind its stacker at boulderMult (§3.6).
+    const dredged = model.dredgedVisible && model.priors.blocks[b]?.visibleWorkings === true;
+    const boulderPrior = tpl.boulderMed * (dredged ? model.params.dredgeBoulderMult : 1);
+    boulders[b] = (bouN[b] as number) > 0 ? (bouS[b] as number) / (bouN[b] as number) : boulderPrior;
     frozen[b] = (frzN[b] as number) > 0 ? (frzS[b] as number) / (frzN[b] as number) : frozenClaim;
   }
   return { ground: { clay, boulders, frozen, cement }, stats: { count, volumeBcy, bedrock, maxPaySampleBcy, bulk } };

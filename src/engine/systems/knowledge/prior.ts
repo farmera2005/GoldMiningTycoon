@@ -263,7 +263,7 @@ export interface PriorModel {
   readonly fbar: Float64Array;
   readonly fsd: Float64Array;
   readonly coarse: { readonly R0: number; readonly alpha0: number; readonly beta0: number; readonly sdLnR: number };
-  /** Overburden median before stripping (0 on visibly dredged ground), ft. */
+  /** Overburden median before stripping (0 on the blocks a visible dredge worked), ft. */
   readonly ob50: Float64Array;
   readonly sizeMixPrior: SizeRecord;
   readonly dredgedVisible: boolean;
@@ -500,8 +500,10 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
   const ob50 = new Float64Array(n);
   for (let b = 0; b < n; b++) {
     const a = (xFt[b] as number) / params.obAxisScaleFt;
-    // Muck is thickest on the valley axis (§3.5.3); a dredge left no overburden (§3.6), which its tailings show.
-    ob50[b] = dredgedVisible ? 0 : priors.geometry.obMedFt * (1 + params.obAxisBoost * exp(-a * a));
+    // Muck is thickest on the valley axis (§3.5.3). A dredge stripped the cover of the blocks it worked and of no
+    // others (§3.6): its tailings mark exactly those blocks, and the valley fill beside them keeps its overburden.
+    const dredged = dredgedVisible && priors.blocks[b]?.visibleWorkings === true;
+    ob50[b] = dredged ? 0 : priors.geometry.obMedFt * (1 + params.obAxisBoost * exp(-a * a));
   }
 
   return {

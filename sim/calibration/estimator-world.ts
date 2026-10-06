@@ -2,7 +2,9 @@
 // eligible claim's evidence stages for the populations whose cells are still open. Used in-process and by the worker.
 import { readFileSync } from 'node:fs';
 import { baseTuning, type TuningResolved } from '../../src/data/tuning';
-import { generateWorld, type Claim } from '../../src/engine/systems/world';
+import { compareIds, type ClaimId } from '../../src/engine/core/ids';
+import { rng } from '../../src/engine/core/rng';
+import { generateWorld, type Claim, type WorldSlice } from '../../src/engine/systems/world';
 import { heldCells, inListingPool, listedCell, type Population } from './estimator-cells';
 import { harnessContext, runClaim, type ClaimRun, type Stage } from './estimator-stages';
 
@@ -46,11 +48,26 @@ export function tuningFrom(file: string | undefined): TuningResolved {
   return tuning;
 }
 
+/** The calibration world for a seed: one northern and one arid district from §3's engine generator. */
+export function calibrationWorld(seed: string, tuning: TuningResolved = baseTuning): WorldSlice {
+  return generateWorld(seed, { districtCount: 2, templateIds: ['northernFederal', 'aridFederal'] }, tuning);
+}
+
+/**
+ * The world's claims in a seeded pseudo-random order (ties by id). A sample that takes a few claims per world in this
+ * order is a random draw from the world's claims; id order is not (ids run along each creek from its first row).
+ */
+export function calibrationOrder(world: WorldSlice, seed: string): ClaimId[] {
+  const key: Record<string, number> = {};
+  for (const id of world.claimIds) key[id] = rng(seed, 'sample', 'calibrationOrder', id).next();
+  return world.claimIds.slice().sort((a, b) => (key[a] as number) - (key[b] as number) || compareIds(a, b));
+}
+
 export function runWorld(task: WorldTask): WorldResult {
   const seed = String(task.seedBase + task.worldIndex);
   const tuning = tuningFrom(task.tuningFile);
   const t0 = performance.now();
-  const world = generateWorld(seed, { districtCount: 2, templateIds: ['northernFederal', 'aridFederal'] }, tuning);
+  const world = calibrationWorld(seed, tuning);
   const genMs = performance.now() - t0;
   const h = harnessContext(world, tuning);
   const open = new Set(task.openCells);

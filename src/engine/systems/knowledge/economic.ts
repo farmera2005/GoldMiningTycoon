@@ -3,12 +3,31 @@
 // the planning cost (§5 values claims on them). Reruns on a planning change or a 2% move of the planning price; the
 // statistical layer never reruns for price (D-4.41).
 import { exp, log, pow, sqrt } from '../../core/dmath';
+import { createWeakMemo } from '../../core/memo';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { SizeRecord } from '../world/types';
 import { summarizeSet, type SetSummary } from './aggregate';
 import type { EstimatorParams } from './params';
 import type { StatLayer } from './statistical';
 import type { PlanningAssumptions, PlanningContext } from './types';
+
+// The minable set's ounces depend only on the statistical layer, the set and the mining-loss scale. A planning-price
+// move that leaves the set unchanged (the usual weekly case) reuses them instead of re-running the O(H·m²)
+// aggregation and its mixture quantiles (§2.13: ≤ 0.5 ms per economic-layer rerun). Keyed by the statistical layer
+// object (immutable, itself memoized); a cold cache recomputes the identical summary.
+const minableSummaryMemo = createWeakMemo<StatLayer, { readonly bySet: Record<string, SetSummary> }>(
+  'knowledge.minableSummary',
+);
+
+function minableSummary(stat: StatLayer, minable: Uint8Array, scale: number): SetSummary {
+  const cache = minableSummaryMemo.getOrCompute(stat, () => ({ bySet: {} })).bySet;
+  const key = `${minable.join('')}|${scale}`;
+  const hit = cache[key];
+  if (hit !== undefined) return hit;
+  const sum = summarizeSet(stat.agg, stat.A, minable, scale);
+  cache[key] = sum;
+  return sum;
+}
 
 export interface BlockEcon {
   readonly costPerPayBcy: Float64Array;
@@ -119,7 +138,7 @@ export function economicLayer(stat: StatLayer, planning: PlanningAssumptions, ct
   }
   const loss = planning.miningLossFrac;
   const any = minable.some((x) => x === 1);
-  const sum = summarizeSet(stat.agg, stat.A, minable, 1 - loss);
+  const sum = minableSummary(stat, minable, 1 - loss);
   let payA = 0;
   let obA = 0;
   let costW = 0;
