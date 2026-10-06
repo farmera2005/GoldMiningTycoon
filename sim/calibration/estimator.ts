@@ -8,7 +8,17 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { addRun, cellResult, GATES, newCell, TEETH, type CellAcc, type CellResult, type Population } from './estimator-cells';
+import {
+  addRun,
+  cellResult,
+  GATES,
+  HIDDEN_GATED_MIXES,
+  newCell,
+  TEETH,
+  type CellAcc,
+  type CellResult,
+  type Population,
+} from './estimator-cells';
 import { STAGES, type Stage } from './estimator-stages';
 import { runWorld, type WorldResult, type WorldTask } from './estimator-world';
 
@@ -25,26 +35,35 @@ function defaultSeedBase(): number {
   return seeds['p0'] ?? 1000;
 }
 
+/** Visible cells gate at every mix; hidden-attribute cells (`.ot.`, deepMuck) gate from the pit grid on. */
 export const HELD_CELLS = [
   'north.valleyBottom',
   'north.bench',
   'north.dredgedGround',
+  'north.noVisibleWorkings',
+  'north.vis.handCut',
+  'north.vis.recentCat',
+  'north.vis.dredge',
+  'north.160ac',
   'north.deepMuck',
   'north.ot.none',
   'north.ot.drift',
   'north.ot.handCut',
   'north.ot.recentCat',
   'north.ot.dredge',
-  'north.160ac',
   'arid.fan',
   'arid.gulch',
   'arid.bench',
   'arid.dredgedGround',
+  'arid.noVisibleWorkings',
+  'arid.vis.dryWash',
+  'arid.vis.recentCat',
+  'arid.vis.dredge',
+  'arid.160ac',
   'arid.ot.none',
   'arid.ot.dryWash',
   'arid.ot.recentCat',
   'arid.ot.dredge',
-  'arid.160ac',
 ] as const;
 export const LISTED_CELLS = ['north.listed', 'arid.listed'] as const;
 
@@ -57,8 +76,9 @@ function report(r: CellResult): string[] {
     '  mix          n   cover  (95% CI)        <P10   >P90   bias    z mean  z sd   ms/est  gate',
   ];
   for (const s of r.stages) {
+    const verdict = s.pass ? 'PASS' : `FAIL (${s.failing.join(', ')})`;
     lines.push(
-      `  ${s.stage.padEnd(10)} ${String(s.n).padStart(4)}  ${f3(s.coverage)}  (${f3(s.coverLo)}–${f3(s.coverHi)})  ${f3(s.belowP10)}  ${f3(s.aboveP90)}  ${s.medianBias >= 0 ? '+' : ''}${f3(s.medianBias)}  ${f2(s.zMean).padStart(5)}  ${f2(s.zSd)}  ${s.msPerEstimate.toFixed(1).padStart(6)}  ${s.pass ? 'PASS' : `FAIL (${s.failing.join(', ')})`}`,
+      `  ${s.stage.padEnd(10)} ${String(s.n).padStart(4)}  ${f3(s.coverage)}  (${f3(s.coverLo)}–${f3(s.coverHi)})  ${f3(s.belowP10)}  ${f3(s.aboveP90)}  ${s.medianBias >= 0 ? '+' : ''}${f3(s.medianBias)}  ${f2(s.zMean).padStart(5)}  ${f2(s.zSd)}  ${s.msPerEstimate.toFixed(1).padStart(6)}  ${s.gated ? verdict : `reported: ${verdict.toLowerCase()}`}`,
     );
   }
   if (r.teeth !== undefined) {
@@ -186,12 +206,17 @@ async function main(): Promise<void> {
   const out: string[] = [
     `Estimator calibration (DESIGN §4.22): ${claims} claims per cell${Object.keys(quota).length > 0 ? ` (quotas ${arg('quota')})` : ''}, seed base ${seedBase}, ${worldsUsed} worlds, ${workers} worker(s); ${secs.toFixed(0)} s (world generation ${(genMs / 1000).toFixed(0)} s of worker time)`,
     `Gates: coverage ${GATES.coverLo}–${GATES.coverHi}; |median ln(P50/truth)| ≤ ${GATES.biasAbs}; block z sd ${GATES.zsdLo}–${GATES.zsdHi}`,
+    `Visible cells gate at every mix; hidden-attribute cells (.ot.<kind>, deepMuck) are reported before and gate at ${HIDDEN_GATED_MIXES.join(', ')}.`,
   ];
   for (const r of results) out.push(...report(r));
   const failed = results.filter((r) => !r.pass);
   const short = results.filter((r) => r.claims < target(`${r.population}:${r.cell}`));
   if (short.length > 0) out.push(`\nShort of quota after ${worldsUsed} worlds: ${short.map((r) => `${r.cell} (${r.claims})`).join(', ')}`);
-  out.push(failed.length === 0 ? '\nAll cells PASS.' : `\n${failed.length} cell(s) FAIL: ${failed.map((r) => `${r.population}:${r.cell}`).join(', ')}`);
+  out.push(
+    failed.length === 0
+      ? '\nAll gated cell × mix results PASS.'
+      : `\n${failed.length} cell(s) FAIL a gated mix: ${failed.map((r) => `${r.population}:${r.cell} (${r.stages.filter((s) => s.gated && !s.pass).map((s) => s.stage).join(', ')})`).join('; ')}`,
+  );
   console.log(out.join('\n'));
   const json = arg('json');
   if (json !== undefined) writeFileSync(json, JSON.stringify({ claims, seedBase, worldsUsed, secs, results }, null, 2));

@@ -1,9 +1,20 @@
-// Calibration cells and gates for the §4 estimator (DESIGN §4.22 "Calibration", §4.19 P0 gate): template × setting,
-// old-timer kind, deep muck, 160-acre claims and the listing pool, each scored at every evidence mix. Gates per cell
-// and mix: P10–P90 holds truth in 0.72–0.88 of claims; median ln(P50/truth) within ±0.10; block-level z sd within
-// 0.85–1.15 (z = Φ⁻¹ of the truth's posterior CDF, which is N(0, 1) when calibrated, whatever the mixture's shape).
+// Calibration cells and gates for the §4 estimator (DESIGN §4.22 "Calibration", §4.19 P0 gate), each scored at every
+// evidence mix. Gates per cell and mix: P10–P90 holds truth in 0.72–0.88 of claims; median ln(P50/truth) within
+// ±0.10; block-level z sd within 0.85–1.15 (z = Φ⁻¹ of the truth's posterior CDF, which is N(0, 1) when calibrated,
+// whatever the mixture's shape).
+//
+// Which cell × mix gates (design delta for §4.22): a Bayesian estimator is calibrated over the population that shares
+// its information, so a cell defined by a hidden attribute cannot be calibrated at evidence that does not observe that
+// attribute (the prior is the mixture over it; each component's cell is biased in opposite directions by design).
+//   - Visible cells gate at every mix: template × listing setting (claim.setting), template × the old-timer evidence
+//     the prior reads (one cell per visibly identified kind, plus noVisibleWorkings), template × 160-acre claims, and
+//     the listing pool per template with its teeth test.
+//   - Hidden-attribute cells (true old-timer kind, deep muck by hidden deposit type) are reported at prior, records,
+//     pans and pit fences, and gate from the pit grid on (evidence that samples the pay across the claim and sees
+//     workings and depth).
 import { rng } from '../../src/engine/core/rng';
-import { listingPoolWeights, type Claim, type ClaimId, type WorldSlice } from '../../src/engine/systems/world';
+import type { ClaimId } from '../../src/engine/core/ids';
+import { claimPriors, listingPoolWeights, type Claim, type WorldSlice } from '../../src/engine/systems/world';
 import { STAGES, type ClaimRun, type Stage } from './estimator-stages';
 
 export const GATES = { coverLo: 0.72, coverHi: 0.88, biasAbs: 0.1, zsdLo: 0.85, zsdHi: 1.15 } as const;
@@ -16,6 +27,32 @@ export function templateShort(templateId: string): string {
   return templateId === 'northernFederal' ? 'north' : templateId === 'aridFederal' ? 'arid' : templateId;
 }
 
+/** Mixes that sample the pay across the claim and see workings and depth: hidden-attribute cells gate from here. */
+export const HIDDEN_GATED_MIXES: readonly Stage[] = ['pitGrid', 'bulk', 'sonic', 'sonicBulk'];
+
+/** Is the cell defined by a hidden attribute (true old-timer kind, hidden deposit type)? */
+export function isHiddenCell(cell: string): boolean {
+  return cell.includes('.ot.') || cell.endsWith('.deepMuck');
+}
+
+/** Does the cell × mix gate the run (the rest are reported)? */
+export function gatedAt(cell: string, stage: Stage): boolean {
+  return !isHiddenCell(cell) || HIDDEN_GATED_MIXES.includes(stage);
+}
+
+/**
+ * The old-timer evidence the prior reads (§3.9 oldTimerOdds over the visible features): `vis.<kind>` when the visible
+ * features identify one kind, `noVisibleWorkings` when the claim shows none (unworked or drift, hidden from the air).
+ */
+export function visibleWorkingsCell(world: WorldSlice, claim: Claim): string {
+  const pKind = claimPriors(world, claim.id, 'held').oldTimer.pKind;
+  const kinds = (['none', 'drift', 'handCut', 'dredge', 'dryWash', 'hydraulic', 'recentCat'] as const).filter(
+    (k) => (pKind[k] ?? 0) > 0,
+  );
+  if (kinds.length === 0 || kinds.includes('none')) return 'noVisibleWorkings';
+  return `vis.${kinds.join('+')}`;
+}
+
 /** Cells a held claim belongs to (main cells use 20- and 40-acre claims; 160-acre claims have their own). */
 export function heldCells(world: WorldSlice, claim: Claim): string[] {
   const d = world.districts[claim.districtId];
@@ -23,7 +60,7 @@ export function heldCells(world: WorldSlice, claim: Claim): string[] {
   const t = templateShort(d.templateId);
   if (claim.acres === 160) return [`${t}.160ac`];
   if (claim.acres > 40) return [];
-  const cells = [`${t}.${claim.setting}`, `${t}.ot.${claim.hidden.oldTimerKind}`];
+  const cells = [`${t}.${claim.setting}`, `${t}.${visibleWorkingsCell(world, claim)}`, `${t}.ot.${claim.hidden.oldTimerKind}`];
   if (claim.hidden.depositType === 'deepMuck') cells.push(`${t}.deepMuck`);
   return cells;
 }
@@ -106,6 +143,8 @@ export interface StageResult {
   readonly zMean: number;
   readonly zSd: number;
   readonly msPerEstimate: number;
+  /** Does this cell × mix gate the run (false: reported only)? */
+  readonly gated: boolean;
   readonly pass: boolean;
   readonly failing: string[];
 }
@@ -128,7 +167,7 @@ export function wilson(k: number, n: number): [number, number] {
   return [c - h, c + h];
 }
 
-export function stageResult(stage: Stage, a: StageAcc): StageResult {
+export function stageResult(stage: Stage, a: StageAcc, gated = true): StageResult {
   const coverage = a.n > 0 ? a.inBand / a.n : NaN;
   const [lo, hi] = wilson(a.inBand, a.n);
   const bias = median(a.lnRatio);
@@ -150,6 +189,7 @@ export function stageResult(stage: Stage, a: StageAcc): StageResult {
     zMean,
     zSd,
     msPerEstimate: a.n > 0 ? a.ms / a.n : NaN,
+    gated,
     pass: failing.length === 0,
     failing,
   };
@@ -161,17 +201,18 @@ export interface CellResult {
   readonly claims: number;
   readonly stages: readonly StageResult[];
   readonly teeth?: { readonly delta: number; readonly pass: boolean };
+  /** Every gated mix passes (reported mixes do not count). */
   readonly pass: boolean;
 }
 
 export function cellResult(acc: CellAcc, stages: readonly Stage[]): CellResult {
-  const rs = stages.map((s) => stageResult(s, acc.stages[s]));
+  const rs = stages.map((s) => stageResult(s, acc.stages[s], gatedAt(acc.cell, s)));
   let teeth: CellResult['teeth'];
   if (acc.population === 'listed' && acc.teethLnRatio.length > 0) {
     const delta = median(acc.teethLnRatio) - median(acc.stages.prior.lnRatio);
     teeth = { delta, pass: Math.abs(delta - TEETH.target) <= TEETH.tol };
   }
-  const pass = rs.every((r) => r.pass) && (teeth === undefined || teeth.pass);
+  const pass = rs.every((r) => r.pass || !r.gated) && (teeth === undefined || teeth.pass);
   return { cell: acc.cell, population: acc.population, claims: acc.claims, stages: rs, ...(teeth !== undefined ? { teeth } : {}), pass };
 }
 
