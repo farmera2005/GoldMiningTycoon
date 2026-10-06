@@ -35,8 +35,8 @@ export const northernFederal = {
     springWetland: false,
   },
   valley: { kind: 'creek' },
-  // §3.4: tuned so benches reach depositMix.bench ± 0.05 (P0 run: 17% of parcels at 0.45; 26% at the 0.6 default).
-  benchSideP: 0.45,
+  // §3.4: tuned so benches reach depositMix.bench ± 0.05 (P0 run: 19% of parcels at 0.5, 17% at 0.45 and 26% at the 0.6 default).
+  benchSideP: 0.5,
   claimSizeMix: { '20': 0.55, '40': 0.2, '80': 0.15, '160': 0.1 },
   depositMix: { creek: 0.6, bench: 0.2, deepMuck: 0.1, dredgedGround: 0.1 },
   // D-3.36: rises in 5% steps only if the P0 full-generator listing pool is above 72% uneconomic.

@@ -64,19 +64,35 @@ export const quant = {
  */
 export function quantizeMix(mix: readonly [number, number, number, number]): [number, number, number, number] {
   const total = mix[0] + mix[1] + mix[2] + mix[3];
-  const scaled = mix.map((x) => (total > 0 ? (Math.max(0, x) / total) * U16_MAX : U16_MAX / 4));
-  const q = scaled.map((x) => Math.floor(x));
-  let left = U16_MAX - (q[0] as number) - (q[1] as number) - (q[2] as number) - (q[3] as number);
-  const order = [0, 1, 2, 3].sort((a, b) => {
-    const ra = (scaled[a] as number) - (q[a] as number);
-    const rb = (scaled[b] as number) - (q[b] as number);
-    return rb !== ra ? rb - ra : a - b;
-  });
+  const scaled: [number, number, number, number] = [0, 0, 0, 0];
+  const q: [number, number, number, number] = [0, 0, 0, 0];
+  for (let k = 0; k < 4; k++) {
+    const x = total > 0 ? (Math.max(0, mix[k] as number) / total) * U16_MAX : U16_MAX / 4;
+    scaled[k] = x;
+    q[k] = Math.floor(x);
+  }
+  let left = U16_MAX - q[0] - q[1] - q[2] - q[3];
+  if (left <= 0) return q;
+  // Class order by descending remainder, ties to the lower class index (an insertion sort of four entries).
+  const order = [0, 1, 2, 3];
+  for (let i = 1; i < 4; i++) {
+    const v = order[i] as number;
+    const rv = (scaled[v] as number) - (q[v] as number);
+    let j = i - 1;
+    while (j >= 0) {
+      const u = order[j] as number;
+      const ru = (scaled[u] as number) - (q[u] as number);
+      if (ru > rv || (ru === rv && u < v)) break;
+      order[j + 1] = u;
+      j--;
+    }
+    order[j + 1] = v;
+  }
   for (let k = 0; left > 0; k = (k + 1) % 4, left--) {
     const i = order[k] as number;
     q[i] = (q[i] as number) + 1;
   }
-  return [q[0] as number, q[1] as number, q[2] as number, q[3] as number];
+  return q;
 }
 
 function mixOf(q: readonly number[]): SizeRecord {
@@ -129,6 +145,14 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return out;
 }
 
+function b64Value(s: string, i: number): number {
+  const ch = s.charCodeAt(i);
+  if (ch === 61) return 0; // '=' padding
+  const v = ch < 128 ? (B64_INDEX[ch] as number) : -1;
+  if (v < 0) throw new RangeError('base64: invalid character');
+  return v;
+}
+
 export function base64ToBytes(s: string): Uint8Array {
   if (s.length % 4 !== 0) throw new RangeError('base64: length must be a multiple of 4');
   let pad = 0;
@@ -137,14 +161,7 @@ export function base64ToBytes(s: string): Uint8Array {
   const out = new Uint8Array((s.length / 4) * 3 - pad);
   let o = 0;
   for (let i = 0; i < s.length; i += 4) {
-    const c = [0, 1, 2, 3].map((k) => {
-      const ch = s.charCodeAt(i + k);
-      if (ch === 61) return 0; // '='
-      const v = ch < 128 ? (B64_INDEX[ch] as number) : -1;
-      if (v < 0) throw new RangeError('base64: invalid character');
-      return v;
-    });
-    const n = ((c[0] as number) << 18) | ((c[1] as number) << 12) | ((c[2] as number) << 6) | (c[3] as number);
+    const n = (b64Value(s, i) << 18) | (b64Value(s, i + 1) << 12) | (b64Value(s, i + 2) << 6) | b64Value(s, i + 3);
     if (o < out.length) out[o++] = (n >> 16) & 255;
     if (o < out.length) out[o++] = (n >> 8) & 255;
     if (o < out.length) out[o++] = n & 255;

@@ -38,13 +38,37 @@ function mixLine(label: string, m: Record<string, number>): string {
     .join('  ')}`;
 }
 
+/** DESIGN §3.7's published harness values (U / M / G / E %), printed beside the measurement for comparison. */
+const DESIGN_3_7: Record<
+  string,
+  Record<'all' | 'held' | 'open' | 'pool', readonly [number, number, number, number]>
+> = {
+  northernFederal: {
+    all: [73.2, 18.3, 7.0, 1.5],
+    held: [66.4, 22.3, 9.3, 2.0],
+    open: [88.9, 9.3, 1.6, 0.2],
+    pool: [73.1, 20.5, 5.6, 0.8],
+  },
+  aridFederal: {
+    all: [68.7, 21.9, 8.3, 1.1],
+    held: [57.5, 27.5, 13.0, 1.9],
+    open: [83.5, 14.4, 2.1, 0.1],
+    pool: [64.8, 26.1, 8.3, 0.8],
+  },
+};
+
+function designLine(templateId: string, pop: 'all' | 'held' | 'open' | 'pool'): string {
+  const d = DESIGN_3_7[templateId]?.[pop];
+  return d === undefined ? '' : `   (DESIGN §3.7 ${d.map((x) => x.toFixed(1)).join(' / ')})`;
+}
+
 function report(s: TemplateStats): string[] {
   const lines = [
     `\n[${s.templateId}] districts ${s.districts}, parcels ${s.parcels} (per district mean ${s.parcelsPerDistrict.mean.toFixed(1)}, min ${s.parcelsPerDistrict.min}, max ${s.parcelsPerDistrict.max}), held share ${pct(s.heldShare)}`,
-    classLine('all parcels', s.classes.all),
-    classLine('held (staked)', s.classes.held),
-    classLine('open ground', s.classes.open),
-    classLine('LISTING POOL', s.classes.pool),
+    classLine('all parcels', s.classes.all) + designLine(s.templateId, 'all'),
+    classLine('held (staked)', s.classes.held) + designLine(s.templateId, 'held'),
+    classLine('open ground', s.classes.open) + designLine(s.templateId, 'open'),
+    classLine('LISTING POOL', s.classes.pool) + designLine(s.templateId, 'pool'),
     pLine('held median paystreak-block grade (oz/bcy)', s.heldMedianPsGrade, g4),
     pLine('mined-block grade, bcy-weighted (oz/bcy)', s.minedBlockGrade, g4),
     pLine('strip ratio, whole claim', s.stripWhole, f2),

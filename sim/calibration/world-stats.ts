@@ -18,6 +18,7 @@ import {
   type WorldSlice,
 } from '../../src/engine/systems/world';
 import { formatId } from '../../src/engine/core/ids';
+import { regionTemplate } from '../../src/data/regions';
 
 export interface CalibrationOptions {
   /** Two-district worlds (northernFederal + aridFederal), so N worlds give N districts per template. */
@@ -81,6 +82,8 @@ export interface TemplateStats {
   /** Pool ÷ held geometric-mean paystreak grade (§3.7 statusMult.listed check). */
   readonly listedHeldGradeRatio: number;
   readonly priorDrillShare: number;
+  /** Dredged parcels as a share of valley (non-bench) parcels (§3.4 valleyType target). */
+  readonly dredgedValleyShare: number;
 }
 
 export interface CalibrationResult {
@@ -336,6 +339,9 @@ function templateStats(
     medianMinedOzByClass: minedOz,
     listedHeldGradeRatio: ratio,
     priorDrillShare: list.filter((r) => r.claim.hidden.publicRecord.priorDrill !== null).length / list.length,
+    dredgedValleyShare:
+      list.filter((r) => r.claim.hidden.depositType === 'dredgedGround').length /
+      Math.max(1, list.filter((r) => r.claim.hidden.depositType !== 'bench').length),
   };
 }
 
@@ -370,7 +376,12 @@ const STRIP_P50: Record<string, [number, number]> = {
 };
 
 /** Band checks; `loose` widens every band (the fast vitest sample is small). */
-export function bandChecks(result: CalibrationResult, statusMultListed: number, loose = 0): BandCheck[] {
+export function bandChecks(
+  result: CalibrationResult,
+  statusMultListed: number,
+  loose = 0,
+  honestyRow: Readonly<Record<string, number>> = baseTuning['geology.seller.honestyMix'],
+): BandCheck[] {
   const out: BandCheck[] = [];
   const add = (
     id: string,
@@ -408,6 +419,18 @@ export function bandChecks(result: CalibrationResult, statusMultListed: number, 
     if (acc !== undefined) {
       for (const [a, t] of Object.entries(acc))
         add('3.18', tpl, `access ${a} share`, s.accessMix[a] ?? 0, t - 0.1, t + 0.1, true);
+    }
+    // §3.4: benches reach their template share ± 0.05; dredged stretches the dredged share of valley parcels ± 0.05.
+    const mix = regionTemplate(tpl)?.depositMix;
+    if (mix !== undefined) {
+      const bench = mix.bench ?? 0;
+      add('3.4', tpl, 'bench share of parcels', s.depositMix['bench'] ?? 0, bench - 0.05, bench + 0.05, true);
+      const dredged = mix.dredgedGround ?? 0;
+      add('3.4', tpl, 'dredged share of valley parcels', s.dredgedValleyShare, dredged - 0.05, dredged + 0.05, true);
+    }
+    // §3.18: honesty mix within ±4 points of the difficulty row (standard: §1 1.11 via geology.seller.honestyMix).
+    for (const [h, t] of Object.entries(honestyRow)) {
+      add('3.18', tpl, `honesty ${h} share`, s.honestyMix[h] ?? 0, t - 0.04, t + 0.04, true);
     }
     add(
       '3.7',
