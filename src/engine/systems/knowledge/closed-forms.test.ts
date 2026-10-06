@@ -221,7 +221,7 @@ describe('Gamma–Poisson coarse factor (§4.5.3 fixtures)', () => {
 });
 
 /** Aggregation inputs for one hypothesis without pockets. */
-function aggOf(mu: number[], C: number[][]): AggregateInputs {
+function aggOf(mu: number[], C: number[][]): AggregateInputs & { readonly muX: Float64Array } {
   const n = mu.length;
   const expC = new Float64Array(n * n);
   const cDiag = new Float64Array(n);
@@ -246,7 +246,7 @@ function aggOf(mu: number[], C: number[][]): AggregateInputs {
   };
 }
 
-function meansOf(inp: AggregateInputs): Float64Array {
+function meansOf(inp: AggregateInputs & { readonly muX: Float64Array }): Float64Array {
   const A = new Float64Array(inp.n);
   for (let b = 0; b < inp.n; b++) A[b] = exp((inp.muX[b] as number) + 0.5 * (inp.cDiag[b] as number));
   return A;

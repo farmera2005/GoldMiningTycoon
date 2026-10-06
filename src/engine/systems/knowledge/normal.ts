@@ -9,14 +9,19 @@ import { exp, normCdf } from '../../core/dmath';
 
 /** |z| beyond which Φ is 0 or 1 and φ is 0 (the table's half-range). */
 export const NORMAL_Z_FAR = 8.5;
-const STEPS_PER_UNIT = 128;
+export const NORMAL_STEPS_PER_UNIT = 128;
+const STEPS_PER_UNIT = NORMAL_STEPS_PER_UNIT;
 const H = 1 / STEPS_PER_UNIT;
-const INTERVALS = 2 * NORMAL_Z_FAR * STEPS_PER_UNIT;
+export const NORMAL_INTERVALS = 2 * NORMAL_Z_FAR * STEPS_PER_UNIT;
+const INTERVALS = NORMAL_INTERVALS;
 const INV_SQRT_2PI = 0.3989422804014327;
 
-/** Per interval i, the cubic in t ∈ [0, 1]: Φ ≈ c0 + c1 t + c2 t² + c3 t³ (and likewise for φ). */
-const PHI_C = new Float64Array(4 * INTERVALS);
-const PDF_C = new Float64Array(4 * INTERVALS);
+/**
+ * Per interval i, the cubic in t ∈ [0, 1]: Φ ≈ c0 + c1 t + c2 t² + c3 t³ (and likewise for φ). Exported read-only for
+ * the mixture quantile's inner loop, which evaluates them inline.
+ */
+export const PHI_C = new Float64Array(4 * INTERVALS);
+export const PDF_C = new Float64Array(4 * INTERVALS);
 
 (function buildTables(): void {
   const n = INTERVALS + 1;

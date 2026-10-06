@@ -89,10 +89,6 @@ function kindParams(
 }
 
 /** Does f qualify for a kind's workings (dredge: f > minF; the rest: f ≥ 0.4, §3.6)? */
-function qualifies(kind: DepletionKind | 'recentCat', f: number, minF: number): boolean {
-  return kind === 'dredge' ? f > minF : f >= minF;
-}
-
 function normalized(pKind: Readonly<Partial<Record<OldTimerKind, number>>>): { kinds: KindProb[]; pNone: number } {
   const kinds: KindProb[] = [];
   let total = 0;
@@ -359,40 +355,62 @@ export function streakMeans(
   // average (prior.ts) spreads the streak into blocks the footprint rules out; on unworked dredged-ground blocks it put
   // the log grade ~0.35 above the background, which no sample corrects where the pits stop in the cover.
   const fullDredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
+  // The offsets depend on the configuration only through which kinds' thresholds f clears (f > minF for a dredge,
+  // f ≥ minF otherwise), so they are summed once per block for each qualifying set of kinds, in kp order, keyed by
+  // the set's bitmask (§2.13: this loop ran S × n × kinds times).
+  const nk = kp.length;
+  const masks = 1 << nk;
+  const oOf = new Float64Array(n * masks);
+  const rmOf = new Float64Array(n * masks);
+  const shareMode = new Uint8Array(n); // 0 the misfit mean, 1 below a dredge's minF, 2 above it
+  for (let b = 0; b < n; b++) {
+    const st = depl.state[b];
+    if (fullDredge !== undefined && st === DEPL_PASSED) shareMode[b] = 1;
+    else if (fullDredge !== undefined && st === DEPL_WORKED && depl.workedKind[b] === 'dredge') shareMode[b] = 2;
+    if (st === DEPL_WORKED) {
+      const wk = depl.workedKind[b];
+      const k = kp.find((x) => x.kind === wk) ?? kp[0];
+      for (let m = 0; m < masks; m++) {
+        oOf[b * masks + m] = k !== undefined ? k.worked : 0;
+        rmOf[b * masks + m] = k !== undefined ? k.l : 0;
+      }
+      continue;
+    }
+    if (st !== DEPL_UNKNOWN && st !== DEPL_PASSED) continue;
+    for (let m = 0; m < masks; m++) {
+      let o = 0;
+      let rm = 0;
+      kp.forEach((k, i) => {
+        if ((m & (1 << i)) === 0) return;
+        const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
+        if (st === DEPL_UNKNOWN) {
+          o += el * k.p * k.q * k.l;
+          rm += el * k.p * k.q * k.l;
+        } else o += el * k.p * k.passed;
+      });
+      oOf[b * masks + m] = o;
+      rmOf[b * masks + m] = rm;
+    }
+  }
+  const kMinF = kp.map((k) => k.minF);
+  const kDredge = kp.map((k) => k.kind === 'dredge');
   for (let s = 0; s < S; s++) {
     for (let b = 0; b < n; b++) {
       const f = model.streakF[s * n + b] as number;
-      let o = 0;
-      let rm = 0;
-      const st = depl.state[b];
-      let share = model.streakLogMean[s * n + b] as number;
-      if (fullDredge !== undefined && st === DEPL_PASSED) share = model.streakLogMeanBelow[s * n + b] as number;
-      else if (fullDredge !== undefined && st === DEPL_WORKED && depl.workedKind[b] === 'dredge')
-        share = model.streakLogMeanAbove[s * n + b] as number;
-      if (st === DEPL_UNKNOWN) {
-        for (const k of kp) {
-          if (!qualifies(k.kind, f, k.minF)) continue;
-          const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
-          o += el * k.p * k.q * k.l;
-          rm += el * k.p * k.q * k.l;
-        }
-      } else if (st === DEPL_WORKED) {
-        const wk = depl.workedKind[b];
-        const k = kp.find((x) => x.kind === wk) ?? kp[0];
-        if (k !== undefined) {
-          o = k.worked;
-          rm = k.l;
-        }
-      } else if (st === DEPL_PASSED) {
-        for (const k of kp) {
-          if (!qualifies(k.kind, f, k.minF)) continue;
-          const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
-          o += el * k.p * k.passed;
-        }
+      let m = 0;
+      for (let i = 0; i < nk; i++) {
+        if (kDredge[i] === true ? f > (kMinF[i] as number) : f >= (kMinF[i] as number)) m |= 1 << i;
       }
+      const mode = shareMode[b];
+      const share =
+        mode === 1
+          ? (model.streakLogMeanBelow[s * n + b] as number)
+          : mode === 2
+            ? (model.streakLogMeanAbove[s * n + b] as number)
+            : (model.streakLogMean[s * n + b] as number);
       // The configuration's expected log share over §3's row misfit (prior.ts), plus the old-timer offset.
-      mu[s * n + b] = share + o;
-      removal[s * n + b] = rm;
+      mu[s * n + b] = share + (oOf[b * masks + m] as number);
+      removal[s * n + b] = rmOf[b * masks + m] as number;
     }
     penalty[s] = footprintPenalty(model, depl, kp, s, lnPen, handCutEligible);
   }

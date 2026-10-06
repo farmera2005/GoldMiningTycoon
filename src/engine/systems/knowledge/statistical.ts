@@ -16,7 +16,7 @@ import type { BlockId } from '../../core/ids';
 import { sortedKeys } from '../../core/iter';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { SizeRecord } from '../world/types';
-import { blockMeans, summarizeSet, type AggregateInputs, type SetSummary } from './aggregate';
+import { summarizeSet, type AggregateInputs, type SetSummary } from './aggregate';
 import { coarseMeanMass, coarsePosterior, coarseTerms, type CoarsePosterior } from './coarse';
 import {
   coarseDepletionMult,
@@ -30,10 +30,11 @@ import {
 } from './depletion';
 import { finenessPosterior } from './fineness';
 import { geometryPosterior, type GeometryPosterior } from './geometry';
-import { mixtureQuantile, type Mixture } from './mixture';
+import { mixtureQuantiles3, type Mixture } from './mixture';
 import {
   allHypotheses,
   blockCovariance,
+  mixtureMeanLnG,
   pruneHypotheses,
   refineSites,
   solvePosterior,
@@ -159,6 +160,16 @@ export interface SolveSummary {
   readonly lnGSd: Float64Array;
   readonly cDiag: Float64Array;
   readonly expC: Float64Array;
+  /**
+   * exp(E[ln G_b | h] + E[ln T_b | h] + C_bb/2) per hypothesis (H × n): block b's mean contained oz per bcy·acre of
+   * remaining pay. The state layer multiplies it by 1613·acres·f_rem (§4.7), so a week's mining costs no exps.
+   */
+  readonly unitMeans: Float64Array;
+  /** Undetected-pocket rate per unit f_rem (H × n) and the pocket grade (H × n), §4.7. */
+  readonly pocketRateUnit: Float64Array;
+  readonly pocketGrade: Float64Array;
+  /** P(no sample hit an existing pocket) per block. */
+  readonly pocketMissP: Float64Array;
 }
 
 export interface StatLayer {
@@ -441,26 +452,29 @@ export function anchorSolve(model0: PriorModel, ev: AnchorEvidence): AnchorSolve
     co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded, prodCoarse);
     ct = coarseTerms(a, co.mr, co.vr);
     rows = withProductionRows(buildRows(rowInputs, gt, ct), prodRows);
-    sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps);
+    // Intermediate solves need weights, α and mixture means only; the last solve of the last pass keeps every
+    // hypothesis's block means (§2.13: the per-hypothesis means dominate a large claim's solve).
+    const last = pass === passes - 1;
+    sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps, undefined, last && P.siteRefineSweeps === 0);
     for (let sweep = 0; sweep < P.siteRefineSweeps; sweep++) {
       if (!refineSites(model, rows, Vm, co.vr, sol)) break;
-      sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps);
+      sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps, undefined, last && sweep === P.siteRefineSweeps - 1);
     }
+    // Refinement settled early: the block means on the same factor (rows unchanged since it was built).
+    if (last && sol.meanLnG.length === 0) sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps, sol.L);
     // Next pass: working grades at the mixture posterior, coarse thinning at the posterior paystreak fraction.
+    if (last) break;
     const H = sol.hyps.count;
+    const mmix = mixtureMeanLnG(model, rows, muE, Vm, sol);
     const nextA = new Float64Array(n);
     for (let b = 0; b < n; b++) {
-      let mm = 0;
       let fp = 0;
       for (let h = 0; h < H; h++) {
-        const w = sol.weights[h] as number;
-        mm += w * (sol.meanLnG[h * n + b] as number);
-        fp += w * (model.streakF[(sol.hyps.streak[h] as number) * n + b] as number);
+        fp += (sol.weights[h] as number) * (model.streakF[(sol.hyps.streak[h] as number) * n + b] as number);
       }
-      gt[b] = exp(mm - (ct.Ew[b] as number));
+      gt[b] = exp((mmix[b] as number) - (ct.Ew[b] as number));
       nextA[b] = (thin + (1 - thin) * fp) * (cMult[b] as number);
     }
-    if (pass === passes - 1) break;
     a = nextA;
     rTilde = exp(co.mr);
     if (pass === 0) hyps = pruneHypotheses(sol.hyps, sol.weights, model.pruneWeight);
@@ -521,6 +535,31 @@ export function solveSummary(an: AnchorSolve, sol: Solve, CG: Float64Array): Sol
       if (x === y) cDiag[x] = c;
     }
   }
+  // Block means per unit remaining volume and the pocket terms (§4.7): independent of the current block state.
+  const geo = an.geo;
+  const missP = new Float64Array(n).fill(1);
+  for (const s of an.samples) {
+    if (!s.reachedPay || s.interval === 'exposure') continue;
+    const Vb = exp(geo.T.mean[s.b] as number) * BCY_PER_ACRE_FT * (model.acres[s.b] as number);
+    missP[s.b] = (missP[s.b] as number) * Math.max(0, 1 - (P.pocketBcyMean + s.V) / Vb);
+  }
+  const unitMeans = new Float64Array(H * n);
+  const pocketRateUnit = new Float64Array(H * n);
+  const pocketGrade = new Float64Array(H * n);
+  const pps = model.priors.pocket.pPerStreakBlock;
+  for (let h = 0; h < H; h++) {
+    const s = sol.hyps.streak[h] as number;
+    for (let b = 0; b < n; b++) {
+      const lg = sol.meanLnG[h * n + b] as number;
+      unitMeans[h * n + b] = exp(lg + (geo.TbyStreak[s * n + b] as number) + 0.5 * (cDiag[b] as number));
+      const f = model.streakF[s * n + b] as number;
+      if (!(f >= P.streakMinF) || !(pps > 0)) continue;
+      pocketRateUnit[h * n + b] = pps * (missP[b] as number);
+      // §3's pocket law clamps the VIRGIN pocket grade to ≥ gradeMin; old-timer removal then scales it (§3.6 deplete).
+      const rm = an.removal[s * n + b] as number;
+      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg - rm)) * exp(rm);
+    }
+  }
   const p10 = new Float64Array(n);
   const p50 = new Float64Array(n);
   const p90 = new Float64Array(n);
@@ -545,11 +584,25 @@ export function solveSummary(an: AnchorSolve, sol: Solve, CG: Float64Array): Sol
     const mix: Mixture = { count: H, w: wts, mu, sd };
     lnGMean[b] = m1;
     lnGSd[b] = sqrt(Math.max(0, m2 - m1 * m1) + sb * sb);
-    p10[b] = exp(mixtureQuantile(mix, 0.1));
-    p50[b] = exp(mixtureQuantile(mix, 0.5));
-    p90[b] = exp(mixtureQuantile(mix, 0.9));
+    const q = mixtureQuantiles3(mix);
+    p10[b] = exp(q.p10);
+    p50[b] = exp(q.p50);
+    p90[b] = exp(q.p90);
   }
-  return { fPost, pStreak, pBarren, gradeQ: { p10, p50, p90 }, lnGMean, lnGSd, cDiag, expC };
+  return {
+    fPost,
+    pStreak,
+    pBarren,
+    gradeQ: { p10, p50, p90 },
+    lnGMean,
+    lnGSd,
+    cDiag,
+    expC,
+    unitMeans,
+    pocketRateUnit,
+    pocketGrade,
+    pocketMissP: missP,
+  };
 }
 
 /** Production gates' inputs over every production row (§4.8). */
@@ -595,51 +648,34 @@ export function stateLayer(
     obShiftFt[b] = (state.strippedFt[b] as number) - (an.strippedFt[b] as number);
   }
 
-  // Pockets: P(no sample hit an existing pocket) per block, and the per-hypothesis rate and grade. Mined production
-  // ground is in f_rem, not here: a pocket in the mined share would have shown in the cleanup.
-  const missP = new Float64Array(n).fill(1);
-  for (const s of an.samples) {
-    if (!s.reachedPay || s.interval === 'exposure') continue;
-    const Vb = (T50[s.b] as number) * BCY_PER_ACRE_FT * (model.acres[s.b] as number);
-    missP[s.b] = (missP[s.b] as number) * Math.max(0, 1 - (P.pocketBcyMean + s.V) / Vb);
-  }
-  const muX = new Float64Array(H * n);
+  // Block means and undetected-pocket rates at the current remaining pay: the solve summary's per-unit values times
+  // 1613·acres·f_rem (a mined-out share holds no pocket either; mined production ground is in f_rem, since a pocket in
+  // the mined share would have shown in the cleanup).
+  const A = new Float64Array(H * n);
   const pocketLambda = new Float64Array(H * n);
-  const pocketGrade = new Float64Array(H * n);
-  const pps = model.priors.pocket.pPerStreakBlock;
-  for (let h = 0; h < H; h++) {
-    const s = sol.hyps.streak[h] as number;
-    for (let b = 0; b < n; b++) {
-      if (alive[b] !== 1) continue;
-      const lg = sol.meanLnG[h * n + b] as number;
-      muX[h * n + b] =
-        lg +
-        (geo.TbyStreak[s * n + b] as number) +
-        log(BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number));
-      const f = model.streakF[s * n + b] as number;
-      // A mined-out share holds no pocket either (f_rem; DESIGN §4.7 counts the whole block).
-      pocketLambda[h * n + b] = f >= P.streakMinF ? pps * (missP[b] as number) * (fRem[b] as number) : 0;
-      // §3's pocket law clamps the VIRGIN pocket grade to ≥ gradeMin; old-timer removal then scales it (§3.6 deplete).
-      const rm = an.removal[s * n + b] as number;
-      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg - rm)) * exp(rm);
+  for (let b = 0; b < n; b++) {
+    if (alive[b] !== 1) continue;
+    const vol = BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number);
+    const fr = fRem[b] as number;
+    for (let h = 0; h < H; h++) {
+      A[h * n + b] = (sum.unitMeans[h * n + b] as number) * vol;
+      pocketLambda[h * n + b] = (sum.pocketRateUnit[h * n + b] as number) * fr;
     }
   }
   const agg: AggregateInputs = {
     n,
     H,
     weights: sol.weights,
-    muX,
     cDiag: sum.cDiag,
     expC: sum.expC,
     alive,
     pocketLambda,
-    pocketGrade,
+    pocketGrade: sum.pocketGrade,
     confirmedOz: an.confirmedOz,
     pocketBcyMean: P.pocketBcyMean,
     pocketBcy2Mean: P.pocketBcy2Mean,
     pocketGradeCv2: P.pocketGradeCv2,
   };
-  const A = blockMeans(agg);
   const contained = summarizeSet(agg, A, new Uint8Array(n).fill(1), 1);
 
   // Size mix (§4.7): paystreak-centre coarse share from R50, non-coarse split from pooled masses.

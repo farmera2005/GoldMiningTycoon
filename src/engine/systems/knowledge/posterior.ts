@@ -124,6 +124,8 @@ export function rowCovariance(model: PriorModel, rows: Rows, Vm: number, vr: num
 /**
  * The posterior for every hypothesis (§4.5.2). `Lgiven`, when passed, is the Cholesky factor of K for these rows (the
  * incremental path builds it by block append, §4.5.2 "Incremental production path"); otherwise K is factorized here.
+ * `withMeans: false` skips the per-hypothesis block means (O(S·n·R), the bulk of a large claim's solve): the passes'
+ * intermediate solves need only the weights, α and the mixture means (`mixtureMeanLnG`), and `meanLnG` is then empty.
  */
 export function solvePosterior(
   model: PriorModel,
@@ -133,11 +135,12 @@ export function solvePosterior(
   vr: number,
   hyps: Hyps,
   Lgiven?: Float64Array,
+  withMeans = true,
 ): Solve {
   const n = model.n;
   const R = rows.R;
   const H = hyps.count;
-  const meanLnG = new Float64Array(H * n);
+  const meanLnG = new Float64Array(withMeans || R === 0 ? H * n : 0);
   const meanR = new Float64Array(H);
   const alpha = new Float64Array(H * R);
   const logw = new Float64Array(H);
@@ -203,10 +206,12 @@ export function solvePosterior(
       let rm = 0;
       for (let j = 0; j < R; j++) rm += -(rows.pr[j] as number) * vr * (u[j] as number);
       meanR[h] = rm - cc * rk1;
-      for (let b = 0; b < n; b++) {
-        let m = 0;
-        for (let j = 0; j < R; j++) m += (Q[b * R + j] as number) * (u[j] as number);
-        meanLnG[h * n + b] = model.M + (muE[s * n + b] as number) + m + cc * (1 - (Qk1[b] as number));
+      if (withMeans) {
+        for (let b = 0; b < n; b++) {
+          let m = 0;
+          for (let j = 0; j < R; j++) m += (Q[b * R + j] as number) * (u[j] as number);
+          meanLnG[h * n + b] = model.M + (muE[s * n + b] as number) + m + cc * (1 - (Qk1[b] as number));
+        }
       }
       // Remember the twin's raw quantities for the other member of the pair.
       done[s] = h;
@@ -223,11 +228,50 @@ export function solvePosterior(
     for (let j = 0; j < R; j++) alpha[h * R + j] = (alpha[src * R + j] as number) + (cs - cc) * (k1[j] as number);
     logw[h] = (hyps.logPrior[h] as number) - 0.5 * (q - 2 * cc * t + cc * cc * s11);
     meanR[h] = (meanR[src] as number) + (cs - cc) * rk1;
-    for (let b = 0; b < n; b++) {
-      meanLnG[h * n + b] = (meanLnG[src * n + b] as number) + (cc - cs) * (1 - (Qk1[b] as number));
+    if (withMeans) {
+      for (let b = 0; b < n; b++) {
+        meanLnG[h * n + b] = (meanLnG[src * n + b] as number) + (cc - cs) * (1 - (Qk1[b] as number));
+      }
     }
   }
   return { hyps, weights: normalize(logw), meanLnG, meanR, R, L, alpha };
+}
+
+/**
+ * The mixture mean of ln G_b over the hypotheses, Σ_h w_h E[ln G_b | h], without per-hypothesis means: with
+ * α_h = K⁻¹ r_h, E[ln G_b | h] = M + c_h + μ_e(s_h, b) + Q_b·α_h (c_h the hypothesis's offset on m), so the sum is
+ * M + Σ w c + Σ w μ_e + Q_b·Σ w α (O(H·(n + R) + n·R) instead of O(S·n·R)).
+ */
+export function mixtureMeanLnG(model: PriorModel, rows: Rows, muE: Float64Array, Vm: number, sol: Solve): Float64Array {
+  const n = model.n;
+  const R = sol.R;
+  const H = sol.hyps.count;
+  const out = new Float64Array(n);
+  if (sol.meanLnG.length === H * n) {
+    for (let h = 0; h < H; h++) {
+      const w = sol.weights[h] as number;
+      for (let b = 0; b < n; b++) out[b] = (out[b] as number) + w * (sol.meanLnG[h * n + b] as number);
+    }
+    return out;
+  }
+  let base = model.M;
+  const aBar = new Float64Array(R);
+  for (let h = 0; h < H; h++) {
+    const w = sol.weights[h] as number;
+    base += w * (sol.hyps.mOffset[h] as number);
+    const s = sol.hyps.streak[h] as number;
+    for (let b = 0; b < n; b++) out[b] = (out[b] as number) + w * (muE[s * n + b] as number);
+    for (let j = 0; j < R; j++) aBar[j] = (aBar[j] as number) + w * (sol.alpha[h * R + j] as number);
+  }
+  for (let b = 0; b < n; b++) {
+    let m = 0;
+    for (let j = 0; j < R; j++) {
+      const bj = rows.blk[j] as number;
+      m += (Vm + (bj >= 0 ? (model.Se[b * n + bj] as number) : 0)) * (aBar[j] as number);
+    }
+    out[b] = base + (out[b] as number) + m;
+  }
+  return out;
 }
 
 function normalize(logw: Float64Array): Float64Array {
