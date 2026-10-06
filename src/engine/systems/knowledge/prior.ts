@@ -245,6 +245,14 @@ export interface PriorModel {
   readonly Se: Float64Array;
   /** E[ln(f + (1 − f)·bgRatio)] per configuration and block over the row misfit (S × n). */
   readonly streakLogMean: Float64Array;
+  /**
+   * P(f > a dredge's minF) per configuration and block over the row misfit (S × n): how likely §3's wandering streak
+   * reached the block under the configuration, which a dredge's footprint observes on every block (depletion.ts).
+   */
+  readonly streakPAbove: Float64Array;
+  /** E[ln(f + (1 − f)·bgRatio)] given f > minF, and given f ≤ minF, over the row misfit (S × n; dredge footprints). */
+  readonly streakLogMeanAbove: Float64Array;
+  readonly streakLogMeanBelow: Float64Array;
   /** Prior-weighted variance of ln(f + (1 − f)·bgRatio) over the row misfit, per block (in Σ_e's diagonal). */
   readonly misfitVar: Float64Array;
   /** Paystreak configurations (cDown, cUp, hw): f per block (S × n) and normalized prior weight. */
@@ -402,7 +410,11 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
   const streakF = new Float64Array(S * n);
   const streakLogMean = new Float64Array(S * n);
   const streakLogVar = new Float64Array(S * n);
+  const streakPAbove = new Float64Array(S * n);
+  const streakLogMeanAbove = new Float64Array(S * n);
+  const streakLogMeanBelow = new Float64Array(S * n);
   const streakPrior = new Float64Array(S);
+  const minF = params.dredgeMinF;
   const wander = priors.streak.wanderSdFt;
   const bg = priors.streak.bgRatio;
   // Row misfit (estStreakMisfitScale): sd of the centre (ft) and of ln half-width at each row about the configuration.
@@ -429,25 +441,42 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
         const t = nAlong > 1 ? (bi[b] as number) / (nAlong - 1) : 0.5;
         const c = ((1 - t) * p.zDown + t * p.zUp) * wander;
         const d = (xFt[b] as number) - c;
-        streakF[sIdx * n + b] = overlapShare(d, hw);
+        const f0 = overlapShare(d, hw);
+        streakF[sIdx * n + b] = f0;
         const sdC = rowSdC[bi[b] as number] as number;
         const sdH = rowSdH[bi[b] as number] as number;
         if (!(sdC > 0) && !(sdH > 0)) {
           streakLogMean[sIdx * n + b] = lnShare(d, hw);
+          streakPAbove[sIdx * n + b] = f0 > minF ? 1 : 0;
+          streakLogMeanAbove[sIdx * n + b] = log(Math.max(f0, minF) + (1 - Math.max(f0, minF)) * bg);
+          streakLogMeanBelow[sIdx * n + b] = log(Math.min(f0, minF) + (1 - Math.min(f0, minF)) * bg);
           continue;
         }
         let m1 = 0;
         let m2 = 0;
+        let pa = 0;
+        let ma = 0;
+        let mb = 0;
         for (let q = 0; q < 5; q++) {
           for (let r = 0; r < 3; r++) {
-            const g = lnShare(d - sdC * (Z5[q] as number), hw * exp(sdH * (HW_Z[r] as number)));
+            const fq = overlapShare(d - sdC * (Z5[q] as number), hw * exp(sdH * (HW_Z[r] as number)));
+            const g = log(fq + (1 - fq) * bg);
             const w = (W5[q] as number) * (HW_W[r] as number);
             m1 += w * g;
             m2 += w * g * g;
+            if (fq > minF) {
+              pa += w;
+              ma += w * g;
+            } else mb += w * g;
           }
         }
         streakLogMean[sIdx * n + b] = m1;
         streakLogVar[sIdx * n + b] = Math.max(0, m2 - m1 * m1);
+        streakPAbove[sIdx * n + b] = pa;
+        // E[ln share | f > minF] and E[ln share | f ≤ minF]; at the bound where a side has no node.
+        const atMinF = log(minF + (1 - minF) * bg);
+        streakLogMeanAbove[sIdx * n + b] = pa > 1e-12 ? ma / pa : Math.max(atMinF, m1);
+        streakLogMeanBelow[sIdx * n + b] = pa < 1 - 1e-12 ? mb / (1 - pa) : Math.min(atMinF, m1);
       }
       streakPrior[sIdx] = (p.w / pairTotal) * (hwWeights[h] as number);
       sIdx++;
@@ -524,6 +553,9 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     sigmaBlock: s.block,
     Se,
     streakLogMean,
+    streakPAbove,
+    streakLogMeanAbove,
+    streakLogMeanBelow,
     misfitVar,
     S,
     streakF,

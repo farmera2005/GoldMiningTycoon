@@ -92,6 +92,9 @@ export interface StageAcc {
   below: number;
   above: number;
   lnRatio: number[];
+  /** Per claim, parallel to lnRatio: 1 when truth lay inside P10–P90, and the claim's world (−1 when unknown). */
+  hit: number[];
+  world: number[];
   zSum: number;
   zSq: number;
   zN: number;
@@ -99,7 +102,7 @@ export interface StageAcc {
 }
 
 function newAcc(): StageAcc {
-  return { n: 0, inBand: 0, below: 0, above: 0, lnRatio: [], zSum: 0, zSq: 0, zN: 0, ms: 0 };
+  return { n: 0, inBand: 0, below: 0, above: 0, lnRatio: [], hit: [], world: [], zSum: 0, zSq: 0, zN: 0, ms: 0 };
 }
 
 export interface CellAcc {
@@ -117,15 +120,18 @@ export function newCell(cell: string, population: Population): CellAcc {
   return { cell, population, claims: 0, stages, teethLnRatio: [] };
 }
 
-export function addRun(acc: CellAcc, run: ClaimRun): void {
+export function addRun(acc: CellAcc, run: ClaimRun, worldIndex = -1): void {
   acc.claims++;
   for (const s of run.scores) {
     const a = acc.stages[s.stage];
     a.n++;
+    const hit = s.truthOz >= s.p10 && s.truthOz <= s.p90;
     if (s.truthOz < s.p10) a.below++;
     else if (s.truthOz > s.p90) a.above++;
     else a.inBand++;
     a.lnRatio.push(Math.log(s.p50 / s.truthOz));
+    a.hit.push(hit ? 1 : 0);
+    a.world.push(worldIndex);
     for (const z of s.blockZ) {
       a.zSum += z;
       a.zSq += z * z;
@@ -147,6 +153,14 @@ export interface StageResult {
   readonly zMean: number;
   readonly zSd: number;
   readonly msPerEstimate: number;
+  /**
+   * World-cluster bootstrap standard errors of the median bias and the coverage (NaN when worlds are unknown). Claims
+   * of one district share its district and creek effects, so these exceed the independent-claim errors.
+   */
+  readonly biasSe: number;
+  readonly coverSe: number;
+  /** Distinct worlds behind the claims (the clusters). */
+  readonly worlds: number;
   /** Does this cell × mix gate the run (false: reported only)? */
   readonly gated: boolean;
   readonly pass: boolean;
@@ -171,8 +185,56 @@ export function wilson(k: number, n: number): [number, number] {
   return [c - h, c + h];
 }
 
-export function stageResult(stage: Stage, a: StageAcc, gated = true): StageResult {
+const BOOTSTRAP_REPS = 200;
+
+/**
+ * Standard errors of the median ln(P50/truth) and of the coverage by a bootstrap over worlds (resampling whole
+ * worlds with replacement), seeded by the cell and stage so the report is reproducible.
+ */
+export function clusterBootstrap(
+  a: StageAcc,
+  cell: string,
+  stage: Stage,
+): { biasSe: number; coverSe: number; worlds: number } {
+  const byWorld: Record<number, number[]> = {};
+  const order: number[] = [];
+  for (let i = 0; i < a.world.length; i++) {
+    const w = a.world[i] as number;
+    if (w < 0) return { biasSe: NaN, coverSe: NaN, worlds: 0 };
+    if (byWorld[w] === undefined) {
+      byWorld[w] = [];
+      order.push(w);
+    }
+    (byWorld[w] as number[]).push(i);
+  }
+  const W = order.length;
+  if (W < 2) return { biasSe: NaN, coverSe: NaN, worlds: W };
+  const r = rng('calibration-bootstrap', 'sample', 'bootstrap', cell, stage);
+  const meds: number[] = [];
+  const covs: number[] = [];
+  for (let rep = 0; rep < BOOTSTRAP_REPS; rep++) {
+    const xs: number[] = [];
+    let hits = 0;
+    for (let k = 0; k < W; k++) {
+      const w = order[Math.floor(r.next() * W)] as number;
+      for (const i of byWorld[w] as number[]) {
+        xs.push(a.lnRatio[i] as number);
+        hits += a.hit[i] as number;
+      }
+    }
+    meds.push(median(xs));
+    covs.push(hits / xs.length);
+  }
+  const sd = (v: number[]): number => {
+    const m = v.reduce((s, x) => s + x, 0) / v.length;
+    return Math.sqrt(v.reduce((s, x) => s + (x - m) * (x - m), 0) / (v.length - 1));
+  };
+  return { biasSe: sd(meds), coverSe: sd(covs), worlds: W };
+}
+
+export function stageResult(stage: Stage, a: StageAcc, gated = true, cell = ''): StageResult {
   const coverage = a.n > 0 ? a.inBand / a.n : NaN;
+  const boot = clusterBootstrap(a, cell, stage);
   const [lo, hi] = wilson(a.inBand, a.n);
   const bias = median(a.lnRatio);
   const zMean = a.zN > 0 ? a.zSum / a.zN : NaN;
@@ -193,6 +255,9 @@ export function stageResult(stage: Stage, a: StageAcc, gated = true): StageResul
     zMean,
     zSd,
     msPerEstimate: a.n > 0 ? a.ms / a.n : NaN,
+    biasSe: boot.biasSe,
+    coverSe: boot.coverSe,
+    worlds: boot.worlds,
     gated,
     pass: failing.length === 0,
     failing,
@@ -210,7 +275,7 @@ export interface CellResult {
 }
 
 export function cellResult(acc: CellAcc, stages: readonly Stage[]): CellResult {
-  const rs = stages.map((s) => stageResult(s, acc.stages[s], gatedAt(acc.cell, s)));
+  const rs = stages.map((s) => stageResult(s, acc.stages[s], gatedAt(acc.cell, s), acc.cell));
   let teeth: CellResult['teeth'];
   if (acc.population === 'listed' && acc.teethLnRatio.length > 0) {
     const delta = median(acc.teethLnRatio) - median(acc.stages.prior.lnRatio);

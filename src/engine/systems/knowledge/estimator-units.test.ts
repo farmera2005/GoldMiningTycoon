@@ -5,11 +5,13 @@ import { baseTuning } from '../../../data/tuning';
 import { MG_PER_OZ } from '../world/constants';
 import { snapshotGenParams } from '../world/params';
 import { classifyConfidence, type GateValues } from './confidence';
+import { upperBoundSite } from './geometry';
+import { mixtureCdf, mixtureQuantile } from './mixture';
 import { lowerTruncVar, selectionOffsets, upperTruncVar } from './depletion';
 import { methodSpec } from './methods';
 import { estimatorParams } from './params';
 import { centreMisfitVar, coarseRatioPrior, halfWidthClaimVar, halfWidthMisfitVar } from './prior';
-import { compositeObservation, type CompositePart } from './rows';
+import { compositeObservation, upperPayPosition, type CompositePart } from './rows';
 import type { Mass4 } from './samples';
 import type { MethodId } from './types';
 
@@ -201,6 +203,72 @@ describe('paystreak row misfit (§3.5.2 processes against rigid configurations)'
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThan(1);
       }
+    }
+  });
+});
+
+describe('thin-cover depth bound on hand-cut blocks (geometry.ts, design delta P0)', () => {
+  it('is the Gaussian site that turns N(0, 1) into N(0, 1) truncated to x < 0', () => {
+    // Truncated moments: mean −φ(0)/Φ(0) = −0.7979, variance 1 − 2/π = 0.3634.
+    const site = upperBoundSite(0, 1, 0);
+    expect(site).not.toBeNull();
+    const { y, v } = site as { y: number; v: number };
+    const prec = 1 + 1 / v;
+    expect(1 / prec).toBeCloseTo(1 - 2 / Math.PI, 6);
+    expect(y / v / prec).toBeCloseTo(-Math.sqrt(2 / Math.PI), 6);
+    expect(y).toBeCloseTo(-1.2533, 3);
+  });
+
+  it('adds nothing when the bound barely cuts the prior, and a strong site when it cuts deep', () => {
+    expect(upperBoundSite(0, 1, 3)).toBeNull();
+    const deep = upperBoundSite(0, 1, -2) as { y: number; v: number };
+    const mid = upperBoundSite(0, 1, -0.5) as { y: number; v: number };
+    expect(deep.v).toBeLessThan(mid.v);
+    expect(deep.y).toBeLessThan(mid.y);
+  });
+});
+
+describe('upper-pay position with a logged-cover error (rows.ts, design delta P0)', () => {
+  const prof = { Tg: 5, B: 1.5, sb: 0.2, lambdaG: 6, lambdaB: 0.5 };
+  const PP = { posFullLogSd: P.posFullLogSd, posUpperExtraLogSd: P.posUpperExtraLogSd };
+  const lnT = Math.log(6.5);
+
+  it('is the plain 5-point average without a penetration error', () => {
+    const a = upperPayPosition(prof, lnT, 0.1, 1.5, PP);
+    const b = upperPayPosition(prof, lnT, 0.1, 1.5, PP, 0);
+    expect(a).toEqual(b);
+  });
+
+  it('averages ln positionMult over the penetration and widens its variance', () => {
+    const exact = upperPayPosition(prof, lnT, 0.1, 1.5, PP);
+    const noisy = upperPayPosition(prof, lnT, 0.1, 1.5, PP, 0.8);
+    expect(noisy.v).toBeGreaterThan(exact.v);
+    expect(noisy.pm).not.toBeCloseTo(exact.pm, 6);
+    expect(noisy.shared).toBe(exact.shared);
+  });
+});
+
+describe('mixture quantiles (§4.5.5, §4.7)', () => {
+  const mix = (w: number[], mu: number[], sd: number[]) => ({
+    count: w.length,
+    w: Float64Array.from(w),
+    mu: Float64Array.from(mu),
+    sd: Float64Array.from(sd),
+  });
+
+  it('gives a normal’s quantiles', () => {
+    const m = mix([1], [0.3], [0.7]);
+    expect(mixtureQuantile(m, 0.5)).toBeCloseTo(0.3, 9);
+    expect(mixtureQuantile(m, 0.9)).toBeCloseTo(0.3 + 1.2815515655446004 * 0.7, 9);
+    expect(mixtureQuantile(m, 0.1)).toBeCloseTo(0.3 - 1.2815515655446004 * 0.7, 9);
+  });
+
+  it('inverts the mixture CDF, with far and zero-weight components', () => {
+    const m = mix([0.55, 0.3, 0.15, 0, 1e-12], [-1, 0.4, 2.5, 40, -60], [0.5, 0.2, 0.8, 1, 0.1]);
+    const total = 0.55 + 0.3 + 0.15 + 1e-12;
+    for (const q of [0.1, 0.5, 0.9]) {
+      const x = mixtureQuantile(m, q);
+      expect(mixtureCdf(m, x) / total).toBeCloseTo(q, 9);
     }
   });
 });

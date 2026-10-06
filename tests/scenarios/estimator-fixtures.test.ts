@@ -303,6 +303,60 @@ describe('pockets (§4.4.5, §4.22)', () => {
   });
 });
 
+/** The first held 20- or 40-acre north claim, over seeds 4022…, whose visible workings are of the given kind. */
+function visiblyWorkedClaim(kind: 'dredge' | 'handCut'): { world: WorldSlice; claim: Claim } {
+  for (let k = 0; k < 40; k++) {
+    const w = k === 0 ? world : generateWorld(String(4022 + k), OPTS, baseTuning);
+    for (const id of w.claimIds) {
+      const c = w.claims[id] as Claim;
+      if (c.status !== 'heldNpc' || c.acres > 40 || templateOf(w, c) !== 'northernFederal') continue;
+      if (c.visibleWorkings.length === 0) continue;
+      const pKind = claimPriors(w, id, 'held').oldTimer.pKind;
+      if ((pKind[kind] ?? 0) === 1) return { world: w, claim: c };
+    }
+  }
+  throw new Error(`no visibly ${kind} claim in 40 worlds`);
+}
+
+describe('visible footprints at the prior (design deltas, P0)', () => {
+  it('a visible dredge pins the streak: unworked blocks off it, their grade at the background', () => {
+    const { world: w, claim: c } = visiblyWorkedClaim('dredge');
+    const priors = claimPriors(w, c.id, 'held');
+    const hw = harnessContext(w, baseTuning);
+    const { stat } = statisticalEstimate(priors, emptyEvidence(c.id), hw.params);
+    const n = c.nAlong * c.nAcross;
+    const worked = [...Array(n).keys()].filter((b) => c.visibleWorkings.includes(b));
+    const unworked = [...Array(n).keys()].filter((b) => !c.visibleWorkings.includes(b));
+    expect(worked.length).toBeGreaterThan(0);
+    expect(unworked.length).toBeGreaterThan(0);
+    const mean = (xs: number[], a: ArrayLike<number>): number =>
+      xs.reduce((t, b) => t + (a[b] as number), 0) / xs.length;
+    expect(mean(unworked, stat.fPost)).toBeLessThan(0.1);
+    expect(mean(worked, stat.fPost)).toBeGreaterThan(mean(unworked, stat.fPost) + 0.2);
+    // The pay column follows the footprint: thinner off the streak.
+    expect(mean(unworked, stat.geo.tg50)).toBeLessThan(mean(worked, stat.geo.tg50));
+    // A dredge stripped only the blocks it worked (§3.6): the unworked keep their cover prior.
+    const model = priorModel(priors, hw.params);
+    for (const b of worked) expect(model.ob50[b]).toBe(0);
+    for (const b of unworked) expect(model.ob50[b]).toBeGreaterThan(0);
+  });
+
+  it('visible hand-cut workings thin the cover expected on the claim (estThinCoverSiteWeight)', () => {
+    const { world: w, claim: c } = visiblyWorkedClaim('handCut');
+    const priors = claimPriors(w, c.id, 'held');
+    const off = { ...baseTuning, 'geology.estThinCoverSiteWeight': 0 } as unknown as TuningResolved;
+    const on = statisticalEstimate(priors, emptyEvidence(c.id), harnessContext(w, baseTuning).params).stat;
+    const none = statisticalEstimate(priors, emptyEvidence(c.id), harnessContext(w, off).params).stat;
+    const n = c.nAlong * c.nAcross;
+    let shallower = 0;
+    for (let b = 0; b < n; b++) {
+      expect(on.geo.D.mean[b] as number).toBeLessThanOrEqual((none.geo.D.mean[b] as number) + 1e-12);
+      if ((on.geo.D.mean[b] as number) < (none.geo.D.mean[b] as number) - 1e-6) shallower++;
+    }
+    expect(shallower).toBe(n);
+  });
+});
+
 describe('§4 keys never reach the generator (world hash)', () => {
   it('perturbing every §4 estimator key leaves the generated world bit-identical', () => {
     const perturbed: Record<string, unknown> = { ...baseTuning };

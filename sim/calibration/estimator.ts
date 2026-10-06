@@ -72,12 +72,12 @@ const f2 = (x: number): string => (Number.isFinite(x) ? x.toFixed(2) : ' — ');
 function report(r: CellResult): string[] {
   const lines = [
     `\n[${r.population}] ${r.cell}: ${r.claims} claims${r.pass ? '' : '   ← FAIL'}`,
-    '  mix          n   cover  (95% CI)        <P10   >P90   bias    z mean  z sd   ms/est  gate',
+    '  mix          n   cover  (95% CI)        <P10   >P90   bias    z mean  z sd   ms/est  ±se(bias, cover; W worlds)  gate',
   ];
   for (const s of r.stages) {
     const verdict = s.pass ? 'PASS' : `FAIL (${s.failing.join(', ')})`;
     lines.push(
-      `  ${s.stage.padEnd(10)} ${String(s.n).padStart(4)}  ${f3(s.coverage)}  (${f3(s.coverLo)}–${f3(s.coverHi)})  ${f3(s.belowP10)}  ${f3(s.aboveP90)}  ${s.medianBias >= 0 ? '+' : ''}${f3(s.medianBias)}  ${f2(s.zMean).padStart(5)}  ${f2(s.zSd)}  ${s.msPerEstimate.toFixed(1).padStart(6)}  ${s.gated ? verdict : `reported: ${verdict.toLowerCase()}`}`,
+      `  ${s.stage.padEnd(10)} ${String(s.n).padStart(4)}  ${f3(s.coverage)}  (${f3(s.coverLo)}–${f3(s.coverHi)})  ${f3(s.belowP10)}  ${f3(s.aboveP90)}  ${s.medianBias >= 0 ? '+' : ''}${f3(s.medianBias)}  ${f2(s.zMean).padStart(5)}  ${f2(s.zSd)}  ${s.msPerEstimate.toFixed(1).padStart(6)}  ±${f3(s.biasSe)} ±${f3(s.coverSe)} (${s.worlds})  ${s.gated ? verdict : `reported: ${verdict.toLowerCase()}`}`,
     );
   }
   if (r.teeth !== undefined) {
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
         const key = `${cr.population}:${c}`;
         const acc = accs[key];
         if (acc === undefined || acc.claims >= target(key)) continue;
-        addRun(acc, cr.run);
+        addRun(acc, cr.run, r.worldIndex);
         if (cr.run.teethLnRatio !== undefined) acc.teethLnRatio.push(cr.run.teethLnRatio);
       }
     }

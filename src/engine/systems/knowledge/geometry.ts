@@ -3,7 +3,7 @@
 // block term; observations combine per block. Solve order: T, then D (with upper-pay samples observing OB + T̂g),
 // then the censored-depth pseudo-observation for samples that never reached pay. The pay-column prior mean follows
 // each paystreak configuration (grade and thickness both rise with f, D-4.30), sharing one covariance.
-import { exp, log, sqrt } from '../../core/dmath';
+import { exp, log, normCdf, sqrt } from '../../core/dmath';
 import type { PriorModel } from './prior';
 import type { BedrockPosterior, PreparedSample } from './samples';
 
@@ -105,12 +105,45 @@ export interface GeometryPosterior {
   readonly censored: number;
 }
 
+const INV_SQRT_2PI = 0.3989422804014327;
+
+/**
+ * The Gaussian site (y, v) on x that turns the prior N(mu, s2) into the moments of the prior truncated to x < L
+ * (moment matching, as expectation propagation does); null when the bound barely cuts the prior.
+ */
+export function upperBoundSite(mu: number, s2: number, L: number): { y: number; v: number } | null {
+  const s = sqrt(s2);
+  const a = (L - mu) / s;
+  const Z = normCdf(a);
+  if (!(Z < 0.995) || !(Z > 1e-12)) return null;
+  const lam = (INV_SQRT_2PI * exp(-0.5 * a * a)) / Z;
+  const mt = mu - s * lam;
+  const vt = s2 * Math.max(1e-6, 1 - a * lam - lam * lam);
+  const tau = 1 / vt - 1 / s2;
+  if (!(tau > 1e-9)) return null;
+  return { y: (mt / vt - mu / s2) / tau, v: 1 / tau };
+}
+
+/**
+ * Geometry posterior. `opts.thinCover` lists blocks whose original overburden is known to be under `maxObFt`: §3's
+ * hand-cutters worked only paystreak blocks under thin cover (§3.6, geology.oldTimer.kinds.handCut.maxObFt), so a
+ * visibly hand-cut block bounds its depth (design delta, P0). Through the claim-level depth factor the bound also
+ * thins the cover expected on the rest of the claim, which is what the workings say: hand-cut ground is shallow.
+ */
 export function geometryPosterior(
   model: PriorModel,
   samples: readonly PreparedSample[],
   bed: BedrockPosterior,
   strippedFt: Float64Array,
+  opts: {
+    readonly thinCover?: { readonly blocks: readonly number[]; readonly maxObFt: number; readonly weight: number };
+    /** Moments of f per block to build the pay column on (default: the configuration prior's, model.fbar/fsd). */
+    readonly streak?: { readonly fbar: Float64Array; readonly fsd: Float64Array };
+  } = {},
 ): GeometryPosterior {
+  const thinCover = opts.thinCover ?? null;
+  const fbarOf = opts.streak?.fbar ?? model.fbar;
+  const fsdOf = opts.streak?.fsd ?? model.fsd;
   const n = model.n;
   const g = model.priors.geometry;
   const w = model.params.payStreakWeight;
@@ -124,13 +157,13 @@ export function geometryPosterior(
   const uD = new Float64Array(n);
   const tbD = new Float64Array(n);
   for (let b = 0; b < n; b++) {
-    const fb = model.fbar[b] as number;
+    const fb = fbarOf[b] as number;
     const tg = g.payMedFt * (1 - w + w * fb);
     tg50[b] = tg;
     const T50 = tg + bHat;
     const ob = Math.max(0, (model.ob50[b] as number) - (strippedFt[b] as number));
     const D50 = ob + tg;
-    const sf = (w * (model.fsd[b] as number)) / (1 - w + w * fb);
+    const sf = (w * (fsdOf[b] as number)) / (1 - w + w * fb);
     muT[b] = log(T50);
     muD[b] = log(D50);
     uT[b] = sqrt((tg * tg * g.paySigClaim * g.paySigClaim + sdB * sdB) / (T50 * T50));
@@ -168,6 +201,19 @@ export function geometryPosterior(
     const vT = T.varDiag[s.b] as number;
     const v = (ob * s.geomCv * (ob * s.geomCv) + tg * tg * vT * ((Tc / tg) * (Tc / tg))) / (Dv * Dv);
     addObs(accD, s.b, log(Dv), v);
+  }
+  if (thinCover !== null) {
+    // OB_orig < maxObFt ⇔ D_now < max(0, maxObFt − stripped) + Tg: one moment-matched site on ln D per block, from the
+    // block's prior marginal (claim factor and block term) and the prior gravel thickness.
+    for (const b of thinCover.blocks) {
+      const bound = Math.max(0.5, thinCover.maxObFt - (strippedFt[b] as number)) + (tg50[b] as number);
+      const site = upperBoundSite(
+        muD[b] as number,
+        (uD[b] as number) * (uD[b] as number) + (tbD[b] as number),
+        log(bound),
+      );
+      if (site !== null && thinCover.weight > 0) addObs(accD, b, site.y, site.v / thinCover.weight);
+    }
   }
   let D = solveField(muD, uD, tbD, accD);
   // Censoring (§4.6): a sample that never reached pay says only D > h; add ln(1.15 h) when the median sits below 1.1 h.

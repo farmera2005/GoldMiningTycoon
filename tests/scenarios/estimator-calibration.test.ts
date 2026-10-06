@@ -87,7 +87,7 @@ function sample(): Sampled {
         const useLate = wantsLate && (late[c] as number) < lateQuota(c);
         if (useLate) late[c] = (late[c] as number) + 1;
         const counted = useLate ? run : earlyOnly(run);
-        addRun(accs[c] as CellAcc, counted);
+        addRun(accs[c] as CellAcc, counted, w);
         if (c === PROGRESSION_CELL) {
           const byStage: Partial<Record<Stage, StageScore>> = {};
           for (const s of counted.scores) byStage[s.stage] = s;

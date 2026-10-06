@@ -49,9 +49,16 @@ export function blockProfile(
   };
 }
 
+/** Physicists' 3-point Gauss–Hermite nodes and weights, for the penetration's logging error. */
+const GH3_X = [-1.224744871391589, 0, 1.224744871391589];
+const GH3_W = [0.2954089751509193, 1.1816359006036774, 0.2954089751509193];
+
 /**
- * Upper-pay position (§4.4.2, D-4.32): 5-point Gauss–Hermite average of ln positionMult(Tg_q − p, Tg_q) over the
- * pay-column posterior, where p is the gravel actually penetrated (observed) and Tg_q = exp(ln T̂ + √2·sd·z_q) − B̂.
+ * Upper-pay position (§4.4.2, D-4.32): Gauss–Hermite average of ln positionMult(Tg_q − p, Tg_q) over the pay-column
+ * posterior (5 points, Tg_q = exp(ln T̂ + √2·sd·z_q) − B̂) and over the penetration p (3 points, sd `penSdFt`). p is the
+ * dug depth (known exactly, §3.8 logged interval) less the logged cover, so it carries the cover's logging error
+ * (design delta, P0): where a pit stops a foot or two into the gravel, as on covered ground at the machine's reach,
+ * ln positionMult is steep in p, and the average and its variance account for that error instead of trusting p.
  */
 export function upperPayPosition(
   prof: VerticalProfile,
@@ -59,20 +66,25 @@ export function upperPayPosition(
   sdT: number,
   penetratedFt: number,
   P: { readonly posFullLogSd: number; readonly posUpperExtraLogSd: number },
+  penSdFt = 0,
 ): Position {
-  const pen = Math.max(0.1, penetratedFt);
   let sw = 0;
   let e1 = 0;
   let e2 = 0;
-  for (let q = 0; q < 5; q++) {
-    const tq = Math.max(0.5, exp(lnT + SQRT2 * sdT * (GH_X[q] as number)) - prof.B);
-    const h1 = Math.min(Math.max(0.02 * tq, tq - pen), 0.98 * tq);
-    const pmq = positionMultProfile({ ...prof, Tg: tq }, h1, tq);
-    const lp = log(Math.max(pmq, 1e-12));
-    const wq = GH_W[q] as number;
-    sw += wq;
-    e1 += wq * lp;
-    e2 += wq * lp * lp;
+  const kMax = penSdFt > 0 ? 3 : 1;
+  for (let k = 0; k < kMax; k++) {
+    const pen = Math.max(0.1, penetratedFt + (kMax > 1 ? SQRT2 * penSdFt * (GH3_X[k] as number) : 0));
+    const wk = kMax > 1 ? (GH3_W[k] as number) : 1;
+    for (let q = 0; q < 5; q++) {
+      const tq = Math.max(0.5, exp(lnT + SQRT2 * sdT * (GH_X[q] as number)) - prof.B);
+      const h1 = Math.min(Math.max(0.02 * tq, tq - pen), 0.98 * tq);
+      const pmq = positionMultProfile({ ...prof, Tg: tq }, h1, tq);
+      const lp = log(Math.max(pmq, 1e-12));
+      const wq = wk * (GH_W[q] as number);
+      sw += wq;
+      e1 += wq * lp;
+      e2 += wq * lp * lp;
+    }
   }
   e1 /= sw;
   e2 /= sw;
@@ -101,8 +113,11 @@ export function positionOf(
       return pm > 0 ? { pm, v: P.posFullLogSd * P.posFullLogSd, shared: 0 } : null;
     }
     case 'upperPay': {
-      const obObs = s.rec.observed.overburdenFt ?? exp(geo.D.mean[b] as number) - prof.Tg;
-      return upperPayPosition(prof, lnT, sqrt(geo.T.varDiag[b] as number), s.rec.depthReachedFt - obObs, P);
+      const logged = s.rec.observed.overburdenFt;
+      const obObs = logged ?? exp(geo.D.mean[b] as number) - prof.Tg;
+      // The cover's logging error (geomCv) is the penetration's; without a logged cover, the depth posterior's.
+      const obSd = logged !== undefined ? logged * s.geomCv : obObs * sqrt(geo.D.varDiag[b] as number);
+      return upperPayPosition(prof, lnT, sqrt(geo.T.varDiag[b] as number), s.rec.depthReachedFt - obObs, P, obSd);
     }
     case 'exposure': {
       const frac = s.draw.exposureDepthFrac ?? P.phys.exposureDepthFrac;

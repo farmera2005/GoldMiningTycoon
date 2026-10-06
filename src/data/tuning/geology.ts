@@ -380,8 +380,10 @@ export const geologyTuning = {
 
   // ---- Estimator: prior and paystreak hypotheses (§4.5.1)
   // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration
-  // (1,000 claims per cell, seed base 1000): north 0 → +0.05, arid 0 → −0.02 centre the visible cells.
-  'geology.estPriorMedianAdj': { northernFederal: 0.05, aridFederal: -0.02 },
+  // (1,000 claims per cell, seed base 1000): arid 0 → −0.02 centres the visible cells. North was +0.05 on the
+  // pre-review world; on the reviewed world the north visible cells sat +0.075 high on average (precision-weighted
+  // by their world-cluster standard errors) at +0.05, so north is back to 0.
+  'geology.estPriorMedianAdj': { northernFederal: 0, aridFederal: -0.02 },
   'geology.estStreakResidLogSd': 0.35,
   'geology.estStreakNodes': 9,
   'geology.estStreakHwNodes': 3,
@@ -400,6 +402,14 @@ export const geologyTuning = {
   // and changes width row by row while a configuration is rigid (centre linear along the claim, one half-width): at
   // 1e-3 the footprint forced wide configurations and overstated worked claims by 0.1–0.2 (ln) at the prior.
   'geology.estWorkedOffStreakLik': 0.1,
+  // (P0 addition, design delta) §3's hand-cutters worked only paystreak blocks under thin cover (maxObFt), so a
+  // visibly hand-cut block bounds its depth, and through the claim's depth factor the cover expected elsewhere on the
+  // claim. The bound enters the depth field as a moment-matched site whose precision is scaled by this weight: the
+  // unworked paystreak blocks carry the opposite news (mostly they were left because their cover was thick), which
+  // the site does not model, so it is weak: on visibly hand-cut north claims (P0 calibration, 161 claims, prior
+  // stage) weight 0 / 0.05 / 0.1 give median ln(P50/truth) +0.135 / −0.007 / −0.121, expected paystreak blocks
+  // 10.9 / 8.9 / 8.2 (true 9.0) and P(thin cover) on unworked paystreak blocks 0.15 / 0.25 / 0.34 (true 0.29).
+  'geology.estThinCoverSiteWeight': 0.05,
   // (P0 addition, design delta) Old-timers worked a share of the paystreak blocks (§3.6: dry-washers and hand-cutters
   // the top share, recent operators U(15%, 50%), drift miners a share with a work probability), so a complete set of
   // known worked blocks also tells the paystreak's size. A hypothesis's paystreak block count is uncertain by this sd

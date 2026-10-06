@@ -387,6 +387,7 @@ export const TUNING_KEY_SCHEMAS: Readonly<Record<string, z.ZodType>> = {
   'geology.siteVisit.days': keyed(ACCESS_CLASSES, posInt),
   // ---- geology.* estimator, records, programs (§4 4.20)
   'geology.estPriorMedianAdj': someOf(REGION_TEMPLATE_IDS, num.min(-1).max(1)), // log valve per template, default 0
+  'geology.estThinCoverSiteWeight': prob, // a precision weight on the hand-cut depth bound (0 turns it off)
   'geology.estSmallCountTable': smallCountTableSchema,
   'geology.planWashUsdPerPayBcy': keyed(CLIMATE_BANDS, nonNeg),
   'geology.planStripUsdPerBcy': keyed(CLIMATE_BANDS, nonNeg),

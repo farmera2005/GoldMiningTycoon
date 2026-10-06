@@ -8,7 +8,7 @@
 // The kinds and worked blocks come from visible features (§3.9: piles, dredge tailings, recent disturbance and their
 // blocks), a records footprint, or a pit that hits old workings. Drift workings are hidden from the air, so on a
 // feature-free claim P(drift) is updated by every bedrock sample that did not hit workings.
-import { exp, lgamma, log, normInv } from '../../core/dmath';
+import { exp, lgamma, log, normInv, sqrt } from '../../core/dmath';
 import type { BlockId } from '../../core/ids';
 import { depletionRemoval } from '../world/oldTimers';
 import { cumulativeGoldShare } from '../world/vertical';
@@ -354,12 +354,21 @@ export function streakMeans(
   const penalty = new Float64Array(S);
   const kp = depl.kinds.map((k) => ({ ...kindParams(k.kind, model), kind: k.kind, p: k.p }));
   const lnPen = log(model.params.workedOffStreakLik);
+  // A visible dredge observes f on every block (design delta, P0): it worked every block with f > minF (§3.6), so an
+  // unworked block has f ≤ minF and a worked one f > minF, whatever else the row misfit allows. The plain misfit
+  // average (prior.ts) spreads the streak into blocks the footprint rules out; on unworked dredged-ground blocks it put
+  // the log grade ~0.35 above the background, which no sample corrects where the pits stop in the cover.
+  const fullDredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
   for (let s = 0; s < S; s++) {
     for (let b = 0; b < n; b++) {
       const f = model.streakF[s * n + b] as number;
       let o = 0;
       let rm = 0;
       const st = depl.state[b];
+      let share = model.streakLogMean[s * n + b] as number;
+      if (fullDredge !== undefined && st === DEPL_PASSED) share = model.streakLogMeanBelow[s * n + b] as number;
+      else if (fullDredge !== undefined && st === DEPL_WORKED && depl.workedKind[b] === 'dredge')
+        share = model.streakLogMeanAbove[s * n + b] as number;
       if (st === DEPL_UNKNOWN) {
         for (const k of kp) {
           if (!qualifies(k.kind, f, k.minF)) continue;
@@ -382,34 +391,104 @@ export function streakMeans(
         }
       }
       // The configuration's expected log share over §3's row misfit (prior.ts), plus the old-timer offset.
-      mu[s * n + b] = (model.streakLogMean[s * n + b] as number) + o;
+      mu[s * n + b] = share + o;
       removal[s * n + b] = rm;
     }
-    let pen = 0;
-    for (const b of depl.workedBlocks) {
-      const wk = depl.workedKind[b];
-      // Dredged blocks carry no such term (design delta, P0): a dredge took every block with any paystreak, so its
-      // footprint is fixed by the unworked blocks (below). §3's paystreak wanders and changes width row by row, so a
-      // dredged block of small f often falls off a rigid configuration; requiring every dredged block on the
-      // configuration's streak favours wide paystreaks and overstated the gold left on dredged ground by ~0.2 (ln).
-      if (wk === 'dredge') continue;
-      const k = kp.find((x) => x.kind === wk);
-      const minF = k?.minF ?? model.params.streakMinF;
-      const f = model.streakF[s * n + b] as number;
-      if (!(f >= minF)) pen += lnPen;
-    }
-    pen += workedCountLogLik(model, depl, s, handCutEligible);
-    // A dredge worked every block of its stretch with any paystreak (q = 1, §3.6): an unworked block that a
-    // hypothesis puts on the streak would have been dredged too.
-    const dredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
-    if (dredge !== undefined) {
-      for (let b = 0; b < n; b++) {
-        if (depl.state[b] === DEPL_PASSED && (model.streakF[s * n + b] as number) > dredge.minF) pen += lnPen;
-      }
-    }
-    penalty[s] = pen;
+    penalty[s] = footprintPenalty(model, depl, kp, s, lnPen, handCutEligible);
   }
   return { mu, removal, penalty };
+}
+
+type KindParamsP = ReturnType<typeof kindParams> & { readonly kind: DepletionKind | 'recentCat'; readonly p: number };
+
+/**
+ * The log likelihood of the visible footprint under paystreak configuration s: known worked blocks off its streak,
+ * the worked-block count (workedCountLogLik; for hand-cutters only when their cover eligibility is given) and, for a
+ * dredge, unworked blocks on its streak.
+ */
+function footprintPenalty(
+  model: PriorModel,
+  depl: DepletionModel,
+  kp: readonly KindParamsP[],
+  s: number,
+  lnPen: number,
+  handCutEligible: Float64Array | null,
+): number {
+  const n = model.n;
+  const L = model.params.workedOffStreakLik;
+  let pen = 0;
+  for (const b of depl.workedBlocks) {
+    const wk = depl.workedKind[b];
+    // A dredge worked every block its streak reached (f > minF, §3.6): the likelihood of a dredged block is the chance
+    // that §3's wandering streak reached it under the configuration (prior.ts streakPAbove, over the row misfit), with
+    // the floor estWorkedOffStreakLik. A rigid test (f_s ≥ minF) either favoured wide configurations, which overstated
+    // the dredged ground, or, dropped, left the dredged blocks under-covered (posterior f 0.45–0.5 against a true 0.6
+    // on north dredged ground, P0 calibration).
+    if (wk === 'dredge') {
+      pen += log(L + (1 - L) * (model.streakPAbove[s * n + b] as number));
+      continue;
+    }
+    const k = kp.find((x) => x.kind === wk);
+    const minF = k?.minF ?? model.params.streakMinF;
+    const f = model.streakF[s * n + b] as number;
+    if (!(f >= minF)) pen += lnPen;
+  }
+  if (handCutEligible !== null) pen += workedCountLogLik(model, depl, s, handCutEligible);
+  else if (depl.countKind !== null && depl.countKind !== 'handCut')
+    pen += workedCountLogLik(model, depl, s, new Float64Array(n));
+  // An unworked block the streak reached would have been dredged too (q = 1, §3.6).
+  const dredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
+  if (dredge !== undefined) {
+    for (let b = 0; b < n; b++) {
+      if (depl.state[b] === DEPL_PASSED) pen += log(L + (1 - L) * (1 - (model.streakPAbove[s * n + b] as number)));
+    }
+  }
+  return pen;
+}
+
+/**
+ * Prior moments of f per block over the paystreak configurations weighted by the visible footprint (design delta,
+ * P0): the visible workings place the streak (a dredge's tailings mark exactly its blocks), so the pay-column prior
+ * the geometry builds on follows them rather than the footprint-blind configuration prior. null without a footprint.
+ * Hand-cut counts need the cover eligibility, which comes from the geometry itself, so they are left out here.
+ */
+export function footprintStreakMoments(
+  model: PriorModel,
+  depl: DepletionModel,
+): { readonly fbar: Float64Array; readonly fsd: Float64Array } | null {
+  const kp = depl.kinds.map((k) => ({ ...kindParams(k.kind, model), kind: k.kind, p: k.p }));
+  const dredge = kp.some((k) => k.kind === 'dredge' && k.p >= 1);
+  if (depl.workedBlocks.length === 0 && !dredge) return null;
+  const n = model.n;
+  const S = model.S;
+  const lnPen = log(model.params.workedOffStreakLik);
+  const pen = new Float64Array(S);
+  let mx = -Infinity;
+  for (let s = 0; s < S; s++) {
+    pen[s] = footprintPenalty(model, depl, kp, s, lnPen, null);
+    mx = Math.max(mx, pen[s] as number);
+  }
+  const fbar = new Float64Array(n);
+  const f2 = new Float64Array(n);
+  let tot = 0;
+  for (let s = 0; s < S; s++) {
+    const w = (model.streakPrior[s] as number) * exp((pen[s] as number) - mx);
+    if (!(w > 0)) continue;
+    tot += w;
+    for (let b = 0; b < n; b++) {
+      const f = model.streakF[s * n + b] as number;
+      fbar[b] = (fbar[b] as number) + w * f;
+      f2[b] = (f2[b] as number) + w * f * f;
+    }
+  }
+  if (!(tot > 0)) return null;
+  const fsd = new Float64Array(n);
+  for (let b = 0; b < n; b++) {
+    const m = (fbar[b] as number) / tot;
+    fbar[b] = m;
+    fsd[b] = sqrt(Math.max(0, (f2[b] as number) / tot - m * m));
+  }
+  return { fbar, fsd };
 }
 
 /**

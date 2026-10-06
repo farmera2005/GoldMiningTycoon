@@ -68,6 +68,7 @@ export interface StageScore {
   /** Bedrock-logged samples behind the estimate (the inferred class's support gate, §4.8). */
   readonly bedrockSamples: number;
   readonly ms: number;
+  readonly blocks?: readonly BlockDetail[];
 }
 
 export interface ClaimRun {
@@ -279,7 +280,47 @@ function score(
     bedrockSamples: est.claim.gates.bedrockSamples,
     ms,
     bestBlock: best,
+    ...(blockDetail
+      ? {
+          blocks: blocksAt.map((b, idx) => {
+            const pay = (b.truth.payThicknessFt + b.truth.bedrockCleanupFt) * BCY_PER_ACRE_FT;
+            return {
+              worked: sim.claim.visibleWorkings.includes(idx),
+              estOzP50: est.blocks[idx]?.containedOzP50 ?? 0,
+              truthOz: b.truth.gradeOzPerBcy * Math.max(0, pay - b.state.minedBcy - b.state.sampledBcy),
+              bedrockSamples: est.blocks[idx]?.bedrockSamples ?? 0,
+              samples: est.blocks[idx]?.sampleCount ?? 0,
+              lnGradeEst: stat.lnGMean[idx] as number,
+              lnGradeTrue: Math.log(Math.max(b.truth.gradeOzPerBcy, 1e-9)),
+              payColumnEstFt: est.blocks[idx]?.payColumnFtP50 ?? 0,
+              payColumnTrueFt: b.truth.payThicknessFt + b.truth.bedrockCleanupFt,
+              depthEstFt: est.blocks[idx]?.depthToBedrockFtP50 ?? 0,
+              depthTrueFt: b.truth.overburdenFt + b.truth.payThicknessFt,
+            };
+          }),
+        }
+      : {}),
   };
+}
+
+/** Per-block detail for diagnostics (off by default; the calibration report never needs it). */
+export interface BlockDetail {
+  readonly worked: boolean;
+  readonly estOzP50: number;
+  readonly truthOz: number;
+  readonly bedrockSamples: number;
+  readonly samples: number;
+  readonly lnGradeEst: number;
+  readonly lnGradeTrue: number;
+  readonly payColumnEstFt: number;
+  readonly payColumnTrueFt: number;
+  readonly depthEstFt: number;
+  readonly depthTrueFt: number;
+}
+let blockDetail = false;
+/** Turns per-block detail in StageScore.blocks on or off (diagnostic scripts only). */
+export function setBlockDetail(on: boolean): void {
+  blockDetail = on;
 }
 
 /** Runs every evidence stage on one claim with the given prior status. */

@@ -10,7 +10,9 @@ import { blockMeans, summarizeSet, type AggregateInputs, type SetSummary } from 
 import { coarseMeanMass, coarsePosterior, coarseTerms, type CoarsePosterior } from './coarse';
 import {
   coarseDepletionMult,
+  DEPL_WORKED,
   depletionModel,
+  footprintStreakMoments,
   hypothesisPsProb,
   selectionVarRatio,
   streakMeans,
@@ -210,7 +212,15 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
   const bs = blockStateArrays(model0, evidence);
   const bed = bedrockPosterior(samples, model0);
   const depl = depletionModel(model0, evidence, samples, bs.minedFrac, bs.strippedFt);
-  const geo = geometryPosterior(model0, samples, bed, bs.strippedFt);
+  const handCut: number[] = [];
+  for (let b = 0; b < n; b++) if (depl.state[b] === DEPL_WORKED && depl.workedKind[b] === 'handCut') handCut.push(b);
+  const streak = footprintStreakMoments(model0, depl);
+  const geo = geometryPosterior(model0, samples, bed, bs.strippedFt, {
+    ...(handCut.length > 0
+      ? { thinCover: { blocks: handCut, maxObFt: P.handCutMaxObFt, weight: P.thinCoverSiteWeight } }
+      : {}),
+    ...(streak !== null ? { streak } : {}),
+  });
   const handCutEligible = new Float64Array(n);
   for (let b = 0; b < n; b++) {
     const D50 = exp(geo.D.mean[b] as number);

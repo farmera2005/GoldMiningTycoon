@@ -164,6 +164,8 @@ export interface EstimatorParams {
   readonly workedShare: Readonly<Record<DepletionKind, number>>;
   readonly removalLog: Readonly<Record<DepletionKind, number>>;
   readonly workedOffStreakLik: number;
+  /** Weight of the thin-cover depth bound on visibly hand-cut blocks (geometry.ts; 0 turns it off). */
+  readonly thinCoverSiteWeight: number;
   /** §3.6 worked share of the paystreak blocks by kind: U(lo, hi) × N, each block worked with probability p. */
   readonly workedCount: Readonly<
     Record<
@@ -387,6 +389,7 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     workedShare: kindTable(t, 'geology.recordsWorkedShare'),
     removalLog: kindTable(t, 'geology.recordsRemovalLog'),
     workedOffStreakLik: num(t, 'geology.estWorkedOffStreakLik'),
+    thinCoverSiteWeight: num(t, 'geology.estThinCoverSiteWeight'),
     workedCount: {
       drift: {
         lo: gp.oldTimer.kinds.drift.top[0],
