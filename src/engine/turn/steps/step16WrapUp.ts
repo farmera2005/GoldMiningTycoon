@@ -32,7 +32,11 @@ function reportCalc(state: GameState, ctx: StepContext): GameState {
   return state;
 }
 
-export const step16WrapUp: StepDef = { index: 16, name: 'Wrap-up', sections: [1, 13, 2] };
+export const step16WrapUp: StepDef = {
+  index: 16,
+  name: 'Wrap-up',
+  sections: [1, 3, 4, 5, 7, 8, 9, 10, 12, 13, 2],
+};
 
 export const STEP16_PARTS: readonly PipelinePart[] = [
   { id: 'framework.decisionDefaults', step: 16, order: 13, section: 2, fromPhase: 0, run: decisionDefaults },

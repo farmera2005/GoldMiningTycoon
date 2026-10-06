@@ -1,7 +1,17 @@
 // Bot contract (DESIGN §2.12 "Visibility", §2.12.1 rules common to every bot; BALANCE §4.0). A bot sees only what a
 // player sees: the engine's public selectors and the view built from them. Bots use no RNG and break ties by entity
 // id (compareIds), so the same visible state always gives the same actions.
-import type { Action, DateView, GameState, PendingDecision, RulesPhase, StopReason } from '../../src/engine';
+import type { TuningKey, TuningValue } from '../../src/data/tuning';
+import type {
+  Action,
+  DateView,
+  EffectQuery,
+  GameState,
+  HookKey,
+  PendingDecision,
+  RulesPhase,
+  StopReason,
+} from '../../src/engine';
 
 /** Every bot id of DESIGN §2.12.1 (CLAUDE.md's list). `brandOnly` takes a brand id parameter (`brandOnly(<brandId>)`). */
 export type BotId =
@@ -58,6 +68,10 @@ export interface BotView {
   readonly stops: readonly StopReason[];
   /** True at turn 0, before the first week: the setup decision point. */
   readonly atSetup: boolean;
+  /** The game's resolved tuning (s02 #13; `select.tuning`): tuning is not hidden. */
+  readonly tuning: (key: TuningKey) => TuningValue;
+  /** A hooked value as the engine reads it this week (`effective`, §2.10), for keys an event may change. */
+  readonly effective: (key: HookKey, q: EffectQuery) => number;
 }
 
 export interface Bot {

@@ -39,6 +39,12 @@ describe('a P0 Bootstrapper year', () => {
         revenueCents: 0,
         netIncomeCents: 0,
         claimsHeld: 0,
+        fineOzRecovered: 0,
+        cashCostCents: 0,
+        aiscCents: 0,
+        cashCostPerOzCents: null,
+        aiscPerOzCents: null,
+        byClaim: {},
       },
     ]);
     expect(ledgerProblem(s.finance)).toBeNull();

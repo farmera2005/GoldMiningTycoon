@@ -14,6 +14,7 @@ import { advanceWeek } from './advanceWeek';
 import { canAdvance } from './guard';
 import { PIPELINE } from './pipeline';
 import { deriveWeekCalendar } from './steps/step01Calendar';
+import { emptyWeekRecords } from './week';
 
 let unregister: () => void;
 beforeAll(() => {
@@ -60,7 +61,7 @@ describe('the weekly pipeline (DESIGN §2.6)', () => {
     const { state, report } = advanceWeek(fresh());
     expect(state.clock).toMatchObject({ turn: 1, year: 1, week: 2 });
     expect(report.turn).toBe(1);
-    expect(report).toEqual({ turn: 1, alerts: [], stopCandidates: [], ops: {} });
+    expect(report).toEqual({ turn: 1, alerts: [], stopCandidates: [], ops: {}, records: emptyWeekRecords() });
   });
 
   it('rolls the year after week 52 and writes the year rollup in week 52', () => {

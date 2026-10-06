@@ -45,7 +45,10 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
       ok: false,
       error: { code: 'INSUFFICIENT_FUNDS' },
     });
-    expect(validateAction(s, asAction({ type: 'test/transfer', cents: 40_000_000 }))).toEqual({ ok: true });
+    expect(validateAction(s, asAction({ type: 'test/transfer', cents: 40_000_000 }))).toEqual({
+      ok: true,
+      warnings: [],
+    });
   });
 
   it('applies a pure action immutably: new state, old state unchanged, actionSeq + 1, effects reported', () => {

@@ -186,18 +186,18 @@ describe('import (13.16 validation order)', () => {
   });
 
   it('lists the migrations applied to an older file', async () => {
-    const toV2: Migration = {
-      from: 1,
-      name: 'v1→v2 synthetic',
+    const toV3: Migration = {
+      from: 2,
+      name: 'v2→v3 synthetic',
       migrate: (save) =>
-        ({ ...save, schemaVersion: 2, state: { ...(save['state'] as object), schemaVersion: 2 } }) as VersionedSave,
+        ({ ...save, schemaVersion: 3, state: { ...(save['state'] as object), schemaVersion: 3 } }) as VersionedSave,
     };
-    const h = createHarness({ codec: createSaveCodec({ currentSchemaVersion: 2, migrations: [toV2] }) });
+    const h = createHarness({ codec: createSaveCodec({ currentSchemaVersion: 3, migrations: [toV3] }) });
     renderSaves(h);
     pick(new File([saveText()], 'old.gmt.json'));
     await screen.findByRole('rowheader', { name: 'From a friend' });
     expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain(
-      'Updated from save version 1 to 2 (v1→v2 synthetic).',
+      'Updated from save version 2 to 3 (v2→v3 synthetic).',
     );
   });
 });

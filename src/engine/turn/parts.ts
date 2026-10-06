@@ -115,7 +115,7 @@ export function partsOfStep(step: number): readonly PipelinePart[] {
 }
 
 /** The step's parts after the test seam's reordering, which must be a permutation (a dropped part is a bug). */
-function orderedParts(step: number, ctx: StepContext): readonly PipelinePart[] {
+function orderedParts(step: number, ctx: Pick<StepContext, 'seams'>): readonly PipelinePart[] {
   const parts = partsOfStep(step);
   const reorder = ctx.seams.orderParts;
   if (reorder === null) return parts;
@@ -126,9 +126,17 @@ function orderedParts(step: number, ctx: StepContext): readonly PipelinePart[] {
   return out;
 }
 
-/** Runs one step: its parts in order, each only when the game's rules phase is at least the part's `fromPhase`. */
+/**
+ * The parts a step runs for this game, in order: those whose `fromPhase` the game's rules reach. The rules phase is
+ * fixed at newGame, so the set cannot change during the week.
+ */
+export function activeParts(step: number, state: GameState, ctx: Pick<StepContext, 'seams'>): PipelinePart[] {
+  return orderedParts(step, ctx).filter((p) => rulesAtLeast(state, p.fromPhase));
+}
+
+/** Runs one step: its active parts in order. */
 export function runStepParts(step: number, state: GameState, ctx: StepContext): GameState {
   let s = state;
-  for (const part of orderedParts(step, ctx)) if (rulesAtLeast(s, part.fromPhase)) s = part.run(s, ctx);
+  for (const part of activeParts(step, state, ctx)) s = part.run(s, ctx);
   return s;
 }
