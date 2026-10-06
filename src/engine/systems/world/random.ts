@@ -43,7 +43,11 @@ export function lnMeanOneVar(r: Rng, s2: number): number {
  * A weighted pick over a canonical key list (absent keys weigh 0). One `weighted` draw (2 u32). Using the canonical
  * list, never object key order, keeps the pick independent of how the data object was written.
  */
-export function pickKey<K extends string>(r: Rng, keys: readonly K[], weights: Readonly<Partial<Record<K, number>>>): K {
+export function pickKey<K extends string>(
+  r: Rng,
+  keys: readonly K[],
+  weights: Readonly<Partial<Record<K, number>>>,
+): K {
   const w = keys.map((k) => weights[k] ?? 0);
   return keys[r.weighted(w)] as K;
 }

@@ -20,7 +20,11 @@ const GH_Z = [-2.856970013872806, -1.355626179974266, 0, 1.355626179974266, 2.85
 const GH_W = [0.011257411327721, 0.222075922005613, 0.533333333333333, 0.222075922005613, 0.011257411327721];
 
 /** Steady-state listed share of a held parcel of class `cls`. */
-export function listingPoolWeight(cls: EconClass, gp: GeoGenParams, life: ListingLifeParams = DEFAULT_LISTING_LIFE): number {
+export function listingPoolWeight(
+  cls: EconClass,
+  gp: GeoGenParams,
+  life: ListingLifeParams = DEFAULT_LISTING_LIFE,
+): number {
   const S = gp.supply;
   const wait = 1 / (S.baseListHazard * S.seasonMultMean * S.inflowMult[cls]);
   const p = life.backgroundSaleP * S.saleQualityMult[cls];
@@ -37,7 +41,10 @@ export function listingPoolWeight(cls: EconClass, gp: GeoGenParams, life: Listin
 }
 
 /** listingPoolWeights (§3.7): per-class weights for held parcels. */
-export function listingPoolWeights(gp: GeoGenParams, life: ListingLifeParams = DEFAULT_LISTING_LIFE): Record<EconClass, number> {
+export function listingPoolWeights(
+  gp: GeoGenParams,
+  life: ListingLifeParams = DEFAULT_LISTING_LIFE,
+): Record<EconClass, number> {
   return {
     uneconomic: listingPoolWeight('uneconomic', gp, life),
     marginal: listingPoolWeight('marginal', gp, life),

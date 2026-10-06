@@ -66,7 +66,10 @@ describe('refEconomics block terms (§3.7 worked block)', () => {
       reclaimed: false,
       thawProgress: 0,
     };
-    const withPile: BlockTruth = { ...WORKED, oldTailings: { bcy: 4000, gradeOzPerBcy: 0.01, sizeMix: WORKED.sizeMix } };
+    const withPile: BlockTruth = {
+      ...WORKED,
+      oldTailings: { bcy: 4000, gradeOzPerBcy: 0.01, sizeMix: WORKED.sizeMix },
+    };
     const e = refBlockEconomics(withPile, bs, 'subarctic', RE);
     expect(e.payBcy).toBeCloseTo(6.5 * 1613 - 2100, 6);
     expect(e.overburdenBcy).toBeCloseTo(4000, 6);
@@ -87,7 +90,12 @@ describe('classes (§3.7)', () => {
   it('mines exactly the blocks that pay and charges the development cost per mined acre', () => {
     const rich = { ...WORKED, permafrost: 0, gradeOzPerBcy: 0.05, virginGradeOzPerBcy: 0.05 };
     const poor = { ...WORKED, gradeOzPerBcy: 0.002, virginGradeOzPerBcy: 0.002 };
-    const truth: ClaimTruth = { claimId: 'clm_000001' as ClaimId, truthHash: 'x', coarseMeanMg: 150, blocks: [rich, poor, rich] };
+    const truth: ClaimTruth = {
+      claimId: 'clm_000001' as ClaimId,
+      truthHash: 'x',
+      coarseMeanMg: 150,
+      blocks: [rich, poor, rich],
+    };
     const r = refEconomics(truth, () => undefined, 'subarctic', RE);
     expect(r.minedIdxs).toEqual([0, 2]);
     const one = refBlockEconomics(rich, undefined, 'subarctic', RE);

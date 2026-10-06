@@ -46,7 +46,12 @@ export interface AccessFactors {
 }
 
 /** Pure form: s = clamp((distance / refMi)^distExponent, lo, hi) scales every anchor of the class. */
-export function accessFactorsFor(access: Access, distanceToTownMi: number, cpiIndex: number, gp: GeoGenParams): AccessFactors {
+export function accessFactorsFor(
+  access: Access,
+  distanceToTownMi: number,
+  cpiIndex: number,
+  gp: GeoGenParams,
+): AccessFactors {
   const A = gp.access.classes[access];
   const [lo, hi] = gp.access.distScaleClamp;
   const s = clamp(pow(distanceToTownMi / A.refMi, gp.access.distExponent), lo, hi);

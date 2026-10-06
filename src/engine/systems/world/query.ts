@@ -41,7 +41,8 @@ export interface BlockCoords {
 export function blockCoords(h: WorldHolder, blockId: BlockId): BlockCoords {
   const world = worldOf(h);
   const parsed = parseId(blockId);
-  if (parsed === null || parsed.prefix !== 'blk' || parsed.num === null) throw new RangeError(`not a block id: ${blockId}`);
+  if (parsed === null || parsed.prefix !== 'blk' || parsed.num === null)
+    throw new RangeError(`not a block id: ${blockId}`);
   const n = parsed.num;
   const ids = world.claimIds;
   let lo = 0;

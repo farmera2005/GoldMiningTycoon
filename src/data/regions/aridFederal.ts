@@ -96,7 +96,14 @@ export const aridFederal = {
     depthClampFt: [30, 800],
   },
   names: {
-    districts: ['Greasewood Flats', 'Alkali Springs', 'Cinder Ridge', 'Sagebrush Hills', 'Dusty Basin', 'Mirage Valley'],
+    districts: [
+      'Greasewood Flats',
+      'Alkali Springs',
+      'Cinder Ridge',
+      'Sagebrush Hills',
+      'Dusty Basin',
+      'Mirage Valley',
+    ],
     towns: ['Sand Spring', 'Juniper Wells', 'Red Butte', 'Dry Lake Station', 'Saltbush', 'Quartz Junction'],
     hubs: ['Silver Gate', 'Desert Center', 'Basin City'],
     creeks: [

@@ -27,7 +27,10 @@ export interface RefEconResult {
 }
 
 /** Remaining pay and overburden of a block given its state (§3.5.1 derived quantities; partly mined blocks count). */
-export function remainingVolumes(bt: BlockTruth, bs: BlockState | undefined): { payBcy: number; overburdenBcy: number } {
+export function remainingVolumes(
+  bt: BlockTruth,
+  bs: BlockState | undefined,
+): { payBcy: number; overburdenBcy: number } {
   const payTotal = (bt.payThicknessFt + bt.bedrockCleanupFt) * BCY_PER_ACRE_FT;
   const obTotal = bt.overburdenFt * BCY_PER_ACRE_FT;
   const mined = bs?.minedBcy ?? 0;
@@ -43,8 +46,7 @@ export function remainingVolumes(bt: BlockTruth, bs: BlockState | undefined): { 
 /** Sluice-only recovery R = Σ_k sizeMix_k × capture_k × (1 − 0.15 × clay). */
 export function refRecovery(bt: BlockTruth, re: RefEconParams): number {
   const c = re.capture;
-  const r =
-    bt.sizeMix.coarse * c[0] + bt.sizeMix.medium * c[1] + bt.sizeMix.fine * c[2] + bt.sizeMix.ultrafine * c[3];
+  const r = bt.sizeMix.coarse * c[0] + bt.sizeMix.medium * c[1] + bt.sizeMix.fine * c[2] + bt.sizeMix.ultrafine * c[3];
   return r * (1 - re.clayRecoveryPenalty * bt.clay);
 }
 
@@ -68,7 +70,12 @@ export function refBlockEconomics(
 }
 
 /** The grade at which the yardstick's block revenue equals its cost (oz/bcy). */
-export function refBreakEvenGrade(bt: BlockTruth, bs: BlockState | undefined, band: ClimateBand, re: RefEconParams): number {
+export function refBreakEvenGrade(
+  bt: BlockTruth,
+  bs: BlockState | undefined,
+  band: ClimateBand,
+  re: RefEconParams,
+): number {
   const e = refBlockEconomics(bt, bs, band, re);
   const perOz = e.payBcy * e.recovery * bt.fineness * re.spotUsdPerFineOz * re.payable;
   return perOz > 0 ? e.costUsd / perOz : Infinity;

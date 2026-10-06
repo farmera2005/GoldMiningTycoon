@@ -41,9 +41,20 @@ export interface TemplateStats {
   readonly templateId: string;
   readonly districts: number;
   readonly parcels: number;
-  readonly parcelsPerDistrict: { readonly mean: number; readonly min: number; readonly max: number; readonly share55: number; readonly overTarget: number };
+  readonly parcelsPerDistrict: {
+    readonly mean: number;
+    readonly min: number;
+    readonly max: number;
+    readonly share55: number;
+    readonly overTarget: number;
+  };
   readonly heldShare: number;
-  readonly classes: { readonly all: ClassShares; readonly held: ClassShares; readonly open: ClassShares; readonly pool: ClassShares };
+  readonly classes: {
+    readonly all: ClassShares;
+    readonly held: ClassShares;
+    readonly open: ClassShares;
+    readonly pool: ClassShares;
+  };
   readonly depositMix: Record<string, number>;
   readonly accessMix: Record<string, number>;
   readonly oldTimerMix: Record<string, number>;
@@ -89,7 +100,8 @@ interface ClaimRow {
 
 export function percentiles(values: readonly number[]): Percentiles {
   const s = values.slice().sort((a, b) => a - b);
-  const q = (p: number): number => (s.length === 0 ? NaN : (s[Math.min(s.length - 1, Math.floor(p * s.length))] as number));
+  const q = (p: number): number =>
+    s.length === 0 ? NaN : (s[Math.min(s.length - 1, Math.floor(p * s.length))] as number);
   return { p10: q(0.1), p25: q(0.25), p50: q(0.5), p75: q(0.75), p90: q(0.9), p99: q(0.99) };
 }
 
@@ -153,7 +165,11 @@ export function runCalibration(opts: CalibrationOptions): CalibrationResult {
   let poolW: Record<EconClass, number> | null = null;
   for (let i = 0; i < opts.worlds; i++) {
     const t0 = performance.now();
-    const world = generateWorld(String(opts.seedBase + i), { districtCount: 2, templateIds: ['northernFederal', 'aridFederal'] }, tuning);
+    const world = generateWorld(
+      String(opts.seedBase + i),
+      { districtCount: 2, templateIds: ['northernFederal', 'aridFederal'] },
+      tuning,
+    );
     genMs += performance.now() - t0;
     kb += JSON.stringify(world).length / 1024;
     poolW ??= listingPoolWeights(world.genParams);
@@ -181,7 +197,13 @@ export function runCalibration(opts: CalibrationOptions): CalibrationResult {
   for (const [tplId, list] of rows) {
     templates[tplId] = templateStats(tplId, list, perDistrict.get(tplId) ?? [], honesty.get(tplId) ?? [], weights);
   }
-  return { worlds: opts.worlds, seedBase: opts.seedBase, meanGenMs: genMs / opts.worlds, meanWorldKb: kb / opts.worlds, templates };
+  return {
+    worlds: opts.worlds,
+    seedBase: opts.seedBase,
+    meanGenMs: genMs / opts.worlds,
+    meanWorldKb: kb / opts.worlds,
+    templates,
+  };
 }
 
 const PS_F = 0.4;
@@ -244,8 +266,12 @@ function templateStats(
       coarse += b.sizeMix.coarse;
     });
   }
-  const overlooked = open.filter((r) => r.claim.hidden.depositType === 'bench' || r.claim.hidden.depositType === 'deepMuck');
-  const creekOpen = open.filter((r) => !(r.claim.hidden.depositType === 'bench' || r.claim.hidden.depositType === 'deepMuck'));
+  const overlooked = open.filter(
+    (r) => r.claim.hidden.depositType === 'bench' || r.claim.hidden.depositType === 'deepMuck',
+  );
+  const creekOpen = open.filter(
+    (r) => !(r.claim.hidden.depositType === 'bench' || r.claim.hidden.depositType === 'deepMuck'),
+  );
   const econShare = (xs: readonly ClaimRow[]): number =>
     xs.length === 0 ? NaN : xs.filter((r) => r.econ.econClass !== 'uneconomic').length / xs.length;
   const bySize: Record<string, number> = {};
@@ -346,7 +372,15 @@ const STRIP_P50: Record<string, [number, number]> = {
 /** Band checks; `loose` widens every band (the fast vitest sample is small). */
 export function bandChecks(result: CalibrationResult, statusMultListed: number, loose = 0): BandCheck[] {
   const out: BandCheck[] = [];
-  const add = (id: string, templateId: string, what: string, value: number, lo: number, hi: number, gating: boolean): void => {
+  const add = (
+    id: string,
+    templateId: string,
+    what: string,
+    value: number,
+    lo: number,
+    hi: number,
+    gating: boolean,
+  ): void => {
     const span = Number.isFinite(hi - lo) ? hi - lo : Math.abs(Number.isFinite(lo) ? lo : hi);
     const w = span * loose;
     const l = lo - w;
@@ -363,7 +397,8 @@ export function bandChecks(result: CalibrationResult, statusMultListed: number, 
     add('3.18', tpl, 'mined-block grade p10 (oz/bcy)', s.minedBlockGrade.p10, 0.005, Infinity, true);
     add('3.18', tpl, 'mined-block grade p90 (oz/bcy)', s.minedBlockGrade.p90, 0, 0.045, true);
     const strip = STRIP_P50[tpl];
-    if (strip !== undefined) add('3.18', tpl, 'whole-claim strip ratio p50', s.stripWhole.p50, strip[0], strip[1], true);
+    if (strip !== undefined)
+      add('3.18', tpl, 'whole-claim strip ratio p50', s.stripWhole.p50, strip[0], strip[1], true);
     add('3.18', tpl, 'parcels per district (mean)', s.parcelsPerDistrict.mean, 65, 75, true);
     add('3.18', tpl, 'districts with ≥ 55 parcels (share)', s.parcelsPerDistrict.share55, 0.99, 1, true);
     add('3.18', tpl, 'districts above nTarget (count)', s.parcelsPerDistrict.overTarget, 0, 0, true);
@@ -371,10 +406,29 @@ export function bandChecks(result: CalibrationResult, statusMultListed: number, 
     if (hs !== undefined) add('3.18', tpl, 'realized held share', s.heldShare, hs[0], hs[1], true);
     const acc = ACCESS_TARGETS[tpl];
     if (acc !== undefined) {
-      for (const [a, t] of Object.entries(acc)) add('3.18', tpl, `access ${a} share`, s.accessMix[a] ?? 0, t - 0.1, t + 0.1, true);
+      for (const [a, t] of Object.entries(acc))
+        add('3.18', tpl, `access ${a} share`, s.accessMix[a] ?? 0, t - 0.1, t + 0.1, true);
     }
-    add('3.7', tpl, 'pool ÷ held GM paystreak grade vs statusMult.listed', s.listedHeldGradeRatio, statusMultListed - 0.03, statusMultListed + 0.03, false);
-    add('T-01b', tpl, 'paystreak blocks in [0.005, 0.03]', s.psBlocksInBand, tpl === 'aridFederal' ? 0.4 : 0.45, 1, false);
+    add(
+      '3.7',
+      tpl,
+      'pool ÷ held GM paystreak grade vs statusMult.listed',
+      s.listedHeldGradeRatio,
+      statusMultListed - 0.03,
+      statusMultListed + 0.03,
+      false,
+    );
+    // BALANCE T-01 (a) is stricter than §3.18 (p90 ≤ 0.035 vs 0.045); a P1 gate, reported here.
+    add('T-01a', tpl, 'mined-block grade p90 (oz/bcy), BALANCE band', s.minedBlockGrade.p90, 0, 0.035, false);
+    add(
+      'T-01b',
+      tpl,
+      'paystreak blocks in [0.005, 0.03]',
+      s.psBlocksInBand,
+      tpl === 'aridFederal' ? 0.4 : 0.45,
+      1,
+      false,
+    );
     add('T-01c', tpl, 'paystreak blocks > 0.1 oz/bcy', s.psBlocksOver01, 0.0005, 0.01, false);
   }
   return out;

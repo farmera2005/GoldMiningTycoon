@@ -20,7 +20,11 @@ import type {
 import { log } from '../../core/dmath';
 
 /** True when the parcel's rows on its creek intersect the overlay's stretch. */
-export function overlapsOverlay(K: { creekIdx: number; rowStart: number; nAlong: number }, creekId: string, o: LandOverlay): boolean {
+export function overlapsOverlay(
+  K: { creekIdx: number; rowStart: number; nAlong: number },
+  creekId: string,
+  o: LandOverlay,
+): boolean {
   return o.creekId === creekId && K.rowStart <= o.rowTo && o.rowFrom <= K.rowStart + K.nAlong - 1;
 }
 
@@ -35,7 +39,12 @@ export function selectionZ(paystreakGStreaks: readonly number[], gMed: number, g
 }
 
 /** P(held) = logistic(logit(stakedFraction) + b × zq), weak slope b on ground whose quality is hard to see. */
-export function heldProbability(zq: number, K: Pick<GenClaim, 'depositType'>, stakedFraction: number, gp: GeoGenParams): number {
+export function heldProbability(
+  zq: number,
+  K: Pick<GenClaim, 'depositType'>,
+  stakedFraction: number,
+  gp: GeoGenParams,
+): number {
   const overlooked = K.depositType === 'bench' || K.depositType === 'deepMuck';
   const b = overlooked ? gp.world.selSlopeOverlooked : gp.world.selSlope;
   return logistic(logit(stakedFraction) + b * zq);
@@ -58,7 +67,8 @@ export function assignStatus(
   const patentU = r.next();
   let status: ClaimStatus = heldU < pHeld ? 'heldNpc' : 'open';
   // Withdrawals close open ground; held claims keep valid existing rights (D-3.28).
-  if (status === 'open' && overlays.some((o) => o.kind === 'withdrawn' && overlapsOverlay(K, creekId, o))) status = 'withdrawn';
+  if (status === 'open' && overlays.some((o) => o.kind === 'withdrawn' && overlapsOverlay(K, creekId, o)))
+    status = 'withdrawn';
   const patented = status === 'heldNpc' && oldTimerKind !== 'none' && patentU < tpl.patentedShare;
   return { status, titleKind: patented ? 'patented' : 'unpatented', regime: patented ? 'private' : tpl.regime };
 }
@@ -164,8 +174,7 @@ export function adjacentClaims(
       const bEnd = b.rowStart + b.nAlong;
       const touching = aEnd === b.rowStart || bEnd === a.rowStart;
       const shared = a.rowStart < bEnd && b.rowStart < aEnd;
-      const adjacent =
-        a.side === b.side ? touching : (a.side === 0 || b.side === 0) && shared;
+      const adjacent = a.side === b.side ? touching : (a.side === 0 || b.side === 0) && shared;
       if (adjacent) {
         (out[a.id] as ClaimId[]).push(b.id);
         (out[b.id] as ClaimId[]).push(a.id);

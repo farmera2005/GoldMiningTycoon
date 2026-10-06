@@ -81,7 +81,8 @@ export function depleteAgain(b: WorkBlock, delta: number, w: readonly number[], 
   b.mix = normalize4(b.mix.map((m, k) => Math.max(0, m - (removed[k] as number))));
   b.minedOutFraction = x1;
   b.gradeOzPerBcy = b.virginGradeOzPerBcy * (1 - x1);
-  if (b.pocket !== null) b.pocket = { bcy: b.pocket.bcy, gradeOzPerBcy: (b.pocket.gradeOzPerBcy * (1 - x1)) / (1 - x0) };
+  if (b.pocket !== null)
+    b.pocket = { bcy: b.pocket.bcy, gradeOzPerBcy: (b.pocket.gradeOzPerBcy * (1 - x1)) / (1 - x0) };
 }
 
 /** Old workings' losses as a surface pile on the block (§3.6 tailingsPile): lost = x·virgin·payBcy·(1 − histRec). */
@@ -100,7 +101,9 @@ export function driftBottomShare(b: WorkBlock, gp: GeoGenParams): number {
     lambdaG: b.verticalDecayFt,
     lambdaB: gp.sample.bedrockDecayFt,
   };
-  return cumulativeGoldShare(p, gp.oldTimer.driftBottom.topFt) - cumulativeGoldShare(p, -gp.oldTimer.driftBottom.bedrockFt);
+  return (
+    cumulativeGoldShare(p, gp.oldTimer.driftBottom.topFt) - cumulativeGoldShare(p, -gp.oldTimer.driftBottom.bedrockFt)
+  );
 }
 
 /** Paystreak blocks (f ≥ 0.4) by virgin grade, richest first (ties: block index). */
@@ -237,7 +240,9 @@ export function applyOldTimers(
   }
   const startYear = gp.startYear;
   const improvementsUsd =
-    lastSeason === null ? 0 : Math.round(impLn * (lastSeason < startYear - O.improvementsOldYears ? O.improvementsOldMult : 1));
+    lastSeason === null
+      ? 0
+      : Math.round(impLn * (lastSeason < startYear - O.improvementsOldYears ? O.improvementsOldMult : 1));
   const ps = gp.permitStub;
   const permitStatus: PermitStubStatus =
     lastSeason === null || lastSeason < ps.minLastSeasonYear
@@ -366,4 +371,3 @@ function recentOperator(
   }
   return { mined, preStripped, history, lastSeason };
 }
-

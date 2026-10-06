@@ -73,7 +73,13 @@ export function payBcyOf(b: { payThicknessFt: number; bedrockCleanupFt: number }
  * The separable AR block field z[i][j] with unit variance (§3.5.3): along-valley ρa, across-valley ρc, so
  * Corr(z[i][j], z[i'][j']) = ρa^|Δi| · ρc^|Δj|. nAlong × nAcross normals, row-major.
  */
-export function blockField(r: Rng, nAlong: number, nAcross: number, rangeAlongFt: number, rangeAcrossFt: number): number[][] {
+export function blockField(
+  r: Rng,
+  nAlong: number,
+  nAcross: number,
+  rangeAlongFt: number,
+  rangeAcrossFt: number,
+): number[][] {
   const ra = exp(-BLOCK_FT / rangeAlongFt);
   const rc = exp(-BLOCK_FT / rangeAcrossFt);
   const sa = sqrt(1 - ra * ra);
@@ -121,12 +127,19 @@ export function genClaimTruth(
   const finenessK = clamp(d.finenessMean + r.normal(0, fin.claimSd), fin.lo, fin.hi);
   const lambdaG = (tpl.verticalDecayFt[dep] ?? 2) * uniformIn(r, cc.decayJitter);
   // §3.4.1: north-facing benches freeze more often, south-facing less.
-  const pFrozen = clamp((tpl.permafrostP[dep] ?? 0) * (bench ? 1 + gp.env.aspectFrozenSlope * K.northness : 1), 0, cc.frozenMaxP);
+  const pFrozen = clamp(
+    (tpl.permafrostP[dep] ?? 0) * (bench ? 1 + gp.env.aspectFrozenSlope * K.northness : 1),
+    0,
+    cc.frozenMaxP,
+  );
   const frozenU = r.next();
   const frozenDeg = uniformIn(r, cc.frozenDegree);
   const frozenDegree = frozenU < pFrozen ? frozenDeg : 0;
   const clayK = Math.min(1, lnMedian(r, tpl.clayMed, cc.clayLogSd));
-  const bouldersK = Math.min(1, lnMedian(r, tpl.boulderMed * gp.grade.boulderSettingMult[K.sizeSetting], cc.boulderLogSd));
+  const bouldersK = Math.min(
+    1,
+    lnMedian(r, tpl.boulderMed * gp.grade.boulderSettingMult[K.sizeSetting], cc.boulderLogSd),
+  );
   const cementK = Math.min(1, lnMedian(r, tpl.cementMed[dep] ?? 0, cc.cementLogSd));
 
   const z = blockField(r, K.nAlong, K.nAcross, tpl.blockRangeAlongFt, gp.grade.blockRangeAcrossFt);
@@ -188,9 +201,7 @@ export function genClaimTruth(
       }
       // Coarse gold stays in the channel: the coarse share thins off the paystreak.
       const thin = cc.coarseStreakThin + (1 - cc.coarseStreakThin) * f;
-      const mix = normalize4(
-        mixK.map((m, k) => m * (k === 0 ? thin : 1) * lnMedian(r, 1, cc.blockMixJitterLogSd)),
-      );
+      const mix = normalize4(mixK.map((m, k) => m * (k === 0 ? thin : 1) * lnMedian(r, 1, cc.blockMixJitterLogSd)));
       const fineness = clamp(finenessK + r.normal(0, cc.blockFinenessSd), fin.lo, fin.hi);
       const pfN = r.normal(0, cc.permafrostBlockSd);
       const pfU = r.next();
@@ -258,7 +269,11 @@ export function toBlockTruth(b: WorkBlock, coarseMeanMg: number): BlockTruth {
   };
   if (b.pocket !== null) bt.pocket = { bcy: b.pocket.bcy, gradeOzPerBcy: b.pocket.gradeOzPerBcy };
   if (b.oldTailings !== null) {
-    bt.oldTailings = { bcy: b.oldTailings.bcy, gradeOzPerBcy: b.oldTailings.gradeOzPerBcy, sizeMix: mixRecord(b.oldTailings.mix) };
+    bt.oldTailings = {
+      bcy: b.oldTailings.bcy,
+      gradeOzPerBcy: b.oldTailings.gradeOzPerBcy,
+      sizeMix: mixRecord(b.oldTailings.mix),
+    };
   }
   return bt;
 }
@@ -288,6 +303,10 @@ export function fromBlockTruth(bt: BlockTruth, i: number, j: number, gStreak: nu
     oldTailings:
       bt.oldTailings === undefined
         ? null
-        : { bcy: bt.oldTailings.bcy, gradeOzPerBcy: bt.oldTailings.gradeOzPerBcy, mix: mixTuple(bt.oldTailings.sizeMix) },
+        : {
+            bcy: bt.oldTailings.bcy,
+            gradeOzPerBcy: bt.oldTailings.gradeOzPerBcy,
+            mix: mixTuple(bt.oldTailings.sizeMix),
+          },
   };
 }

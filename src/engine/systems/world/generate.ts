@@ -4,7 +4,16 @@
 // step never changes another.
 import type { TuningResolved } from '../../../data/tuning';
 import { townServicesByTier } from '../../../data/regions';
-import { compareIds, formatId, type BlockId, type ClaimId, type CreekId, type DistrictId, type HolderId, type IdPrefix } from '../../core/ids';
+import {
+  compareIds,
+  formatId,
+  type BlockId,
+  type ClaimId,
+  type CreekId,
+  type DistrictId,
+  type HolderId,
+  type IdPrefix,
+} from '../../core/ids';
 import { usdToCents, type Cents } from '../../core/money';
 import { recordSize } from '../../core/iter';
 import { rng } from '../../core/rng';
@@ -196,7 +205,9 @@ function claimNames(claims: readonly GenClaim[], creeks: readonly GenCreek[]): R
             : `${c.name} No. ${disc - n} Below Discovery`;
     });
     for (const side of [-1, 1] as const) {
-      const bench = claims.filter((k) => k.creekIdx === c.idx && k.side === side).sort((a, b) => a.rowStart - b.rowStart);
+      const bench = claims
+        .filter((k) => k.creekIdx === c.idx && k.side === side)
+        .sort((a, b) => a.rowStart - b.rowStart);
       bench.forEach((k, n) => {
         out[k.id] = `${c.name} ${side < 0 ? 'Left' : 'Right'} Bench No. ${n + 1}`;
       });
@@ -270,7 +281,17 @@ function buildClaim(
           nearestFillMi: water.nearestFillMi,
           hidden: water.hidden,
         };
-  const env = genEnv(rng(seed, 'world', 'env', K.id), K, creek, d, overlays, ot.kind, water.sourceKind, states.length > 0, gp);
+  const env = genEnv(
+    rng(seed, 'world', 'env', K.id),
+    K,
+    creek,
+    d,
+    overlays,
+    ot.kind,
+    water.sourceKind,
+    states.length > 0,
+    gp,
+  );
   const priorDrill = genPriorDrill(rng(seed, 'world', 'drill', K.id), K, truth, env.surfaceCodes, tpl.climateBand, gp);
   const stateAt: (BlockState | undefined)[] = [];
   for (const s of states) stateAt[s.idx] = s.state;
@@ -304,18 +325,16 @@ function buildClaim(
   };
 }
 
-function claimRecord(
-  b: Built,
-  d: GenDistrict,
-  adjacent: readonly ClaimId[],
-  holderId: HolderId | null,
-): Claim {
+function claimRecord(b: Built, d: GenDistrict, adjacent: readonly ClaimId[], holderId: HolderId | null): Claim {
   const K = b.K;
   const ot = b.ot;
   const workedForRecord =
-    ot.kind === 'recentCat' ? ot.mined.map((m) => m.idx).sort((x, y) => x - y) : b.truth.blocks.flatMap((bt, i) => (bt.minedOutFraction > 0 ? [i] : []));
+    ot.kind === 'recentCat'
+      ? ot.mined.map((m) => m.idx).sort((x, y) => x - y)
+      : b.truth.blocks.flatMap((bt, i) => (bt.minedOutFraction > 0 ? [i] : []));
   const publicRecord: PublicRecord = {
-    oldTimer: ot.footprintOnRecord && ot.era !== null ? { kind: ot.kind, era: ot.era, workedBlockIdxs: workedForRecord } : null,
+    oldTimer:
+      ot.footprintOnRecord && ot.era !== null ? { kind: ot.kind, era: ot.era, workedBlockIdxs: workedForRecord } : null,
     filedSeasons: ot.filedSeasons,
     priorPermits: priorPermitsOf(ot),
     inheritedAcres: b.inheritedAcres,
@@ -552,5 +571,11 @@ export function worldIdCounters(world: WorldSlice): Partial<Record<IdPrefix, num
     const d = world.districts[id];
     if (d !== undefined) creeks += d.creekIds.length;
   }
-  return { dst: world.districtIds.length, crk: creeks, clm: world.claimIds.length, blk: blocks, hld: recordSize(world.holders) };
+  return {
+    dst: world.districtIds.length,
+    crk: creeks,
+    clm: world.claimIds.length,
+    blk: blocks,
+    hld: recordSize(world.holders),
+  };
 }

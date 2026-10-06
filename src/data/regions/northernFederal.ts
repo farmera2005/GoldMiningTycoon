@@ -83,7 +83,14 @@ export const northernFederal = {
   },
   water: { kind: 'creek', gpmPerUpstreamMi: 150, sig: 0.35 },
   names: {
-    districts: ['Caribou Dome', 'Tamarack Divide', 'Ptarmigan Hills', 'Ironstone Forks', 'Moose Flats', 'Grayling Bench'],
+    districts: [
+      'Caribou Dome',
+      'Tamarack Divide',
+      'Ptarmigan Hills',
+      'Ironstone Forks',
+      'Moose Flats',
+      'Grayling Bench',
+    ],
     towns: ['Ravenwood', 'Sourdough Landing', 'Kettle Crossing', 'Halfway House', 'Willow Bar', 'Copper Bend'],
     hubs: ['Northgate', 'Spruce Junction', 'Ridgeport'],
     creeks: [

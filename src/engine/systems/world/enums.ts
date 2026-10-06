@@ -64,24 +64,20 @@ export type TitleKind = 'unpatented' | 'patented' | 'state';
 export type SellerHonesty = 'accurate' | 'optimistic' | 'cherryPicked' | 'fraudulent';
 export const SELLER_HONESTIES: readonly SellerHonesty[] = ['accurate', 'optimistic', 'cherryPicked', 'fraudulent'];
 export type SellerSituation =
-  | 'retiringOperator'
-  | 'estate'
-  | 'prospector'
-  | 'distressedOperator'
-  | 'absentee'
-  | 'competitorBust';
+  'retiringOperator' | 'estate' | 'prospector' | 'distressedOperator' | 'absentee' | 'competitorBust';
 /** Situations a new NPC holder can be drawn with (competitorBust exists only on relisted candidates, §3.10.1). */
-export const HOLDER_SITUATIONS = ['prospector', 'absentee', 'retiringOperator', 'estate', 'distressedOperator'] as const;
+export const HOLDER_SITUATIONS = [
+  'prospector',
+  'absentee',
+  'retiringOperator',
+  'estate',
+  'distressedOperator',
+] as const;
 export type HolderSituation = (typeof HOLDER_SITUATIONS)[number];
 export type SellerKnowledge = 'operator' | 'prospector' | 'heirs' | 'absentee';
 
 export type VisibleFeature =
-  | 'dredgeTailings'
-  | 'tailingsPiles'
-  | 'recentDisturbance'
-  | 'ponds'
-  | 'preStripped'
-  | 'improvements';
+  'dredgeTailings' | 'tailingsPiles' | 'recentDisturbance' | 'ponds' | 'preStripped' | 'improvements';
 /** Canonical order of visible features (stored arrays follow it). */
 export const VISIBLE_FEATURES: readonly VisibleFeature[] = [
   'dredgeTailings',
@@ -94,4 +90,3 @@ export const VISIBLE_FEATURES: readonly VisibleFeature[] = [
 
 /** Surface code per block (§3.4.1): 'u' upland, 'w' wetland, 'c' channel (active creek or wash bed). */
 export type SurfaceCode = 'u' | 'w' | 'c';
-

@@ -62,10 +62,21 @@ export function logVarMeas(
 }
 
 /** Expected particles per class: λ_k = g · V · mix_k · K / m_k. */
-export function classLambdas(g: number, V: number, mix: SizeRecord, coarseMg: number, phys: SamplePhysics): [number, number, number, number] {
+export function classLambdas(
+  g: number,
+  V: number,
+  mix: SizeRecord,
+  coarseMg: number,
+  phys: SamplePhysics,
+): [number, number, number, number] {
   const m = masses(coarseMg, phys);
   const s = shares(mix);
-  return [0, 1, 2, 3].map((k) => (g * V * (s[k] as number) * MG_PER_OZ) / (m[k] as number)) as [number, number, number, number];
+  return [0, 1, 2, 3].map((k) => (g * V * (s[k] as number) * MG_PER_OZ) / (m[k] as number)) as [
+    number,
+    number,
+    number,
+    number,
+  ];
 }
 
 /** medianRatio ≈ Σ_k mix_k · capture_k · [λ_k ≥ 0.7]: what a typical sample reports ÷ truth (§3.8). */

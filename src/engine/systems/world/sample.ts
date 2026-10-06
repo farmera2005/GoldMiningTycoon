@@ -167,7 +167,8 @@ export function drawSample(
 ): SampleResult {
   const P = ctx.physics;
   const V = req.volumeBcy;
-  if (!(V > 0) || !Number.isFinite(V)) throw new DrawSampleError('BAD_VOLUME', `drawSample: volume must be > 0, got ${V}`);
+  if (!(V > 0) || !Number.isFinite(V))
+    throw new DrawSampleError('BAD_VOLUME', `drawSample: volume must be > 0, got ${V}`);
   const pile = bt.oldTailings;
   if (req.target === 'oldTailings' && pile === undefined) {
     throw new DrawSampleError('NO_TAILINGS', 'drawSample: the block has no old tailings pile');
@@ -200,7 +201,8 @@ export function drawSample(
     const Vb = (bt.payThicknessFt + bt.bedrockCleanupFt) * BCY_PER_ACRE_FT;
     const g = bt.gradeOzPerBcy;
     const pocket = bt.pocket;
-    const gMatrix = pocket !== undefined ? Math.max(0, (g * Vb - pocket.bcy * pocket.gradeOzPerBcy) / (Vb - pocket.bcy)) : g;
+    const gMatrix =
+      pocket !== undefined ? Math.max(0, (g * Vb - pocket.bcy * pocket.gradeOzPerBcy) / (Vb - pocket.bcy)) : g;
     const s2 = V < Vb ? P.deWijsAlpha * log(Vb / V) : 0;
     gLoc = gMatrix * posMult * expMeanOne(s2, zLocal);
     if (pocket !== undefined && pocketU < Math.min(1, (pocket.bcy + V) / Vb)) {
@@ -313,5 +315,11 @@ export function sampleGoldLines(result: SampleResult, credited: boolean): Sample
   const creditedRawOz = credited ? h.recoveredRawOz : 0;
   const sampleProcessingLoss = credited ? 0 : h.recoveredRawOz;
   const samplingVariance = h.accountingRawOz - h.drawnRawOz;
-  return { accountingRawOz: h.accountingRawOz, creditedRawOz, sampleCaptureLoss, sampleProcessingLoss, samplingVariance };
+  return {
+    accountingRawOz: h.accountingRawOz,
+    creditedRawOz,
+    sampleCaptureLoss,
+    sampleProcessingLoss,
+    samplingVariance,
+  };
 }

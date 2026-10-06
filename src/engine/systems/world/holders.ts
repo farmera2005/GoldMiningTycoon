@@ -42,14 +42,19 @@ export function heldRuns(held: readonly HeldParcel[]): HeldParcel[][] {
   for (const p of sorted) {
     const run = runs[runs.length - 1];
     const last = run?.[run.length - 1];
-    if (run !== undefined && last !== undefined && last.creekIdx === p.creekIdx && last.side === p.side && last.rowStart + last.nAlong === p.rowStart) {
+    if (
+      run !== undefined &&
+      last !== undefined &&
+      last.creekIdx === p.creekIdx &&
+      last.side === p.side &&
+      last.rowStart + last.nAlong === p.rowStart
+    ) {
       run.push(p);
     } else {
       runs.push([p]);
     }
   }
-  const first = (run: HeldParcel[]): ClaimId =>
-    run.map((p) => p.id).sort(compareIds)[0] as ClaimId;
+  const first = (run: HeldParcel[]): ClaimId => run.map((p) => p.id).sort(compareIds)[0] as ClaimId;
   return runs.sort((a, b) => compareIds(first(a), first(b)));
 }
 
@@ -64,7 +69,8 @@ export function assignHolders(
     const groupU = r.next();
     const ids = run.map((p) => p.id);
     if (groupU < gp.seller.groupRunP) {
-      for (let k = 0; k < ids.length; k += gp.seller.maxParcelsPerHolder) groups.push(ids.slice(k, k + gp.seller.maxParcelsPerHolder));
+      for (let k = 0; k < ids.length; k += gp.seller.maxParcelsPerHolder)
+        groups.push(ids.slice(k, k + gp.seller.maxParcelsPerHolder));
     } else {
       for (const id of ids) groups.push([id]);
     }

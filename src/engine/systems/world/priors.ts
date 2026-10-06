@@ -94,7 +94,12 @@ function rss(xs: readonly number[]): number {
  * visiblePrior(districtId, setting, status) (§3.9): gradeMed = gMed × depositMult.grade[setting] × statusMult[status];
  * gradeSigLn = √(σ_district² + σ_creek² + σ_rich² + σ_claim² + σ_block² (+ listedSigmaAdj when listed)).
  */
-export function visiblePriorFor(tpl: RegionTemplate, setting: ListingSetting, status: PriorStatus, gp: GeoGenParams): VisiblePrior {
+export function visiblePriorFor(
+  tpl: RegionTemplate,
+  setting: ListingSetting,
+  status: PriorStatus,
+  gp: GeoGenParams,
+): VisiblePrior {
   const dep = visibleDepositType(setting);
   const dm = tpl.depositMult[dep];
   const s = tpl.sigma;
@@ -110,7 +115,9 @@ export function visiblePriorFor(tpl: RegionTemplate, setting: ListingSetting, st
   const pay = tpl.pay.sig;
   return {
     gradeMedOzBcy: tpl.gMed * dm.grade * gp.prior.statusMult[status],
-    gradeSigLn: sqrt(s.district * s.district + s.creek * s.creek + s.rich * s.rich + s.claim * s.claim + s.block * s.block + listedAdj),
+    gradeSigLn: sqrt(
+      s.district * s.district + s.creek * s.creek + s.rich * s.rich + s.claim * s.claim + s.block * s.block + listedAdj,
+    ),
     pBarrenCreek: gp.world.barrenCreekP,
     paystreakShare: gp.prior.paystreakShare[setting],
     obMedFt: tpl.overburden.medFt * dm.ob,
@@ -128,7 +135,12 @@ export function visiblePriorFor(tpl: RegionTemplate, setting: ListingSetting, st
   };
 }
 
-export function visiblePrior(world: WorldSlice, districtId: DistrictId, setting: ListingSetting, status: PriorStatus): VisiblePrior {
+export function visiblePrior(
+  world: WorldSlice,
+  districtId: DistrictId,
+  setting: ListingSetting,
+  status: PriorStatus,
+): VisiblePrior {
   const d = world.districts[districtId];
   if (d === undefined) throw new RangeError(`visiblePrior: unknown district ${districtId}`);
   return visiblePriorFor(templateOf(world.genParams, d.templateId), setting, status, world.genParams);
@@ -232,7 +244,10 @@ function buildClaimPriors(world: WorldSlice, claim: Claim, priorStatus: PriorSta
   for (let i = 0; i < claim.nAlong; i++) {
     for (let j = 0; j < claim.nAcross; j++) {
       const idx = i * claim.nAcross + j;
-      const x = claim.geometry.axisOffsetFt + (j - (claim.nAcross - 1) / 2) * BLOCK_FT - (bench ? claim.geometry.axisOffsetFt : 0);
+      const x =
+        claim.geometry.axisOffsetFt +
+        (j - (claim.nAcross - 1) / 2) * BLOCK_FT -
+        (bench ? claim.geometry.axisOffsetFt : 0);
       blocks.push({
         blockId: formatId('blk', claim.blockIdBase + idx) as BlockId,
         i,

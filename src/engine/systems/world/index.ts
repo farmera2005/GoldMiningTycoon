@@ -21,7 +21,16 @@ export { generateWorld, worldIdCounters, type WorldGenOptions } from './generate
 export { snapshotGenParams, templateOf } from './params';
 export { BCY_PER_ACRE_FT, BLOCK_FT, MG_PER_OZ } from './constants';
 export { packTruth, unpackTruth, decodeClaimTruth, truthHashOf } from './pack';
-export { blockCoords, blockIdOf, blockStateOf, blockTruth, claimTruth, drawContextFor, type BlockCoords, type WorldHolder } from './query';
+export {
+  blockCoords,
+  blockIdOf,
+  blockStateOf,
+  blockTruth,
+  claimTruth,
+  drawContextFor,
+  type BlockCoords,
+  type WorldHolder,
+} from './query';
 export {
   cumulativeGoldShare,
   positionMult,
@@ -30,7 +39,14 @@ export {
   verticalGoldShare,
   verticalGoldShareProfile,
 } from './vertical';
-export { DrawSampleError, UNTOUCHED_BLOCK, drawSample, sampleGoldLines, sampleInterval, type SampleInterval } from './sample';
+export {
+  DrawSampleError,
+  UNTOUCHED_BLOCK,
+  drawSample,
+  sampleGoldLines,
+  sampleInterval,
+  type SampleInterval,
+} from './sample';
 export { classLambdas, deWijsVar, effectiveMassMg, logVarMeas, medianRatio, nEff, particleCv } from './closedForms';
 export {
   claimPriors,

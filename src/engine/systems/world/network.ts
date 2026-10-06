@@ -72,7 +72,13 @@ export function genDistrict(r: Rng, tpl: RegionTemplate, gp: GeoGenParams, a: Di
   const hubName = pickUniqueName(r, tpl.names.hubs, []);
   const [w, h] = gp.world.mapMi;
   const outlet: PointMi =
-    edge === 0 ? { x: along * w, y: 0 } : edge === 1 ? { x: w, y: along * h } : edge === 2 ? { x: along * w, y: h } : { x: 0, y: along * h };
+    edge === 0
+      ? { x: along * w, y: 0 }
+      : edge === 1
+        ? { x: w, y: along * h }
+        : edge === 2
+          ? { x: along * w, y: h }
+          : { x: 0, y: along * h };
   const inwardDeg = INWARD_BY_EDGE[edge] as number;
   // The town lies outside the map, down the access road (roads wind like trails, so straight-line < road miles).
   const straight = townRoadMi / gp.world.trailTortuosity;
@@ -186,12 +192,7 @@ interface CreekGeom {
   readonly poly: Polyline;
 }
 
-export function genCreekNetwork(
-  r: Rng,
-  d: GenDistrict,
-  gp: GeoGenParams,
-  nextCreekId: () => CreekId,
-): GenNetwork {
+export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCreekId: () => CreekId): GenNetwork {
   const W = gp.world;
   const tpl = d.tpl;
   const step = W.stepMi;
@@ -267,7 +268,13 @@ export function genCreekNetwork(
     const pg = geoms[parent] as CreekGeom;
     const pos = u.s.branchPos * pg.lengthMi;
     const at = pointAlong(pg.poly.points, pg.poly.segHeadings, pg.lengthMi, step, pos);
-    const poly = buildPolyline(at.point, at.headingDeg + u.s.branchSide * u.s.branchAngle, u.s.branchLen, u.s.branchJit, gp);
+    const poly = buildPolyline(
+      at.point,
+      at.headingDeg + u.s.branchSide * u.s.branchAngle,
+      u.s.branchLen,
+      u.s.branchJit,
+      gp,
+    );
     geoms.push({ order: 3, parentGeom: parent, posOnParentMi: pos, lengthMi: u.s.branchLen, poly });
   });
 
@@ -328,18 +335,36 @@ export function genCreekNetwork(
   };
   if (wU < tpl.overlayP.withdrawn) {
     const [from, to] = stretch(rows[0] as number, wFrac, wStartU);
-    overlays.push({ kind: 'withdrawn', label: tpl.overlayLabels.withdrawn, creekId: ids[0] as CreekId, rowFrom: from, rowTo: to });
+    overlays.push({
+      kind: 'withdrawn',
+      label: tpl.overlayLabels.withdrawn,
+      creekId: ids[0] as CreekId,
+      rowFrom: from,
+      rowTo: to,
+    });
   }
   if (sU < tpl.overlayP.specialStatus) {
     if (tpl.valley.kind === 'wash') {
       // Arid: the tortoise-habitat stretch lies on the fan rows of the main stem (§3.3.1).
       const fanRows = Math.max(1, Math.floor(tpl.valley.overlayFanMainFrac * (rows[0] as number)));
       const [from, to] = stretch(fanRows, sFrac, sStartU);
-      overlays.push({ kind: 'specialStatus', label: tpl.overlayLabels.specialStatus, creekId: ids[0] as CreekId, rowFrom: from, rowTo: to });
+      overlays.push({
+        kind: 'specialStatus',
+        label: tpl.overlayLabels.specialStatus,
+        creekId: ids[0] as CreekId,
+        rowFrom: from,
+        rowTo: to,
+      });
     } else if (tribGeomIdx.length > 0) {
       const gi = tribGeomIdx[tribPick] as number;
       const [from, to] = stretch(rows[gi] as number, sFrac, sStartU);
-      overlays.push({ kind: 'specialStatus', label: tpl.overlayLabels.specialStatus, creekId: ids[gi] as CreekId, rowFrom: from, rowTo: to });
+      overlays.push({
+        kind: 'specialStatus',
+        label: tpl.overlayLabels.specialStatus,
+        creekId: ids[gi] as CreekId,
+        rowFrom: from,
+        rowTo: to,
+      });
       // "a random tributary and its branch": the branch joins the overlay when it heads inside the stretch.
       geoms.forEach((g, bi) => {
         const jr = junctionRow[bi];

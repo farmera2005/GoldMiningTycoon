@@ -40,7 +40,12 @@ describe('deplete: water-filling removal (§3.6)', () => {
   it('removes exactly x of the gold for any mix and x ≤ 0.92, capping each class at 95%', () => {
     fc.assert(
       fc.property(
-        fc.tuple(fc.double({ min: 0.01, max: 1, noNaN: true }), fc.double({ min: 0.01, max: 1, noNaN: true }), fc.double({ min: 0.01, max: 1, noNaN: true }), fc.double({ min: 0.01, max: 1, noNaN: true })),
+        fc.tuple(
+          fc.double({ min: 0.01, max: 1, noNaN: true }),
+          fc.double({ min: 0.01, max: 1, noNaN: true }),
+          fc.double({ min: 0.01, max: 1, noNaN: true }),
+          fc.double({ min: 0.01, max: 1, noNaN: true }),
+        ),
         fc.double({ min: 0, max: 0.92, noNaN: true }),
         fc.boolean(),
         (raw, x, dredge) => {

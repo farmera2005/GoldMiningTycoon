@@ -196,7 +196,11 @@ function valleyHalfWidths(t: TuningResolved): GeoGenParams['world']['valleyHalfW
     const a = numArray(p, 2, `geology.world.valleyHalfWidthFt[${i}]`);
     return [a[0] as number, a[1] as number] as const;
   });
-  return [pairs[0] as readonly [number, number], pairs[1] as readonly [number, number], pairs[2] as readonly [number, number]];
+  return [
+    pairs[0] as readonly [number, number],
+    pairs[1] as readonly [number, number],
+    pairs[2] as readonly [number, number],
+  ];
 }
 
 /**
@@ -232,7 +236,10 @@ export function snapshotGenParams(t: TuningResolved, templateIds: readonly strin
     templates,
     bedrock: {
       schist: { cleanupFt: bedrockTable.schist.cleanupFt, goldShare: bedrockTable.schist.goldShare },
-      slatePhyllite: { cleanupFt: bedrockTable.slatePhyllite.cleanupFt, goldShare: bedrockTable.slatePhyllite.goldShare },
+      slatePhyllite: {
+        cleanupFt: bedrockTable.slatePhyllite.cleanupFt,
+        goldShare: bedrockTable.slatePhyllite.goldShare,
+      },
       granite: { cleanupFt: bedrockTable.granite.cleanupFt, goldShare: bedrockTable.granite.goldShare },
       basaltVolcanic: {
         cleanupFt: bedrockTable.basaltVolcanic.cleanupFt,
@@ -463,7 +470,9 @@ function claimConstants(t: TuningResolved): ClaimGenConstants {
   };
 }
 
-function oldTimerTables(t: TuningResolved): Pick<
+function oldTimerTables(
+  t: TuningResolved,
+): Pick<
   GeoGenParams['oldTimer'],
   | 'kinds'
   | 'driftBottom'

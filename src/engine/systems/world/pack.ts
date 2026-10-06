@@ -82,7 +82,12 @@ export function quantizeMix(mix: readonly [number, number, number, number]): [nu
 function mixOf(q: readonly number[]): SizeRecord {
   const s = (q[0] as number) + (q[1] as number) + (q[2] as number) + (q[3] as number);
   const d = s > 0 ? s : 1;
-  return { coarse: (q[0] as number) / d, medium: (q[1] as number) / d, fine: (q[2] as number) / d, ultrafine: (q[3] as number) / d };
+  return {
+    coarse: (q[0] as number) / d,
+    medium: (q[1] as number) / d,
+    fine: (q[2] as number) / d,
+    ultrafine: (q[3] as number) / d,
+  };
 }
 
 function mixTuple(m: SizeRecord): [number, number, number, number] {
@@ -194,7 +199,9 @@ export function packTruth(blocks: readonly BlockTruth[], coarseMeanMg: number): 
     if (b.pocket !== undefined) nPockets++;
     if (b.oldTailings !== undefined) nTailings++;
   }
-  const w = new ByteWriter(HEADER_BYTES + BLOCK_BYTES * blocks.length + POCKET_BYTES * nPockets + TAILINGS_BYTES * nTailings);
+  const w = new ByteWriter(
+    HEADER_BYTES + BLOCK_BYTES * blocks.length + POCKET_BYTES * nPockets + TAILINGS_BYTES * nTailings,
+  );
   w.u16(PACK_VERSION);
   w.u16(blocks.length);
   w.u16(quant.coarseMg(coarseMeanMg));
@@ -307,7 +314,11 @@ export function truthHashOf(pack: string): string {
 // The decode cache: keyed by content hash, never saved or hashed; a cold cache returns identical values (§2.3 item 6).
 const truthMemo = createMemo<string, ClaimTruth>('world.claimTruth', 512);
 
-function freezeTruth(claimId: ClaimId, truthHash: string, decoded: { coarseMeanMg: number; blocks: BlockTruth[] }): ClaimTruth {
+function freezeTruth(
+  claimId: ClaimId,
+  truthHash: string,
+  decoded: { coarseMeanMg: number; blocks: BlockTruth[] },
+): ClaimTruth {
   for (const b of decoded.blocks) {
     Object.freeze(b.sizeMix);
     if (b.pocket !== undefined) Object.freeze(b.pocket);
@@ -317,7 +328,12 @@ function freezeTruth(claimId: ClaimId, truthHash: string, decoded: { coarseMeanM
     }
     Object.freeze(b);
   }
-  return Object.freeze({ claimId, truthHash, coarseMeanMg: decoded.coarseMeanMg, blocks: Object.freeze(decoded.blocks) });
+  return Object.freeze({
+    claimId,
+    truthHash,
+    coarseMeanMg: decoded.coarseMeanMg,
+    blocks: Object.freeze(decoded.blocks),
+  });
 }
 
 /** Decoded, frozen truth of a claim, memoized by (claimId, truthHash) (D-3.32). Engine-internal: never for UI or bots. */

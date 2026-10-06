@@ -59,7 +59,14 @@ export const geologyTuning = {
   'geology.env.channelOffsetFt': [-80, 80],
   'geology.env.aspectThawSlope': 0.35,
   'geology.env.aspectFrozenSlope': 0.6,
-  'geology.env.sensitivity': { base: 0.1, fish: 0.3, anadromous: 0.25, wetlandShare: 0.25, specialStatus: 0.2, noiseSd: 0.05 },
+  'geology.env.sensitivity': {
+    base: 0.1,
+    fish: 0.3,
+    anadromous: 0.25,
+    wetlandShare: 0.25,
+    specialStatus: 0.2,
+    noiseSd: 0.05,
+  },
 
   // ---- Visible priors (§3.9)
   'geology.prior.statusMult': { held: 1.0, listed: 0.92, open: 0.6 },

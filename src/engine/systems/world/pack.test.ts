@@ -17,7 +17,14 @@ import {
 import { claimTruth } from './query';
 import type { BedrockType, BlockTruth } from './types';
 
-const BEDROCK: readonly BedrockType[] = ['schist', 'slatePhyllite', 'granite', 'basaltVolcanic', 'clayFalse', 'karstLimestone'];
+const BEDROCK: readonly BedrockType[] = [
+  'schist',
+  'slatePhyllite',
+  'granite',
+  'basaltVolcanic',
+  'clayFalse',
+  'karstLimestone',
+];
 
 const blockArb: fc.Arbitrary<BlockTruth> = fc
   .record({
@@ -43,12 +50,18 @@ const blockArb: fc.Arbitrary<BlockTruth> = fc
     ),
     decay: fc.double({ min: 0.5, max: 12, noNaN: true }),
     br: fc.integer({ min: 0, max: BEDROCK.length - 1 }),
-    pocket: fc.option(fc.record({ bcy: fc.integer({ min: 150, max: 3000 }), g: fc.double({ min: 0.15, max: 2, noNaN: true }) }), {
-      nil: undefined,
-    }),
-    pile: fc.option(fc.record({ bcy: fc.integer({ min: 100, max: 30000 }), g: fc.double({ min: 1e-5, max: 0.1, noNaN: true }) }), {
-      nil: undefined,
-    }),
+    pocket: fc.option(
+      fc.record({ bcy: fc.integer({ min: 150, max: 3000 }), g: fc.double({ min: 0.15, max: 2, noNaN: true }) }),
+      {
+        nil: undefined,
+      },
+    ),
+    pile: fc.option(
+      fc.record({ bcy: fc.integer({ min: 100, max: 30000 }), g: fc.double({ min: 1e-5, max: 0.1, noNaN: true }) }),
+      {
+        nil: undefined,
+      },
+    ),
   })
   .map((r) => {
     const s = r.mix[0] + r.mix[1] + r.mix[2] + r.mix[3];
@@ -73,7 +86,11 @@ const blockArb: fc.Arbitrary<BlockTruth> = fc
     };
     if (r.pocket !== undefined) bt.pocket = { bcy: r.pocket.bcy, gradeOzPerBcy: r.pocket.g };
     if (r.pile !== undefined) {
-      bt.oldTailings = { bcy: r.pile.bcy, gradeOzPerBcy: r.pile.g, sizeMix: { coarse: 0.05, medium: 0.2, fine: 0.45, ultrafine: 0.3 } };
+      bt.oldTailings = {
+        bcy: r.pile.bcy,
+        gradeOzPerBcy: r.pile.g,
+        sizeMix: { coarse: 0.05, medium: 0.2, fine: 0.45, ultrafine: 0.3 },
+      };
     }
     return bt;
   });
@@ -83,13 +100,17 @@ const rel = (a: number, b: number): number => Math.abs(a - b) / Math.abs(b);
 describe('packTruth / unpackTruth (§3.1)', () => {
   it('decode(pack(T)) is canonical: packing the decoded truth gives the same string', () => {
     fc.assert(
-      fc.property(fc.array(blockArb, { minLength: 1, maxLength: 40 }), fc.double({ min: 1, max: 900, noNaN: true }), (blocks, coarse) => {
-        const p1 = packTruth(blocks, coarse);
-        const d1 = unpackTruth(p1);
-        const p2 = packTruth(d1.blocks, d1.coarseMeanMg);
-        expect(p2).toBe(p1);
-        expect(unpackTruth(p2)).toEqual(d1);
-      }),
+      fc.property(
+        fc.array(blockArb, { minLength: 1, maxLength: 40 }),
+        fc.double({ min: 1, max: 900, noNaN: true }),
+        (blocks, coarse) => {
+          const p1 = packTruth(blocks, coarse);
+          const d1 = unpackTruth(p1);
+          const p2 = packTruth(d1.blocks, d1.coarseMeanMg);
+          expect(p2).toBe(p1);
+          expect(unpackTruth(p2)).toEqual(d1);
+        },
+      ),
       { seed: 3101, numRuns: 150 },
     );
   });
@@ -134,7 +155,12 @@ describe('packTruth / unpackTruth (§3.1)', () => {
   it('quantizes a size mix to integers summing to 65,535 and is idempotent', () => {
     fc.assert(
       fc.property(
-        fc.tuple(fc.double({ min: 0, max: 1, noNaN: true }), fc.double({ min: 0, max: 1, noNaN: true }), fc.double({ min: 0, max: 1, noNaN: true }), fc.double({ min: 0.001, max: 1, noNaN: true })),
+        fc.tuple(
+          fc.double({ min: 0, max: 1, noNaN: true }),
+          fc.double({ min: 0, max: 1, noNaN: true }),
+          fc.double({ min: 0, max: 1, noNaN: true }),
+          fc.double({ min: 0.001, max: 1, noNaN: true }),
+        ),
         (m) => {
           const q = quantizeMix(m);
           expect(q[0] + q[1] + q[2] + q[3]).toBe(65535);
@@ -179,7 +205,10 @@ describe('the decode cache (D-3.32)', () => {
     const a = generateWorld('cache-seed', opts, baseTuning);
     // A key generation never reads (supply hazard) leaves every truth pack unchanged.
     const b = generateWorld('cache-seed', opts, { ...baseTuning, 'geology.supply.baseListHazard': 0.05 });
-    const tuned = generateWorld('cache-seed', opts, { ...baseTuning, 'geology.grade.pocketMult': { median: 30, sigma: 0.5 } });
+    const tuned = generateWorld('cache-seed', opts, {
+      ...baseTuning,
+      'geology.grade.pocketMult': { median: 30, sigma: 0.5 },
+    });
     const id = a.claimIds.find((k) => {
       const ta = a.claims[k]?.hidden.truthHash;
       return ta !== undefined && ta !== tuned.claims[k]?.hidden.truthHash;

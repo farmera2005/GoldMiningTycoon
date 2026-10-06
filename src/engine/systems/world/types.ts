@@ -2,14 +2,7 @@
 // honesty) are read only by engine physics, the simulator, tests and the dev reveal; selectors, validators, bots and the
 // UI never read them (CLAUDE.md "Hidden information").
 import type { Cents } from '../../core/money';
-import type {
-  BlockId,
-  ClaimId,
-  CompetitorId,
-  CreekId,
-  DistrictId,
-  HolderId,
-} from '../../core/ids';
+import type { BlockId, ClaimId, CompetitorId, CreekId, DistrictId, HolderId } from '../../core/ids';
 
 export * from './enums';
 export { emptyWorldSlice } from './empty';
@@ -258,8 +251,16 @@ export interface OldTimerKindParams {
     readonly maxObFt: number;
     readonly extract: readonly [number, number];
   };
-  readonly dredge: { readonly era: readonly [number, number]; readonly minF: number; readonly extract: readonly [number, number] };
-  readonly dryWash: { readonly era: readonly [number, number]; readonly top: number; readonly extract: readonly [number, number] };
+  readonly dredge: {
+    readonly era: readonly [number, number];
+    readonly minF: number;
+    readonly extract: readonly [number, number];
+  };
+  readonly dryWash: {
+    readonly era: readonly [number, number];
+    readonly top: number;
+    readonly extract: readonly [number, number];
+  };
   readonly hydraulic: {
     readonly era: readonly [number, number];
     readonly extract: readonly [number, number];
@@ -402,7 +403,11 @@ export interface GeoGenParams {
       readonly decayMult: number;
       readonly bedrockShareMult: number;
     };
-    readonly dredgeEffects: { readonly boulderMult: number; readonly decayFt: number; readonly minBedrockShare: number };
+    readonly dredgeEffects: {
+      readonly boulderMult: number;
+      readonly decayFt: number;
+      readonly minBedrockShare: number;
+    };
     readonly maxExtraction: number;
     readonly depleteCap: number;
     readonly depleteWeights: {
@@ -456,7 +461,10 @@ export interface GeoGenParams {
   };
   readonly access: {
     readonly classes: Readonly<
-      Record<Access, { readonly fuelAdder: number; readonly partsLead: number; readonly mobMult: number; readonly refMi: number }>
+      Record<
+        Access,
+        { readonly fuelAdder: number; readonly partsLead: number; readonly mobMult: number; readonly refMi: number }
+      >
     >;
     readonly distExponent: number;
     readonly distScaleClamp: readonly [number, number];
@@ -882,7 +890,13 @@ export interface VisiblePrior {
   /** s̄_b = Σ bedrockMix × s0. */
   readonly meanBedrockGoldShare: number;
   readonly sizeMixPrior: SizeRecord;
-  readonly fineness: { readonly mean: number; readonly districtSd: number; readonly claimSd: number; readonly lo: number; readonly hi: number };
+  readonly fineness: {
+    readonly mean: number;
+    readonly districtSd: number;
+    readonly claimSd: number;
+    readonly lo: number;
+    readonly hi: number;
+  };
   readonly pFrozen: number;
 }
 

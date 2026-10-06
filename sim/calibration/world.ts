@@ -13,7 +13,9 @@ function arg(name: string): string | undefined {
 }
 
 function defaultSeedBase(): number {
-  const seeds = JSON.parse(readFileSync(new URL('../../src/data/balance/seeds.json', import.meta.url), 'utf8')) as Record<string, number>;
+  const seeds = JSON.parse(
+    readFileSync(new URL('../../src/data/balance/seeds.json', import.meta.url), 'utf8'),
+  ) as Record<string, number>;
   return seeds['p0'] ?? 1000;
 }
 
@@ -75,7 +77,9 @@ function main(): void {
   out.push('\nBands:');
   for (const c of checks) {
     const band = `${Number.isFinite(c.lo) ? c.lo.toFixed(4) : '−∞'} … ${Number.isFinite(c.hi) ? c.hi.toFixed(4) : '∞'}`;
-    out.push(`  ${c.pass ? 'PASS' : c.gating ? 'FAIL' : 'warn'}  ${c.id.padEnd(6)} ${c.templateId.padEnd(16)} ${c.what.padEnd(56)} ${c.value.toFixed(4).padStart(9)}  [${band}]`);
+    out.push(
+      `  ${c.pass ? 'PASS' : c.gating ? 'FAIL' : 'warn'}  ${c.id.padEnd(6)} ${c.templateId.padEnd(16)} ${c.what.padEnd(56)} ${c.value.toFixed(4).padStart(9)}  [${band}]`,
+    );
   }
   const failed = checks.filter((c) => c.gating && !c.pass);
   out.push(failed.length === 0 ? '\nAll gating bands pass.' : `\n${failed.length} gating band(s) FAIL.`);

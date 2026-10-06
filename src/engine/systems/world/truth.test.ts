@@ -61,7 +61,7 @@ describe('the separable AR block field (§3.5.3, §3.18)', () => {
         const v = (z[i] as number[])[j] as number;
         all.push(v);
         if (i > 0) {
-          along[0].push(((z[i - 1] as number[])[j] as number));
+          along[0].push((z[i - 1] as number[])[j] as number);
           along[1].push(v);
         }
         if (j > 0) {
