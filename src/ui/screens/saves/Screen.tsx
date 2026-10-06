@@ -211,7 +211,8 @@ function SlotTable({
   manual: boolean;
 }) {
   return (
-    <div className="overflow-x-auto">
+    // Tables scroll inside their card below 1280 px (13.19); a focusable region keeps that scroll keyboard-reachable.
+    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`${caption} table`}>
       <table className="w-full border-collapse text-13">
         <caption className="sr-only">{caption}</caption>
         <thead>

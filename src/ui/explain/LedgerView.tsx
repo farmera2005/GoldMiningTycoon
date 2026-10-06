@@ -12,7 +12,7 @@ export function LedgerView({ state, title, query }: { state: GameState; title: s
   const cents = (c: number): string => (c === 0 ? '' : usdFromCents(c, { style: 'ledger' }));
   const empty = query.rows.length === 0 && query.summaries.length === 0;
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Ledger postings">
       <table className="w-full border-collapse text-12" data-ledger-view="">
         <caption className="mb-1 text-left text-13 font-semibold text-ink-1">{title}</caption>
         <thead>
