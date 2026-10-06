@@ -165,6 +165,23 @@ export const geologyTuning = {
   'geology.oldTimer.preStripBlocks': [1, 3], // (prose)
   'geology.oldTimer.preStripThawFt': [3, 6], // (prose)
 
+  // ---- Inherited family ground (§3.6.1; prose constants registered by s03 #16, D-3.73). P1 Wave 0 (contracts-data).
+  // §1's spec values (tier weights, depletion add, pre-stripped block count) stay game.inheritor.* / game.*.
+  // Family seasons: bcy dug per season LN(6,000, 0.5) over the seasons 2013–2024.
+  'geology.inheritor.seasonBcy': { median: 6000, sigma: 0.5 },
+  'geology.inheritor.seasons': [2013, 2024],
+  // Tier conditioning targets (CDV of the run as one property) and the bisection on the grade scale k.
+  'geology.inheritor.tierCdvUsd': { uneconomic: -75000, marginal: 300000, good: 1200000, excellent: 4000000 },
+  'geology.inheritor.kBounds': [0.25, 4],
+  'geology.inheritor.bisectionSteps': 16,
+  // The family ledger is the 'optimistic' transform: rawOz × U(1.2, 1.6); each season is filed w.p. 0.8.
+  'geology.inheritor.ledgerMult': [1.2, 1.6],
+  'geology.inheritor.filedSeasonP': 0.8,
+  'geology.inheritor.pitLogCount': 4,
+  // The pre-stripped blocks' thaw (2024 strip drained over two summers) and the run's one cash bond.
+  'geology.inheritor.preStripThawFt': [3, 6],
+  'geology.inheritor.bondUsd': 6000,
+
   // ---- Truth permit stub (§3.9, D-3.48)
   'geology.permitStub.minLastSeasonYear': 2000,
   'geology.permitStub.planP': 0.6,
@@ -295,6 +312,44 @@ export const geologyTuning = {
     unknownLab: { recordsReview: 0.3, geologistReview: 0.7, siteVisit: 0 },
     permitStatusMismatch: { recordsReview: 0.9, geologistReview: 0.1, siteVisit: 0 },
   },
+  // ---- Seller evidence and claims (§3.10.2, §3.10.3; prose constants registered by s03 #16, D-3.73). P1 Wave 0
+  // (contracts-data). Integer pairs are U{lo..hi} counts, real pairs U(lo, hi); snapshotGenParams stores these keys.
+  // Sampling plan by seller knowledge: pans and pits as U{lo..hi} counts (3-bcy pits; reach is geology.seller.methods'),
+  // an old report and the true history each with a probability.
+  'geology.seller.plan': {
+    operator: { pans: [0, 0], pits: [6, 15], oldReportP: 0, historyP: 1 },
+    prospector: { pans: [10, 30], pits: [0, 4], oldReportP: 0, historyP: 0 },
+    heirs: { pans: [0, 0], pits: [0, 0], oldReportP: 0.6, historyP: 0.5 },
+    absentee: { pans: [0, 0], pits: [0, 6], oldReportP: 0.5, historyP: 0 },
+  },
+  // Old report: grade0 = mean virgin paystreak grade × LN(1, gradeLogSd), dated U{1905..1965}.
+  'geology.seller.oldReport': { gradeLogSd: 0.4, years: [1905, 1965] },
+  // Sellers without their own history count their paystreak blocks × U(0.7, 1.3), rounded.
+  'geology.seller.beliefBlocksMult': [0.7, 1.3],
+  // Optimistic transforms: screened-feed basis w.p. 0.5; each season's bcy ÷ 1.2 (loose yards as bank) w.p. 0.5;
+  // pay thickness × 1.2 and overburden × 0.85.
+  'geology.seller.optTransforms': {
+    screenedFeedP: 0.5,
+    looseYardP: 0.5,
+    looseYardDivisor: 1.2,
+    payMult: 1.2,
+    overburdenMult: 0.85,
+  },
+  // Cherry-picked bedrock scrapes U{1..3}; fabricated samples U{5..12} and a fineness note w.p. 0.6.
+  'geology.seller.cherryScrapes': [1, 3],
+  'geology.seller.fraudSamples': [5, 12],
+  'geology.seller.fraudFineNoteP': 0.6,
+  // Fraudulent history: true history × U(2, 3), or with none U{2..4} invented seasons of U(15,000, 40,000) bcy at
+  // 0.75 × the claimed grade.
+  'geology.seller.fraudHistoryMult': [2, 3],
+  'geology.seller.fraudInventedSeasons': { seasons: [2, 4], bcy: [15000, 40000], claimedGradeFrac: 0.75 },
+  // Permit statements (P2+): optimistic upgrades, fraudulent plan-with-bond, heirs' and absentees' 'unknown'.
+  'geology.seller.permitStatement': {
+    optimisticNoticeToPlanP: 0.25,
+    optimisticNoneToNoticeP: 0.2,
+    fraudulentPlanWithBondP: 0.5,
+    heirsAbsenteeUnknownP: 0.5,
+  },
 
   // ---- Supply (§3.11)
   'geology.supply.initialListedShare': 0.17,
@@ -370,6 +425,13 @@ export const geologyTuning = {
   // ---- Site visits (§3.12)
   'geology.siteVisit.costUsd': { highway: 400, seasonalRoad: 800, winterTrail: 1800, flyIn: 3500 },
   'geology.siteVisit.days': { highway: 2, seasonalRoad: 3, winterTrail: 4, flyIn: 4 },
+  // Prose constants registered by s03 #7 (D-3.67), P1 Wave 0 (contracts-data): drift workings seen, the snow-cover cut
+  // on finds, the permafrost indicator's accuracy, and the noise on the flow and boulder readings.
+  'geology.siteVisit.driftDetectP': 0.9,
+  'geology.siteVisit.snowFindMult': 0.4,
+  'geology.siteVisit.permafrostIndicatorP': 0.8,
+  'geology.siteVisit.flowNoiseFrac': 0.1,
+  'geology.siteVisit.boulderNoiseSd': 0.1,
 
   // =================================================================================================================
   // §4 Prospecting and resource estimation (DESIGN §4.20). Physics constants (deWijsAlpha, particle masses and CVs,
@@ -473,6 +535,10 @@ export const geologyTuning = {
   'geology.estFullSolveEveryProdRows': 12,
   'geology.estProdRecoveryLogSd': 0.1,
   'geology.estProdAttribLogSd': { oneBlock: 0.08, severalBlocks: 0.2 },
+  // Old-tailings pile prior for pileRawOzEst (§4.7, D-4.61; s04 #3): grade log-sd and ± share of the footprint volume.
+  // P1 Wave 0 (contracts-data).
+  'geology.pilePrior.logSd': 0.7,
+  'geology.pilePrior.volumeFrac': 0.3,
   // ---- Seller claims (§4.10, P1 display and claim-wide test; P2 verification)
   'geology.estSellerVerifiedExtraLogSd': 0.35,
   'geology.sellerTwinMin': 3,
@@ -579,6 +645,28 @@ export const geologyTuning = {
   'geology.aridSampleWaterMinGpm': 20,
   'geology.aridWaterHaulUsdPerUnit': 15,
   'geology.reportValidityWeeks': 104,
+  // ---- Method cost and rate fields of the P1 rows (§4 4.2.A; s04 #11, D-4.68), P1 Wave 0 (contracts-data). These
+  // are 4.21's balance levers; the measurement-model fields stay content in data/prospecting/methods.ts. Field names
+  // mirror the row's own / contractor blocks (§14's `geology.method.<id>.contract…` convention); the data test pins
+  // methods.ts to these values until §4 reads them from tuning. P1 contractors deliver excavator pits only (D-4.66).
+  'geology.method.pan.ownCrew': { any: 1 },
+  'geology.method.pan.ownUnitsPerPersonDay': 8,
+  'geology.method.pan.ownConsumablesUsdPerUnit': 5,
+  'geology.method.handPit.ownCrew': { laborer: 2 },
+  'geology.method.handPit.ownUnitsPerCrewDay': 4,
+  'geology.method.handPit.ownConsumablesUsdPerUnit': 10,
+  'geology.method.handPit.ownToolRentUsdPerDay': 25,
+  'geology.method.drywasher.ownCrew': { laborer: 2 },
+  'geology.method.drywasher.ownUnitsPerCrewDay': 4,
+  'geology.method.drywasher.ownConsumablesUsdPerUnit': 10,
+  'geology.method.drywasher.ownToolRentUsdPerDay': 40,
+  'geology.method.excavatorPit.ownCrew': { operator: 1, laborer: 2 },
+  'geology.method.excavatorPit.ownConsumablesUsdPerUnit': 40,
+  'geology.method.excavatorPit.ownToolRentUsdPerDay': 150,
+  // Contract pits at $2,500 each north (≈ $1,900 arid through geology.prospectCostAridMult).
+  'geology.method.excavatorPit.contractRateUsdPerUnit': 2500,
+  'geology.method.excavatorPit.contractUnitsPerDay': 4,
+  'geology.method.excavatorPit.contractMobUsd': 4000,
   // ---- Gold ripples (§4.18; §10 rippleDomain on goldIdxReal, P5)
   'geology.ripple.drilling': { elasticity: 0.4, lagWeeks: 13, clampLo: 0.8, clampHi: 1.6, escalate: true },
   'geology.ripple.pitting': { elasticity: 0.3, lagWeeks: 13, clampLo: 0, clampHi: 1e9, escalate: true },

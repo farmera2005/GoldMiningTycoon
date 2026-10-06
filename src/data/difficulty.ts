@@ -32,7 +32,7 @@ function scaledProbabilities(table: ProbabilityTable, mult: number): Probability
 const TELL_DETECT: ProbabilityTable = geologyTuning['geology.seller.tellDetect'];
 
 export const difficultyTable = {
-  // ---- Information honesty (§3 3.10)
+  // ---- Information honesty (§3 3.10, §5, §4, §8)
   'geology.seller.honestyMix': {
     easy: { set: { accurate: 0.55, optimistic: 0.3, cherryPicked: 0.12, fraudulent: 0.03 } },
     standard: { set: { accurate: 0.35, optimistic: 0.35, cherryPicked: 0.22, fraudulent: 0.08 } },
@@ -43,12 +43,34 @@ export const difficultyTable = {
     standard: { set: TELL_DETECT },
     hard: { set: scaledProbabilities(TELL_DETECT, 0.85) },
   },
+  // §5: the seller's asking markup over the claimed value.
+  'land.askMarkup': { easy: { set: 0.25 }, standard: { set: 0.3 }, hard: { set: 0.35 } },
   // §4 4.10.2: multiplies every records-review find probability; base 1.0, set to 1.11's values.
   'geology.recordsFindMult': { easy: { set: 1 }, standard: { set: 1 }, hard: { set: 0.9 } },
-  // ---- Field and regulatory friction (§4 4.3, 4.12): multipliers with base 1.0, set to 1.11's values.
+  // §8: × the bias on a résumé's shown attributes.
+  'staff.resumeBiasMult': { easy: { set: 0.6 }, standard: { set: 1 }, hard: { set: 1.3 } },
+  // ---- Counterparty patience (§11, §5)
+  'finance.p1InsolvencyGraceWeeks': { easy: { set: 8 }, standard: { set: 6 }, hard: { set: 4 } },
+  'finance.distress.watchWeeks': { easy: { set: 6 }, standard: { set: 4 }, hard: { set: 3 } },
+  'land.leaseCureWeeks': { easy: { set: 6 }, standard: { set: 4 }, hard: { set: 3 } },
+  // ---- Event severity and variability (§12, §1)
+  'events.frequencyMult': { easy: { set: 0.6 }, standard: { set: 1 }, hard: { set: 1.4 } },
+  'events.severityMult': { easy: { set: 0.7 }, standard: { set: 1 }, hard: { set: 1.3 } },
+  'events.budgetPerHalf': { easy: { set: 16 }, standard: { set: 24 }, hard: { set: 34 } },
+  'events.catastropheEarliestTurn': { easy: { set: 30 }, standard: { set: 26 }, hard: { set: 20 } },
+  'events.distressMercyMult': { easy: { set: 0.4 }, standard: { set: 0.6 }, hard: { set: 0.8 } },
+  'game.season.sigmaMult': { easy: { set: 0.8 }, standard: { set: 1 }, hard: { set: 1.2 } },
+  'game.season.freezeUpMeanShift': { easy: { set: 0.5 }, standard: { set: 0 }, hard: { set: -0.5 } },
+  // ---- Field and regulatory friction (§4 4.3, 4.12; §8): multipliers with base 1.0, set to 1.11's values. The three
+  // §8 labor-market keys are also the bases of the §12 hooks of the same name (S08-1), so events scale them further.
   'geology.pitStopMult': { easy: { set: 0.7 }, standard: { set: 1 }, hard: { set: 1.3 } },
   'geology.contractorLeadMult': { easy: { set: 0.8 }, standard: { set: 1 }, hard: { set: 1.25 } },
+  'staff.poolSizeMult': { easy: { set: 1.3 }, standard: { set: 1 }, hard: { set: 0.75 } },
+  'staff.wageAskMult': { easy: { set: 0.95 }, standard: { set: 1 }, hard: { set: 1.08 } },
+  'staff.quitHazardMult': { easy: { set: 0.7 }, standard: { set: 1 }, hard: { set: 1.3 } },
   // ---- Start and scoring (§1 1.8, D-1.43, D-1.64): the keys are multipliers with base 1.0, set to 1.11's values.
   'game.startCompanyCashMult': { easy: { set: 1.25 }, standard: { set: 1 }, hard: { set: 0.85 } },
   'game.startPersonalCashMult': { easy: { set: 1.1 }, standard: { set: 1 }, hard: { set: 0.9 } },
+  'game.inheritorDebtMult': { easy: { set: 0.75 }, standard: { set: 1 }, hard: { set: 1.25 } },
+  'game.scoreMult': { easy: { set: 0.75 }, standard: { set: 1 }, hard: { set: 1.35 } },
 } as const satisfies DifficultyTable;

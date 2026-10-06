@@ -16,4 +16,8 @@ export const marketTuning = {
   'market.openingDieselRackUsdPerGal': 3.6,
   // §10 10.5: weeks of pre-history kept as visible history at turns −156…−1.
   'market.preHistory.keepWeeks': 156,
+  // P1 Wave 0 (contracts-data; S10-11, D-10.54): the reputation thresholds of the local buyer's repHighAdj / repLowAdj
+  // (−1 point at R ≥ 70, +1 point below 30; §1 1.12). §10 adds the rest of market.localBuyer.* with its quote.
+  'market.localBuyer.repHighMin': 70,
+  'market.localBuyer.repLowMax': 30,
 } as const satisfies TuningTable;
