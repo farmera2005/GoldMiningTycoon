@@ -243,6 +243,8 @@ export interface PriorModel {
   readonly sigmaBlock: number;
   /** Σ_e (n × n): σ_block² exp(−|Δalong|/R_a − |Δacross|/R_c) + resid² + the row misfit on the diagonal. */
   readonly Se: Float64Array;
+  /** The block-field correlation exp(−|Δalong|/R_a − |Δacross|/R_c) (n × n), kept for withBlockFieldScale. */
+  readonly blockKernel: Float64Array;
   /** E[ln(f + (1 − f)·bgRatio)] per configuration and block over the row misfit (S × n). */
   readonly streakLogMean: Float64Array;
   /**
@@ -325,7 +327,6 @@ function hypothesisNodes(nodes: number): number[] {
  */
 export function withBlockFieldScale(model: PriorModel, ratio: Float64Array): PriorModel {
   const n = model.n;
-  const p = model.priors;
   const sb2 = model.sigmaBlock * model.sigmaBlock;
   const d = new Float64Array(n);
   for (let b = 0; b < n; b++) d[b] = sqrt(Math.max(0, ratio[b] as number));
@@ -334,9 +335,7 @@ export function withBlockFieldScale(model: PriorModel, ratio: Float64Array): Pri
     for (let b = 0; b < n; b++) {
       const k = (d[a] as number) * (d[b] as number) - 1;
       if (k === 0) continue;
-      const da = Math.abs((model.bi[a] as number) - (model.bi[b] as number)) * BLOCK_FT;
-      const dc = Math.abs((model.bj[a] as number) - (model.bj[b] as number)) * BLOCK_FT;
-      Se[a * n + b] = (Se[a * n + b] as number) + k * sb2 * exp(-da / p.rangeAlongFt - dc / p.rangeAcrossFt);
+      Se[a * n + b] = (Se[a * n + b] as number) + k * sb2 * (model.blockKernel[a * n + b] as number);
     }
   }
   return { ...model, Se };
@@ -373,16 +372,16 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
 
   // Block field covariance (§4.5.1, D-4.3): §3's separable exponential plus the iid streak residual.
   const Se = new Float64Array(n * n);
+  const blockKernel = new Float64Array(n * n);
   const sb2 = s.block * s.block;
   const resid2 = params.streakResidLogSd * params.streakResidLogSd;
   for (let a = 0; a < n; a++) {
     for (let b = 0; b < n; b++) {
       const da = Math.abs((bi[a] as number) - (bi[b] as number)) * BLOCK_FT;
       const dc = Math.abs((bj[a] as number) - (bj[b] as number)) * BLOCK_FT;
-      Se[a * n + b] =
-        sb2 * exp(-da / priors.rangeAlongFt - dc / priors.rangeAcrossFt) +
-        rich2 * exp(-da / richRange) +
-        (a === b ? resid2 : 0);
+      const k = exp(-da / priors.rangeAlongFt - dc / priors.rangeAcrossFt);
+      blockKernel[a * n + b] = k;
+      Se[a * n + b] = sb2 * k + rich2 * exp(-da / richRange) + (a === b ? resid2 : 0);
     }
   }
 
@@ -426,13 +425,20 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     rowSdC[i] = wander * sqrt(sc * centreMisfitVar(i * BLOCK_FT, L, params.wanderRangeFt));
     rowSdH[i] = priors.streak.sigHalfWidth * sqrt(sc * halfWidthMisfitVar(i, nAlong, params.halfWidthRangeFt));
   }
-  const lnShare = (d: number, hw: number): number => {
-    const f = overlapShare(d, hw);
-    return log(f + (1 - f) * bg);
-  };
+  // ln(f + (1 − f)·bgRatio): most quadrature nodes put a block wholly off or on the streak (f = 0 or 1), whose logs
+  // are constants (§2.13: these logs dominated the prior model's build).
+  const lnBg = log(bg);
+  const lnShareOf = (f: number): number => (f === 0 ? lnBg : f === 1 ? 0 : log(f + (1 - f) * bg));
+  const lnShare = (d: number, hw: number): number => lnShareOf(overlapShare(d, hw));
   // The configuration's half-width is the claim's row average: its spread is σ_hw √(mean row correlation), and the
   // rows scatter about it by the misfit above (together §3's full σ_hw per row).
   const sdHwClaim = priors.streak.sigHalfWidth * sqrt(sc > 0 ? halfWidthClaimVar(nAlong, params.halfWidthRangeFt) : 1);
+  // Per-row half-width factors of the misfit quadrature and the share at a dredge's minF, computed once (§2.13).
+  const hwRowMult = new Float64Array(3 * nAlong);
+  for (let i = 0; i < nAlong; i++) {
+    for (let r = 0; r < 3; r++) hwRowMult[3 * i + r] = exp((rowSdH[i] as number) * (HW_Z[r] as number));
+  }
+  const atMinF = log(minF + (1 - minF) * bg);
   let sIdx = 0;
   for (const p of pairs) {
     for (let h = 0; h < hwNodes.length; h++) {
@@ -457,10 +463,11 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
         let pa = 0;
         let ma = 0;
         let mb = 0;
+        const row = 3 * (bi[b] as number);
         for (let q = 0; q < 5; q++) {
           for (let r = 0; r < 3; r++) {
-            const fq = overlapShare(d - sdC * (Z5[q] as number), hw * exp(sdH * (HW_Z[r] as number)));
-            const g = log(fq + (1 - fq) * bg);
+            const fq = overlapShare(d - sdC * (Z5[q] as number), hw * (hwRowMult[row + r] as number));
+            const g = lnShareOf(fq);
             const w = (W5[q] as number) * (HW_W[r] as number);
             m1 += w * g;
             m2 += w * g * g;
@@ -474,7 +481,6 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
         streakLogVar[sIdx * n + b] = Math.max(0, m2 - m1 * m1);
         streakPAbove[sIdx * n + b] = pa;
         // E[ln share | f > minF] and E[ln share | f ≤ minF]; at the bound where a side has no node.
-        const atMinF = log(minF + (1 - minF) * bg);
         streakLogMeanAbove[sIdx * n + b] = pa > 1e-12 ? ma / pa : Math.max(atMinF, m1);
         streakLogMeanBelow[sIdx * n + b] = pa < 1 - 1e-12 ? mb / (1 - pa) : Math.min(atMinF, m1);
       }
@@ -552,6 +558,7 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     VmBase: VmSel,
     sigmaBlock: s.block,
     Se,
+    blockKernel,
     streakLogMean,
     streakPAbove,
     streakLogMeanAbove,

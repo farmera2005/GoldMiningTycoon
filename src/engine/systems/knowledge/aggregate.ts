@@ -9,14 +9,12 @@
 // therefore split into "no undetected pocket" (weight e^{−Λ}) and "at least one" (1 − e^{−Λ}, with the compound
 // Poisson's conditional moments); confirmed hits stay in both.
 import { exp, expm1, log, sqrt } from '../../core/dmath';
-import { mixtureQuantile, type Mixture } from './mixture';
+import { mixtureQuantiles3, type Mixture } from './mixture';
 
 export interface AggregateInputs {
   readonly n: number;
   readonly H: number;
   readonly weights: Float64Array;
-  /** μ_b(h) of ln O_b (H × n); blocks with no remaining pay are excluded via `alive`. */
-  readonly muX: Float64Array;
   /** C_bb (n). */
   readonly cDiag: Float64Array;
   /** exp(C_ab) (n × n). */
@@ -49,14 +47,17 @@ export interface SetSummary {
 const MIN_COMPONENT_WEIGHT = 1e-9;
 const MIN_LAMBDA = 1e-12;
 
-/** A_b(h) = exp(μ_b(h) + C_bb/2) for every hypothesis (H × n). */
-export function blockMeans(inp: AggregateInputs): Float64Array {
+/**
+ * A_b(h) = exp(μ_b(h) + C_bb/2) for every hypothesis (H × n), μ_b(h) = E[ln O_b | h]; blocks with no remaining pay
+ * (alive 0) are 0. The estimator builds A from per-unit-volume means (statistical.ts); this is the direct form.
+ */
+export function blockMeans(muX: Float64Array, inp: Pick<AggregateInputs, 'n' | 'H' | 'cDiag' | 'alive'>): Float64Array {
   const { n, H } = inp;
   const A = new Float64Array(H * n);
   for (let h = 0; h < H; h++) {
     for (let b = 0; b < n; b++) {
       if (inp.alive[b] !== 1) continue;
-      A[h * n + b] = exp((inp.muX[h * n + b] as number) + 0.5 * (inp.cDiag[b] as number));
+      A[h * n + b] = exp((muX[h * n + b] as number) + 0.5 * (inp.cDiag[b] as number));
     }
   }
   return A;
@@ -155,14 +156,16 @@ export function summarizeSet(inp: AggregateInputs, A: Float64Array, sel: Uint8Ar
   }
   const full: Mixture = { count: 2 * H, w: wFull, mu: muFull, sd: sdFull };
   const base: Mixture = { count: H, w: wBase, mu: baseMu, sd: baseSd };
+  const qf = mixtureQuantiles3(full);
+  const qb = mixtureQuantiles3(base);
   return {
-    p10: exp(mixtureQuantile(full, 0.1)),
-    p50: exp(mixtureQuantile(full, 0.5)),
-    p90: exp(mixtureQuantile(full, 0.9)),
+    p10: exp(qf.p10),
+    p50: exp(qf.p50),
+    p90: exp(qf.p90),
     mean,
-    baseP10: exp(mixtureQuantile(base, 0.1)),
-    baseP50: exp(mixtureQuantile(base, 0.5)),
-    baseP90: exp(mixtureQuantile(base, 0.9)),
+    baseP10: exp(qb.p10),
+    baseP50: exp(qb.p50),
+    baseP90: exp(qb.p90),
     baseMean,
     baseMu,
     baseS2,

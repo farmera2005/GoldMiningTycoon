@@ -1,6 +1,6 @@
 // Evidence canonicalization (DESIGN §4.1, D-4.24): the content hash that keys the estimate memo. Samples and records
 // are taken in ascending id order and assays by value, so acquisition order never changes the hash or the estimate.
-import { hashValue } from '../../core/hash';
+import { canonicalJson, fnv1a64Hex, hashValue } from '../../core/hash';
 import { compareIds } from '../../core/ids';
 import { createWeakMemo } from '../../core/memo';
 import type { ClaimPriors } from '../world/types';
@@ -26,25 +26,29 @@ export function canonicalEvidence(e: EvidenceSet): EvidenceSet {
 // hash. The small parts (block states, assays) are hashed as they are.
 const itemHashMemo = createWeakMemo<object, { readonly hash: string }>('knowledge.evidenceItemHash');
 
-function itemHash(x: object): string {
+/** Content hash of one immutable evidence item (sample or record finding), computed once per object. */
+export function itemHash(x: object): string {
   return itemHashMemo.getOrCompute(x, () => ({ hash: hashValue(x) })).hash;
 }
 
+/** The items' content hashes in the given order, comma-joined (a memo key part). */
+export function hashList(items: readonly object[]): string {
+  let out = '';
+  for (let i = 0; i < items.length; i++)
+    out += i === 0 ? itemHash(items[i] as object) : `,${itemHash(items[i] as object)}`;
+  return out;
+}
+
 /**
- * The content hash of an evidence set (the estimate memo's key): claim, samples and records in ascending id order (by
- * their own content hashes), the known block states, assays by value and the logging flag. Acquisition order never
- * changes it.
+ * The content hash of an evidence set: claim, samples and records in ascending id order (by their own content hashes),
+ * the known block states and the assays by value. Acquisition order never changes it. The `geologistOnClaim` flag is
+ * not part of it: the estimator derives the flag from the samples (s04 #10).
  */
 export function evidenceHash(e: EvidenceSet): string {
   const c = canonicalEvidence(e);
-  return hashValue({
-    claimId: c.claimId,
-    samples: c.samples.map(itemHash),
-    records: c.records.map(itemHash),
-    blockState: c.blockState,
-    assays: c.assays,
-    geologistOnClaim: c.geologistOnClaim,
-  });
+  return fnv1a64Hex(
+    `${c.claimId}#${hashList(c.samples)}#${hashList(c.records)}#${canonicalJson(c.blockState)}#${canonicalJson(c.assays)}`,
+  );
 }
 
 const priorsHashMemo = createWeakMemo<ClaimPriors, { readonly hash: string }>('knowledge.priorsHash');

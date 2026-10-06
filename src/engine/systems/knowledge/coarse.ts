@@ -24,6 +24,41 @@ export function coarseMeanMass(model: PriorModel, pooled: PooledMasses): number 
   return (n0 * model.priors.coarseMeanMg + (pooled.massByClass[0] as number)) / (n0 + pooled.coarseColoursCorrected);
 }
 
+/** One production row's sieved masses as the coarse factor reads them (DESIGN §4.4.6 "Coarse factor"). */
+export interface ProductionCoarse {
+  readonly b: number;
+  /** Coarse metal mg as caught, and the chain's coarse capture (recovered ÷ in-situ metal). */
+  readonly coarseMg: number;
+  readonly coarseCap: number;
+  /** Capture-corrected (in-situ) non-coarse metal mg: Σ_{s≠coarse} M_s / c_s. */
+  readonly ncInSituMg: number;
+}
+
+/**
+ * The Gamma–Poisson update of §4.5.3 on per-block effective counts N_b and exposures E_b: each block is capped by
+ * φ_b = 1 / (1 + R̃ E_b σ²_coarseBlock) so no block pins the claim (D-4.37); α = α0 + Σ φ_b N_b, β = β0 + Σ φ_b E_b,
+ * E[ln R] = ψ(α) − ln β, Var[ln R] = ψ₁(α).
+ */
+export function gammaPoissonUpdate(
+  alpha0: number,
+  beta0: number,
+  N: Float64Array,
+  E: Float64Array,
+  rTilde: number,
+  blockLogVar: number,
+): { alpha: number; beta: number; mr: number; vr: number } {
+  let alpha = alpha0;
+  let beta = beta0;
+  for (let b = 0; b < N.length; b++) {
+    const e = E[b] as number;
+    if (!(e > 0) && !((N[b] as number) > 0)) continue;
+    const phi = 1 / (1 + rTilde * e * blockLogVar);
+    alpha += phi * (N[b] as number);
+    beta += phi * e;
+  }
+  return { alpha, beta, mr: digamma(alpha) - log(beta), vr: trigamma(alpha) };
+}
+
 export function coarsePosterior(
   model: PriorModel,
   samples: readonly PreparedSample[],
@@ -32,6 +67,7 @@ export function coarsePosterior(
   coarseMeanMg: number,
   ncShare: Mass4,
   excluded: Uint8Array,
+  production: readonly ProductionCoarse[] = [],
 ): CoarsePosterior {
   const kappa = 1 + (model.params.phys.massCv[0] as number) * (model.params.phys.massCv[0] as number);
   const n = model.n;
@@ -53,17 +89,15 @@ export function coarsePosterior(
     }
     colours += s.colours[0] as number;
   });
-  const c2 = model.params.coarseBlockLogSd * model.params.coarseBlockLogSd;
-  let alpha = model.coarse.alpha0;
-  let beta = model.coarse.beta0;
-  for (let b = 0; b < n; b++) {
-    const e = E[b] as number;
-    if (!(e > 0) && !((N[b] as number) > 0)) continue;
-    const phi = 1 / (1 + rTilde * e * c2);
-    alpha += phi * (N[b] as number);
-    beta += phi * e;
+  // Production: the sieved masses of each cleanup attributed to b, read like a bulk sample's class masses (§4.4.6).
+  for (const p of production) {
+    const a = aBlock[p.b] as number;
+    N[p.b] = (N[p.b] as number) + p.coarseMg / (coarseMeanMg * kappa);
+    E[p.b] = (E[p.b] as number) + (p.coarseCap * p.ncInSituMg * a) / (coarseMeanMg * kappa);
   }
-  return { alpha, beta, mr: digamma(alpha) - log(beta), vr: trigamma(alpha), coarseMeanMg, coarseColours: colours };
+  const c2 = model.params.coarseBlockLogSd * model.params.coarseBlockLogSd;
+  const g = gammaPoissonUpdate(model.coarse.alpha0, model.coarse.beta0, N, E, rTilde, c2);
+  return { alpha: g.alpha, beta: g.beta, mr: g.mr, vr: g.vr, coarseMeanMg, coarseColours: colours };
 }
 
 export interface CoarseTerms {

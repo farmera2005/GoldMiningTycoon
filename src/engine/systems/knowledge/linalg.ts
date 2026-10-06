@@ -61,3 +61,42 @@ export function inverseFromCholesky(L: Float64Array, n: number): Float64Array {
   }
   return inv;
 }
+
+/**
+ * In place, L ← the Cholesky factor of L Lᵀ + x xᵀ (rank-1 update; x is overwritten). Only + − × ÷ and sqrt.
+ */
+export function cholRank1Update(L: Float64Array, n: number, x: Float64Array): void {
+  for (let k = 0; k < n; k++) {
+    const lkk = L[k * n + k] as number;
+    const xk = x[k] as number;
+    const r = sqrt(lkk * lkk + xk * xk);
+    const c = r / lkk;
+    const s = xk / lkk;
+    L[k * n + k] = r;
+    for (let i = k + 1; i < n; i++) {
+      const lik = ((L[i * n + k] as number) + s * (x[i] as number)) / c;
+      L[i * n + k] = lik;
+      x[i] = c * (x[i] as number) - s * lik;
+    }
+  }
+}
+
+/**
+ * In place, L ← the Cholesky factor of L Lᵀ − x xᵀ (rank-1 downdate; x is overwritten). A pivot that would lose
+ * definiteness is floored as `cholesky` floors it.
+ */
+export function cholRank1Downdate(L: Float64Array, n: number, x: Float64Array): void {
+  for (let k = 0; k < n; k++) {
+    const lkk = L[k * n + k] as number;
+    const xk = x[k] as number;
+    const r = sqrt(Math.max(lkk * lkk - xk * xk, PIVOT_FLOOR));
+    const c = r / lkk;
+    const s = xk / lkk;
+    L[k * n + k] = r;
+    for (let i = k + 1; i < n; i++) {
+      const lik = ((L[i * n + k] as number) - s * (x[i] as number)) / c;
+      L[i * n + k] = lik;
+      x[i] = c * (x[i] as number) - s * lik;
+    }
+  }
+}

@@ -233,10 +233,13 @@ export function geometryPosterior(
   const S = model.S;
   const TbyStreak = new Float64Array(S * n);
   const muS = new Float64Array(n);
+  // Most configurations put a block wholly off or on the streak: their logs are two constants (§2.13).
+  const lnT0 = log(g.payMedFt * (1 - w + w * 0) + bHat);
+  const lnT1 = log(g.payMedFt * (1 - w + w * 1) + bHat);
   for (let s = 0; s < S; s++) {
     for (let b = 0; b < n; b++) {
       const f = model.streakF[s * n + b] as number;
-      muS[b] = log(g.payMedFt * (1 - w + w * f) + bHat);
+      muS[b] = f === 0 ? lnT0 : f === 1 ? lnT1 : log(g.payMedFt * (1 - w + w * f) + bHat);
     }
     remean(T, muS, TbyStreak, s * n);
   }
