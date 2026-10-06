@@ -52,7 +52,8 @@ export interface MigrationOutcome {
   readonly applied: readonly string[];
 }
 
-export type SaveErrorCode = 'SAVE_CORRUPT' | 'SAVE_FORMAT' | 'SAVE_TOO_NEW';
+/** SAVE_TOO_OLD: a schema older than MIN_SUPPORTED_SCHEMA_VERSION (P0 saves in a P1 build, s02 #7). */
+export type SaveErrorCode = 'SAVE_CORRUPT' | 'SAVE_FORMAT' | 'SAVE_TOO_NEW' | 'SAVE_TOO_OLD';
 
 export interface SaveError {
   readonly code: SaveErrorCode;

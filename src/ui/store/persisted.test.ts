@@ -2,7 +2,7 @@
 // field-by-field reading of a save's block, and the save-time pruning and report cap.
 import { describe, expect, it, vi } from 'vitest';
 import { uiConfig } from '../../data/tuning/ui';
-import { STOP_RULE_DEFAULTS, defaultStopRules, type GameState, type WeekReport } from '../../engine';
+import { STOP_RULE_DEFAULTS, defaultStopRules, emptyWeekRecords, type GameState, type WeekReport } from '../../engine';
 import { freshState } from '../testing/harness';
 import {
   UI_PERSISTED_VERSION,
@@ -21,6 +21,7 @@ const report = (turn: number, pad = 0): WeekReport => ({
   alerts: [],
   stopCandidates: [],
   ops: {},
+  records: emptyWeekRecords(),
   calc: pad === 0 ? {} : { big: { label: 'x'.repeat(pad), value: 0, unit: 'none' } },
 });
 

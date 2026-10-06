@@ -6,17 +6,26 @@ import { defaultNewGameSetup } from '../state/setup';
 import type { GameState } from '../state/types';
 import { advanceWeek } from '../turn/advanceWeek';
 import fixtureV1 from './fixtures/save-v1.json';
-import { CURRENT_SCHEMA_VERSION, MIGRATIONS, MigrationError, migrateSave } from './migrations';
+import {
+  CURRENT_SCHEMA_VERSION,
+  MIGRATIONS,
+  MIN_SUPPORTED_SCHEMA_VERSION,
+  MigrationError,
+  migrateSave,
+} from './migrations';
 import { resolveTuning, tuningHashOf } from '../state/tuning';
 import {
   BUILD_TUNING_HASH,
   createSaveCodec,
   parseSaveFile,
   saveCodec,
+  saveTooOldMessage,
   serializeSaveFile,
   toSaveFile,
   TUNING_MATCHES_BUILD,
 } from './saveFile';
+import { SLICE_VALIDATORS, idsMirrorProblem, stateProblem } from './validate';
+import { SLICE_KEYS } from '../state/types';
 import type { Migration, VersionedSave } from './types';
 
 // A few tests build fresh worlds (§3 generation can take ~1.5 s per newGame).
@@ -75,15 +84,22 @@ describe('SaveFile (DESIGN §2.9)', () => {
     expect(hashState(a.save.state)).toBe(hashState(b.save.state));
   });
 
-  it('loads the committed v1 fixture unchanged, and it plays on', () => {
+  it('refuses the committed v1 (P0) fixture with SAVE_TOO_OLD and the 13.16 message (s02 #7)', () => {
     const back = parseSaveFile(JSON.stringify(fixtureV1));
-    if (!back.ok) throw new Error(back.error.message);
-    expect(hashState(back.save.state)).toBe(hashValue(fixtureV1.state));
-    expect(back.save.state.clock).toMatchObject({ turn: 3, year: 1, week: 4 });
-    expect(back.save.slotName).toBe('Fixture Placers LLC');
-    // A later build may resolve different tuning; the save keeps its own and only gets a notice.
-    expect(back.notices.every((n) => n.code === 'TUNING_DIFFERS')).toBe(true);
-    expect(advanceWeek(back.save.state).state.clock.turn).toBe(4);
+    expect(back).toEqual({
+      ok: false,
+      error: { code: 'SAVE_TOO_OLD', message: saveTooOldMessage(1, MIN_SUPPORTED_SCHEMA_VERSION) },
+    });
+    expect(saveTooOldMessage(1, 2)).toBe(
+      'This save was made by an earlier version of the game (schema 1); this build reads schema 2 and later.',
+    );
+    // Persistence migrates any older save through the codec: a too-old one fails there with the same message.
+    expect(() => saveCodec.migrate(fixtureV1 as unknown as VersionedSave)).toThrow(saveTooOldMessage(1, 2));
+    // A codec that still reads schema 1 (a P0 build) loads the fixture unchanged: the refusal is the build's policy.
+    const p0 = createSaveCodec({ currentSchemaVersion: 1, migrations: [] });
+    const old = parseSaveFile(JSON.stringify(fixtureV1), p0);
+    if (!old.ok) throw new Error(old.error.message);
+    expect(hashState(old.save.state)).toBe(hashValue(fixtureV1.state));
   });
 
   it('rejects non-saves, newer schemas and damaged data with typed codes', () => {
@@ -218,41 +234,51 @@ describe('SaveFile (DESIGN §2.9)', () => {
 });
 
 describe('migrations (DESIGN §2.9, D-2.34)', () => {
-  it('the P0 build reads schema 1 and ships no migrations yet', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+  it('the P1 build writes schema 2, reads schema 2 and later, and ships no migrations inside P1 (s02 #7)', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(2);
+    expect(MIN_SUPPORTED_SCHEMA_VERSION).toBe(2);
     expect(MIGRATIONS).toEqual([]);
-    expect(saveCodec.currentSchemaVersion).toBe(1);
+    expect(saveCodec.currentSchemaVersion).toBe(2);
+    expect(saveCodec.minSupportedSchemaVersion).toBe(2);
+    expect(fresh().schemaVersion).toBe(2);
   });
 
-  // A synthetic v2 build: v2 renamed the envelope's slotName to slotTitle and moved it back, adding a state marker.
-  const toV2: Migration = {
-    from: 1,
-    name: 'v1→v2 synthetic',
+  it('refuses any schema older than the oldest supported, before migrating', () => {
+    const good = JSON.parse(serializeSaveFile(toSaveFile(fresh(), OPTS))) as Record<string, unknown>;
+    expect(parseSaveFile({ ...good, schemaVersion: 1 })).toMatchObject({ ok: false, error: { code: 'SAVE_TOO_OLD' } });
+    // A custom codec defaults to reading every version a chain can reach.
+    expect(createSaveCodec({ currentSchemaVersion: 2, migrations: [] }).minSupportedSchemaVersion).toBe(1);
+  });
+
+  // A synthetic v3 build: its v2 → v3 step bumps the schema and adds nothing else.
+  const toV3: Migration = {
+    from: 2,
+    name: 'v2→v3 synthetic',
     migrate: (save) => {
       const state = save['state'] as Record<string, unknown>;
-      return { ...save, schemaVersion: 2, state: { ...state, schemaVersion: 2 } } as VersionedSave;
+      return { ...save, schemaVersion: 3, state: { ...state, schemaVersion: 3 } } as VersionedSave;
     },
   };
 
   it('migrates an older save forward through a registered chain, with a notice naming each step', () => {
-    const codec = createSaveCodec({ currentSchemaVersion: 2, migrations: [toV2] });
-    const v1 = toSaveFile(weeks(fresh(), 2), OPTS);
-    const r = parseSaveFile(serializeSaveFile(v1), codec);
+    const codec = createSaveCodec({ currentSchemaVersion: 3, migrations: [toV3], minSupportedSchemaVersion: 2 });
+    const v2 = toSaveFile(weeks(fresh(), 2), OPTS);
+    const r = parseSaveFile(serializeSaveFile(v2), codec);
     if (!r.ok) throw new Error(r.error.message);
-    expect(r.save.schemaVersion).toBe(2);
-    expect(r.save.state.schemaVersion).toBe(2);
+    expect(r.save.schemaVersion).toBe(3);
+    expect(r.save.state.schemaVersion).toBe(3);
     expect(r.notices).toContainEqual({
       code: 'SAVE_MIGRATED',
-      fromVersion: 1,
-      toVersion: 2,
-      migrations: ['v1→v2 synthetic'],
+      fromVersion: 2,
+      toVersion: 3,
+      migrations: ['v2→v3 synthetic'],
     });
-    // The v1 input object is not modified by migration.
-    expect(v1.schemaVersion).toBe(1);
+    // The v2 input object is not modified by migration.
+    expect(v2.schemaVersion).toBe(2);
   });
 
   it('reports a broken chain as SAVE_CORRUPT and refuses a step that skips a version', () => {
-    const missing = createSaveCodec({ currentSchemaVersion: 3, migrations: [toV2] });
+    const missing = createSaveCodec({ currentSchemaVersion: 4, migrations: [toV3] });
     const text = serializeSaveFile(toSaveFile(fresh(), OPTS));
     expect(parseSaveFile(text, missing)).toMatchObject({ ok: false, error: { code: 'SAVE_CORRUPT' } });
     const skip: Migration = { from: 1, name: 'bad', migrate: (s) => ({ ...s, schemaVersion: 3 }) as VersionedSave };
@@ -268,5 +294,35 @@ describe('migrations (DESIGN §2.9, D-2.34)', () => {
     expect(saveCodec.runStatusOf({ state: ended })).toBe('ended');
     expect(saveCodec.checkState(s)).toBeNull();
     expect(saveCodec.checkState({})).toMatch(/schemaVersion/);
+  });
+});
+
+describe('slice validation at load (DESIGN §2.9 D-2.43; P1 contract §1.7)', () => {
+  it('has one owner check per slice, and a fresh state passes every one', () => {
+    expect(Object.keys(SLICE_VALIDATORS).sort()).toEqual([...SLICE_KEYS].sort());
+    const s = fresh() as unknown as Record<string, Record<string, unknown>>;
+    for (const key of SLICE_KEYS) {
+      expect(idsMirrorProblem(key, s[key] as Record<string, unknown>), key).toBeNull();
+      expect(SLICE_VALIDATORS[key](s[key] as Record<string, unknown>), key).toBeNull();
+    }
+    expect(stateProblem(fresh(), CURRENT_SCHEMA_VERSION)).toBeNull();
+  });
+
+  it('checks every top-level …Ids array against its Record (xs or x), in any slice', () => {
+    const sorted = { claims: { clm_000001: 1, clm_000002: 2 }, claimIds: ['clm_000001', 'clm_000002'] };
+    expect(idsMirrorProblem('world', sorted)).toBeNull();
+    expect(idsMirrorProblem('world', { ...sorted, claimIds: ['clm_000002', 'clm_000001'] })).toMatch(/claimIds/);
+    expect(idsMirrorProblem('world', { ...sorted, claimIds: ['clm_000001'] })).toMatch(/claimIds/);
+    expect(idsMirrorProblem('world', { ...sorted, claimIds: ['clm_000001', 2] })).toMatch(/non-string/);
+    // `x` as well as `xs`, and an ordered subset with no sibling Record is the owner's business.
+    expect(idsMirrorProblem('ops', { claim: { clm_000001: 1 }, claimIds: ['clm_000001'] })).toBeNull();
+    expect(idsMirrorProblem('world', { ...sorted, familyRunClaimIds: ['clm_000002', 'clm_000001'] })).toBeNull();
+    expect(idsMirrorProblem('land', { listings: {}, listingIds: ['lst_000001'] })).toMatch(/listingIds/);
+  });
+
+  it('refuses a save whose world ids no longer mirror their Record', () => {
+    const good = JSON.parse(serializeSaveFile(toSaveFile(fresh(), OPTS))) as { state: GameState };
+    (good.state.world.claimIds as unknown as string[]).reverse();
+    expect(parseSaveFile(good)).toMatchObject({ ok: false, error: { code: 'SAVE_CORRUPT' } });
   });
 });

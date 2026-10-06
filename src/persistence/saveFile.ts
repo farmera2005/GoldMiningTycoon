@@ -45,6 +45,8 @@ export interface MigrationOutcome {
 /** The engine side of saving, injected so persistence never imports the engine (engine/save/ provides it). */
 export interface SaveCodec {
   readonly currentSchemaVersion: number;
+  /** The oldest schema the build loads (default 1); older saves are refused with SAVE_TOO_OLD, never migrated. */
+  readonly minSupportedSchemaVersion?: number;
   /** Pure forward migration of an older save to `currentSchemaVersion`; throws on a save it cannot migrate. */
   migrate(save: VersionedSave): MigrationOutcome;
   /** Optional shape check of the migrated state: an error message, or null when the state is well formed. */
@@ -65,6 +67,7 @@ export type SaveErrorCode =
   | 'SAVE_CORRUPT'
   | 'SAVE_FORMAT'
   | 'SAVE_TOO_NEW'
+  | 'SAVE_TOO_OLD'
   | 'SLOT_NOT_FOUND'
   | 'IRONMAN_MANUAL_SAVE'
   | 'SAVE_WRITE_FAILED'
@@ -172,6 +175,13 @@ function checkVersion(value: Record<string, unknown>, codec: SaveCodec): Result<
     return fail(
       'SAVE_TOO_NEW',
       `This save was made by a newer version of the game (schema ${version}; this build reads up to ${codec.currentSchemaVersion}).`,
+    );
+  }
+  const oldest = codec.minSupportedSchemaVersion ?? 1;
+  if (version < oldest) {
+    return fail(
+      'SAVE_TOO_OLD',
+      `This save was made by an earlier version of the game (schema ${version}); this build reads schema ${oldest} and later.`,
     );
   }
   return ok(value as VersionedSave);

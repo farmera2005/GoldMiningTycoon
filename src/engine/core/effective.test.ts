@@ -26,7 +26,12 @@ function mod(id: string, partial: Partial<EffectModifier> & Pick<EffectModifier,
   };
 }
 
-const partsLead: HookDef = { key: 'fleet.partsLeadTimeMult', ownerSection: 9, neutral: 1, unit: 'mult' };
+/** A registry row with the P1 fields (S12-14); the resolution reads only `key`, `neutral` and the bounds. */
+function hookRow(row: Pick<HookDef, 'key' | 'ownerSection' | 'neutral' | 'unit'> & Partial<HookDef>): HookDef {
+  return { ops: ['mul', 'add', 'set'], scopeDims: ['company'], base: 'neutral', consumerPhase: 1, ...row };
+}
+
+const partsLead: HookDef = hookRow({ key: 'fleet.partsLeadTimeMult', ownerSection: 9, neutral: 1, unit: 'mult' });
 
 describe('effectiveValue (DESIGN §2.10 = §12 12.3)', () => {
   it('reproduces the §12 worked example: brand disruption × world disruption', () => {
@@ -40,7 +45,7 @@ describe('effectiveValue (DESIGN §2.10 = §12 12.3)', () => {
   });
 
   it('multiplies a difficulty-scaled base rather than replacing it (easy pool 1.3 × gold rush 0.85)', () => {
-    const hook: HookDef = { key: 'staff.poolSizeMult', ownerSection: 8, neutral: 1, unit: 'mult' };
+    const hook: HookDef = hookRow({ key: 'staff.poolSizeMult', ownerSection: 8, neutral: 1, unit: 'mult' });
     const rush = mod('evt_000009/m1', { target: 'staff.poolSizeMult', op: 'mul', value: 0.85 });
     expect(effectiveValue(1.3, hook, [rush], 5, {})).toBeCloseTo(1.105, 15);
   });
@@ -54,7 +59,7 @@ describe('effectiveValue (DESIGN §2.10 = §12 12.3)', () => {
   });
 
   it('adds sums on top of the scaled base: v = base × Πmul + Σadd', () => {
-    const hook: HookDef = { key: 'season.breakupShiftWeeks', ownerSection: 1, neutral: 0, unit: 'weeks' };
+    const hook: HookDef = hookRow({ key: 'season.breakupShiftWeeks', ownerSection: 1, neutral: 0, unit: 'weeks' });
     const mods = [
       mod('evt_000002/m0', { target: hook.key, op: 'add', value: 2 }),
       mod('evt_000003/m0', { target: hook.key, op: 'add', value: -0.5 }),
@@ -63,7 +68,7 @@ describe('effectiveValue (DESIGN §2.10 = §12 12.3)', () => {
   });
 
   it('lets the latest set win (tie: lowest id), clamped to the set bounds', () => {
-    const hook: HookDef = { key: 'ops.fuelSupplyFrac', ownerSection: 7, neutral: 1, unit: 'frac' };
+    const hook: HookDef = hookRow({ key: 'ops.fuelSupplyFrac', ownerSection: 7, neutral: 1, unit: 'frac' });
     const mods = [
       mod('evt_000010/m0', { target: hook.key, op: 'set', value: 0.2, startTurn: 3 }),
       mod('evt_000002/m0', { target: hook.key, op: 'set', value: 0.6, startTurn: 5 }),
@@ -80,13 +85,13 @@ describe('effectiveValue (DESIGN §2.10 = §12 12.3)', () => {
   it('clamps products to [0, 5] and sums to ±10 by default, or to the hook’s own bounds', () => {
     const mods = [mod('evt_000001/m0', { op: 'mul', value: 4 }), mod('evt_000002/m0', { op: 'mul', value: 3 })];
     expect(effectiveValue(2, partsLead, mods, 0, {})).toBe(10); // 2 × clamp(12) = 2 × 5
-    const fuel: HookDef = {
+    const fuel: HookDef = hookRow({
       key: 'fleet.partsLeadTimeMult',
       ownerSection: 7,
       neutral: 1,
       unit: 'mult',
       mulBounds: [1, 4],
-    };
+    });
     expect(effectiveValue(2, fuel, mods, 0, {})).toBe(8);
     const adds = [mod('evt_000001/m0', { op: 'add', value: 8 }), mod('evt_000002/m0', { op: 'add', value: 8 })];
     expect(effectiveValue(0, partsLead, adds, 0, {})).toBe(10);

@@ -23,3 +23,18 @@ export function invariant(cond: unknown, message: string | (() => string)): asse
     throw new Error(`Invariant failed: ${typeof message === 'function' ? message() : message}`);
   }
 }
+
+/**
+ * Thrown by a Wave-0 creation stub (P1 contract §0.2): a function whose contract returns a new id or a generated record
+ * cannot have a neutral body, so until its owning package lands it fails loudly. `id` names the stub
+ * (`<folder>.<function>`), which the stub allowlist lists.
+ */
+export class ContractStubError extends Error {
+  readonly id: string;
+
+  constructor(id: string) {
+    super(`${id} is a contract stub: its owning package has not implemented it yet`);
+    this.name = 'ContractStubError';
+    this.id = id;
+  }
+}

@@ -125,25 +125,25 @@ describe('T11: refused and damaged files change nothing', () => {
 });
 
 describe('T11: older saves migrate (§2.9)', () => {
-  // P0 has no shipped migration (the registry is empty until P1), so this registers one the way §2.9 adds them: a
-  // synthetic v2 build whose v1 → v2 step bumps the schema.
-  const toV2: Migration = {
-    from: 1,
-    name: 'v1→v2 synthetic',
+  // No migration ships before P1's v2 shape freezes (the registry is empty), so this registers one the way §2.9 adds
+  // them: a synthetic v3 build whose v2 → v3 step bumps the schema.
+  const toV3: Migration = {
+    from: 2,
+    name: 'v2→v3 synthetic',
     migrate: (save) =>
-      ({ ...save, schemaVersion: 2, state: { ...(save['state'] as object), schemaVersion: 2 } }) as VersionedSave,
+      ({ ...save, schemaVersion: 3, state: { ...(save['state'] as object), schemaVersion: 3 } }) as VersionedSave,
   };
 
   it('migrates a v(N−1) file on import and lists the migration in the notice', async () => {
-    const codec = createSaveCodec({ currentSchemaVersion: 2, migrations: [toV2] });
+    const codec = createSaveCodec({ currentSchemaVersion: 3, migrations: [toV3] });
     const h = createHarness({ codec });
-    const v1 = serializeSaveFile(toSaveFile(freshState(), { slotName: 'Old camp', savedAt: 'x' }));
-    const r = await h.saves.importFile(v1);
+    const v2 = serializeSaveFile(toSaveFile(freshState(), { slotName: 'Old camp', savedAt: 'x' }));
+    const r = await h.saves.importFile(v2);
     if (!r.ok) throw new Error(r.error.message);
     expect(r.value.notices).toEqual([
-      { code: 'SAVE_MIGRATED', fromVersion: 1, toVersion: 2, migrations: ['v1→v2 synthetic'] },
+      { code: 'SAVE_MIGRATED', fromVersion: 2, toVersion: 3, migrations: ['v2→v3 synthetic'] },
     ]);
-    expect(r.value.meta.schemaVersion).toBe(2);
+    expect(r.value.meta.schemaVersion).toBe(3);
   });
 
   it("reads the engine's committed v1 fixture, noting only that it keeps its own tuning", () => {

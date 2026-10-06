@@ -1,14 +1,21 @@
 // Saving and loading (DESIGN §2.9, §13 13.16). toSaveFile builds the §2.9 envelope; parseSaveFile reads one back in
-// §13's order: format → schemaVersion (older → migrate with a notice; newer → SAVE_TOO_NEW) → envelope and state
-// validation → tuning hash (a TUNING_DIFFERS notice only: the save keeps its own tuning). `saveCodec` is the same
-// engine side shaped for browser persistence's injected SaveCodec, which the engine cannot import (§2.1).
+// §13's order: format → schemaVersion (newer → SAVE_TOO_NEW; older than the oldest supported → SAVE_TOO_OLD (s02 #7);
+// older → migrate with a notice) → envelope and state validation → tuning hash (a TUNING_DIFFERS notice only: the save
+// keeps its own tuning). `saveCodec` is the same engine side shaped for browser persistence's injected SaveCodec, which
+// the engine cannot import (§2.1).
 import { cloneJson, freezeIfEnabled } from '../state/immutability';
 import { resolveTuning, tuningHashOf } from '../state/tuning';
 import { defaultNewGameSetup, type NewGameSetup } from '../state/setup';
 import type { GameState } from '../state/types';
 import { cashOnHandCents, netWorthCents } from '../systems/finance/netWorth';
 import type { LoggedAction } from '../actions/types';
-import { CURRENT_SCHEMA_VERSION, MIGRATIONS, migrateSave } from './migrations';
+import {
+  CURRENT_SCHEMA_VERSION,
+  MIGRATIONS,
+  MIN_SUPPORTED_SCHEMA_VERSION,
+  MigrationError,
+  migrateSave,
+} from './migrations';
 import { stateProblem } from './validate';
 import {
   SAVE_FORMAT,
@@ -104,6 +111,16 @@ export const TUNING_MATCHES_BUILD = 'tuning-matches-build';
 export interface SaveCodecConfig {
   currentSchemaVersion: number;
   migrations: readonly Migration[];
+  /** The oldest schema the codec loads (default 1: every version a migration chain can reach). */
+  minSupportedSchemaVersion?: number;
+}
+
+/** §13 13.16's message for a save older than the build supports (s02 #7). */
+export function saveTooOldMessage(version: number, minSupported: number): string {
+  return (
+    `This save was made by an earlier version of the game (schema ${version}); ` +
+    `this build reads schema ${minSupported} and later.`
+  );
 }
 
 /** Both hashes of a TUNING_DIFFERS notice (§13 13.16). */
@@ -115,6 +132,9 @@ export interface TuningDifference {
 /** The engine side of saving, in the shape src/persistence's `SaveCodec` expects, plus the engine's own reads. */
 export interface EngineSaveCodec {
   readonly currentSchemaVersion: number;
+  /** Older schemas are refused (SAVE_TOO_OLD), never migrated. */
+  readonly minSupportedSchemaVersion: number;
+  /** Throws MigrationError for a save older than `minSupportedSchemaVersion`, with the SAVE_TOO_OLD message. */
   migrate(save: VersionedSave): MigrationOutcome;
   checkState(state: unknown): string | null;
   /** = TUNING_MATCHES_BUILD (see there). */
@@ -146,9 +166,17 @@ function tuningDifference(state: unknown): TuningDifference | null {
 }
 
 export function createSaveCodec(config: SaveCodecConfig): EngineSaveCodec {
+  const minSupported = config.minSupportedSchemaVersion ?? 1;
   return {
     currentSchemaVersion: config.currentSchemaVersion,
-    migrate: (save) => migrateSave(save, config.migrations, config.currentSchemaVersion),
+    minSupportedSchemaVersion: minSupported,
+    migrate: (save) => {
+      // Persistence calls migrate for any older save; a too-old one must fail here rather than half-migrate.
+      if (save.schemaVersion < minSupported) {
+        throw new MigrationError(saveTooOldMessage(save.schemaVersion, minSupported));
+      }
+      return migrateSave(save, config.migrations, config.currentSchemaVersion);
+    },
     checkState: (state) => stateProblem(state, config.currentSchemaVersion),
     currentTuningHash: TUNING_MATCHES_BUILD,
     tuningHashOf: (save) => {
@@ -168,6 +196,7 @@ export function createSaveCodec(config: SaveCodecConfig): EngineSaveCodec {
 export const saveCodec: EngineSaveCodec = createSaveCodec({
   currentSchemaVersion: CURRENT_SCHEMA_VERSION,
   migrations: MIGRATIONS,
+  minSupportedSchemaVersion: MIN_SUPPORTED_SCHEMA_VERSION,
 });
 
 function readJson(input: unknown): { ok: true; value: unknown } | { ok: false; error: SaveError } {
@@ -182,7 +211,8 @@ function readJson(input: unknown): { ok: true; value: unknown } | { ok: false; e
 
 /**
  * Reads a save from JSON text or an already-parsed object: SAVE_FORMAT for anything that is not a save, SAVE_TOO_NEW
- * for a newer schema, SAVE_CORRUPT for unreadable, unmigratable or invalid data. The input is never modified.
+ * for a newer schema, SAVE_TOO_OLD for one older than the build supports, SAVE_CORRUPT for unreadable, unmigratable
+ * or invalid data. The input is never modified.
  */
 export function parseSaveFile(input: unknown, codec: EngineSaveCodec = saveCodec): ParseSaveResult {
   const json = readJson(input);
@@ -197,6 +227,9 @@ export function parseSaveFile(input: unknown, codec: EngineSaveCodec = saveCodec
       'SAVE_TOO_NEW',
       `This save was made by a newer version of the game (schema ${version}; this build reads up to ${codec.currentSchemaVersion}).`,
     );
+  }
+  if (version < codec.minSupportedSchemaVersion) {
+    return fail('SAVE_TOO_OLD', saveTooOldMessage(version, codec.minSupportedSchemaVersion));
   }
   let outcome: MigrationOutcome;
   try {

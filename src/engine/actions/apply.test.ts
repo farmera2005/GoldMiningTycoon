@@ -45,7 +45,10 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
       ok: false,
       error: { code: 'INSUFFICIENT_FUNDS' },
     });
-    expect(validateAction(s, asAction({ type: 'test/transfer', cents: 40_000_000 }))).toEqual({ ok: true });
+    expect(validateAction(s, asAction({ type: 'test/transfer', cents: 40_000_000 }))).toEqual({
+      ok: true,
+      warnings: [],
+    });
   });
 
   it('applies a pure action immutably: new state, old state unchanged, actionSeq + 1, effects reported', () => {
@@ -85,6 +88,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
       ownerSection: 2,
       reveals: false,
       commits: false,
+      fromPhase: 0,
       validate: () => null,
       handle: (_d, a, ctx) => {
         if (a.commit) ctx.markCommits();
@@ -108,6 +112,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
         ownerSection: 2,
         reveals: false,
         commits: false,
+        fromPhase: 0,
         validate: () => null,
         handle: () => undefined,
       }),
@@ -118,6 +123,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
         ownerSection: 2,
         reveals: false,
         commits: false,
+        fromPhase: 0,
         validate: () => null,
         handle: () => undefined,
       }),

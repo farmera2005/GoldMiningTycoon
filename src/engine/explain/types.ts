@@ -3,9 +3,10 @@
 import type { TuningKey } from '../../data/tuning';
 import type { LedgerFilter } from '../systems/finance/types';
 import type { HistoryMetric } from '../systems/history/types';
+import type { explain } from './index';
 
-/** Names of the engine's on-demand explainers (keys of `explain`). */
-export type ExplainerName = 'cash' | 'netWorth';
+/** Names of the engine's on-demand explainers: the keys of the composed registry (S13-5). */
+export type ExplainerName = keyof typeof explain;
 
 export type ExplainRef =
   | { kind: 'live'; explainer: ExplainerName; args: readonly unknown[] }

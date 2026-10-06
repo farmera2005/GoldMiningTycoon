@@ -133,6 +133,11 @@ export interface AlertSignal {
   dueTurn?: number;
   explain?: ExplainRef;
   action?: SuggestedAction;
+  /**
+   * The decision this signal announces (S12-2): collation links the message to it and makes the message blocking
+   * when the decision blocks. An owner emits exactly one signal with every decision it creates.
+   */
+  decisionId?: DecId;
 }
 
 export interface InboxMessage {
@@ -151,6 +156,9 @@ export interface InboxMessage {
   params: Record<string, string | number>;
   dueTurn?: number;
   decisionId?: DecId;
+  /** Copied from the latest signal on every re-emit, like `subject`, `params` and `dueTurn` (S12-11). */
+  action?: SuggestedAction;
+  explain?: ExplainRef;
 }
 
 export interface InboxSlice {

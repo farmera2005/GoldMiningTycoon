@@ -6,7 +6,7 @@ import { postInto } from '../systems/finance/ledger';
 import type { GameState } from '../state/types';
 import { createDecision } from './decisions';
 import { registerAction } from './registry';
-import type { Action, ActionDef, ActionError, HandlerContext } from './types';
+import type { Action, ActionDef, ActionError, ActionWarningCode, HandlerContext } from './types';
 
 /** Moves cash between the operating and reserve accounts (pure: no draw, reveal or commitment). */
 export interface TestTransferAction {
@@ -38,11 +38,35 @@ export interface TestLiquidateAction {
   type: 'test/liquidate';
 }
 
+/** A valid action that carries one non-blocking warning per `n` (s07 #3, S13-3) and changes nothing. */
+export interface TestWarnAction {
+  type: 'test/warn';
+  n: number;
+}
+/** An action that exists only from P1 rules (`ActionDef.fromPhase`); it changes nothing. */
+export interface TestLaterAction {
+  type: 'test/later';
+}
+/** Creates a non-blocking decision whose options carry no action (close only, S08-14); defaults to 'keep'. */
+export interface TestCloseOnlyAction {
+  type: 'test/closeOnly';
+}
+/** Reports an alert effect, which applyAction collates at once ('action' mode, S12-3). */
+export interface TestAlertAction {
+  type: 'test/alert';
+}
+
 export type TestAction =
   TestTransferAction | TestDrawAction | TestRevealAction | TestCommitAction | TestDecideAction | TestLiquidateAction;
 
+/** The rows that exercise the P1 frame (warnings, phase gates, close-only options, action-time collation). */
+export type FrameTestAction = TestWarnAction | TestLaterAction | TestCloseOnlyAction | TestAlertAction;
+
+/** The warning code the test rows use (ActionWarningCode is the union of the folders' lists, empty in Wave 0). */
+export const TEST_WARNING_CODE = 'TEST_WARNING' as ActionWarningCode;
+
 /** Casts a test action to the engine's Action type (test actions are outside the public union). */
-export function asAction(a: TestAction): Action {
+export function asAction(a: TestAction | FrameTestAction): Action {
   return a as unknown as Action;
 }
 
@@ -53,6 +77,7 @@ const transferDef: ActionDef<TestTransferAction> = {
   ownerSection: 2,
   reveals: false,
   commits: false,
+  fromPhase: 0,
   validate(state: GameState, a) {
     if (!Number.isSafeInteger(a.cents) || a.cents === 0) return malformed('cents must be a non-zero integer');
     const from = a.cents > 0 ? 'cash.operating' : 'cash.reserve';
@@ -83,6 +108,7 @@ const drawDef: ActionDef<TestDrawAction> = {
   ownerSection: 2,
   reveals: false,
   commits: false,
+  fromPhase: 0,
   validate: (_state, a) => (Number.isSafeInteger(a.n) && a.n >= 0 ? null : malformed('n must be ≥ 0')),
   handle(draft, a, ctx: HandlerContext) {
     const r = ctx.rng(draft.meta.seed, 'action', draft.clock.turn, draft.clock.actionSeq);
@@ -95,6 +121,7 @@ const revealDef: ActionDef<TestRevealAction> = {
   ownerSection: 2,
   reveals: true,
   commits: false,
+  fromPhase: 0,
   validate: () => null,
   handle: () => undefined,
 };
@@ -104,6 +131,7 @@ const commitDef: ActionDef<TestCommitAction> = {
   ownerSection: 2,
   reveals: false,
   commits: true,
+  fromPhase: 0,
   validate: () => null,
   handle: () => undefined,
 };
@@ -113,6 +141,7 @@ const decideDef: ActionDef<TestDecideAction> = {
   ownerSection: 2,
   reveals: false,
   commits: false,
+  fromPhase: 0,
   validate(_state, a) {
     if (typeof a.blocking !== 'boolean') return malformed('blocking must be a boolean');
     if (!Number.isSafeInteger(a.deadlineInWeeks) || a.deadlineInWeeks < 0) return malformed('deadlineInWeeks ≥ 0');
@@ -146,9 +175,79 @@ const liquidateDef: ActionDef<TestLiquidateAction> = {
   ownerSection: 2,
   reveals: false,
   commits: false,
+  fromPhase: 0,
   validate: () => null,
   handle(draft) {
     draft.finance.distress.liquidation = { cause: 'p1Counter', turn: draft.clock.turn };
+  },
+};
+
+const warnDef: ActionDef<TestWarnAction> = {
+  type: 'test/warn',
+  ownerSection: 2,
+  reveals: false,
+  commits: false,
+  fromPhase: 0,
+  validate: (_state, a) => (Number.isSafeInteger(a.n) && a.n >= 0 ? null : malformed('n must be ≥ 0')),
+  warnings: (_state, a) =>
+    Array.from({ length: a.n }, (_, i) => ({ code: TEST_WARNING_CODE, message: `test warning ${i + 1}` })),
+  handle: () => undefined,
+};
+
+const laterDef: ActionDef<TestLaterAction> = {
+  type: 'test/later',
+  ownerSection: 2,
+  reveals: false,
+  commits: false,
+  fromPhase: 1,
+  validate: () => null,
+  handle: () => undefined,
+};
+
+const closeOnlyDef: ActionDef<TestCloseOnlyAction> = {
+  type: 'test/closeOnly',
+  ownerSection: 2,
+  reveals: false,
+  commits: false,
+  fromPhase: 0,
+  validate: () => null,
+  handle(draft, _a, ctx) {
+    const decId = createDecision(draft, {
+      kind: 'test.closeOnly',
+      ownerSection: 2,
+      blocking: false,
+      deadlineTurn: draft.clock.turn + 1,
+      options: [
+        { id: 'keep', labelKey: 'test.keep', consequenceKey: 'test.keep' },
+        { id: 'drop', labelKey: 'test.drop', consequenceKey: 'test.drop' },
+      ],
+      defaultOptionId: 'keep',
+      context: { templateKey: 'test.closeOnly', params: {}, subject: [] },
+    });
+    ctx.effect({ kind: 'decision', decId });
+  },
+};
+
+const alertDef: ActionDef<TestAlertAction> = {
+  type: 'test/alert',
+  ownerSection: 2,
+  reveals: false,
+  commits: false,
+  fromPhase: 0,
+  validate: () => null,
+  handle(_draft, _a, ctx) {
+    ctx.effect({
+      kind: 'alert',
+      signal: {
+        kind: 'cash.projectedNegative',
+        severity: 'warning',
+        trigger: 'level',
+        dedupeKey: 'test',
+        subject: [],
+        templateKey: 'alert.cash.projectedNegative',
+        params: {},
+      },
+    });
   },
 };
 
@@ -161,6 +260,10 @@ export function registerTestActions(): () => void {
     registerAction(commitDef),
     registerAction(decideDef),
     registerAction(liquidateDef),
+    registerAction(warnDef),
+    registerAction(laterDef),
+    registerAction(closeOnlyDef),
+    registerAction(alertDef),
   ];
   return () => {
     for (const u of undo) u();

@@ -3,7 +3,7 @@
 import type { GameState, RulesPhase } from './types';
 
 /** Engine semver recorded in meta.rulesVersion and SaveFile.rulesVersion. Bump on any rule change. */
-export const RULES_VERSION = '0.1.0';
+export const RULES_VERSION = '0.2.0';
 
 /** The phase this build implements. A game may run any phase up to it. */
 export const BUILD_RULES_PHASE: RulesPhase = 0;

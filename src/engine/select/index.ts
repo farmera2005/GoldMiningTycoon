@@ -1,16 +1,30 @@
-// Selectors (DESIGN §2.11): pure derived views over state, used alike by the UI, bots, the simulator and scenario
-// goals. None reads a hidden field. Each canonical value has one implementation, owned by its section.
+// Selectors (DESIGN §2.11; P1 contract §1.9): pure derived views over state, used alike by the UI, bots, the simulator
+// and scenario goals. None reads a hidden field. Each canonical value has one implementation, owned by its section:
+// `select` spreads §2's framework selectors and every folder's select.ts (s02 #11), and a test fails when two sources
+// define the same name. After Wave 0 owners edit only their own folder's select.ts, never this file.
+import type { TuningKey, TuningValue } from '../../data/tuning';
 import { turnDate, type MonthDay } from '../core/calendar';
-import type { DistrictId } from '../core/ids';
-import type { Cents } from '../core/money';
 import { openDecisions } from '../actions/decisions';
 import type { PendingDecision } from '../actions/types';
 import type { GameState } from '../state/types';
 import { tuningNumber } from '../state/tuning';
+import { climateSelectors } from '../systems/climate/select';
+import { companySelectors } from '../systems/company/select';
 import type { EndReason, LiquidationPath, RunStatus } from '../systems/company/types';
-import { cashOnHandCents, companyNetWorthCents, netWorthCents, type NetWorthMode } from '../systems/finance/netWorth';
-import { marketSnapshot } from '../systems/history/snapshot';
-import type { MarketSnapshot, WeekSnapshot, YearRollup } from '../systems/history/types';
+import { competitorsSelectors } from '../systems/competitors/select';
+import { eventsSelectors } from '../systems/events/select';
+import { financeSelectors } from '../systems/finance/select';
+import { fleetSelectors } from '../systems/fleet/select';
+import { goldSelectors } from '../systems/gold/select';
+import { historySelectors } from '../systems/history/select';
+import { inboxSelectors } from '../systems/inbox/select';
+import { investorsSelectors } from '../systems/investors/select';
+import { knowledgeSelectors } from '../systems/knowledge/select';
+import { landSelectors } from '../systems/land/select';
+import { opsSelectors } from '../systems/ops/select';
+import { permitsSelectors } from '../systems/permits/select';
+import { staffSelectors } from '../systems/staff/select';
+import { worldSelectors } from '../systems/world/select';
 import { canAdvance, type AdvanceRefusal } from '../turn/guard';
 
 /** §1 1.3 / §13 13.2 date facts for a turn (default: the current turn). */
@@ -26,36 +40,6 @@ export interface DateView {
 function dateView(state: GameState, turn: number = state.clock.turn): DateView {
   const d = turnDate(turn, tuningNumber(state.meta.tuning, 'game.startCalendarYear'));
   return { turn: d.turn, year: d.year, week: d.week, displayYear: d.displayYear, start: d.start, end: d.end };
-}
-
-/** §11 cashOnHand: operating + reserve, excluding restricted cash. */
-function cashOnHand(state: GameState): Cents {
-  return cashOnHandCents(state.finance);
-}
-
-/** §2.11 / §11 11.20 netWorth(state, mode); 'scoring' is §1 1.13's owner NW (P0 form: ledger marks only). */
-function netWorth(state: GameState, mode: NetWorthMode): Cents {
-  return netWorthCents(state.finance, state.meta.tuning, mode);
-}
-
-/** §1 1.13 companyNW. */
-function companyNetWorth(state: GameState): Cents {
-  return companyNetWorthCents(state.finance, state.meta.tuning);
-}
-
-/** This week's visible market series (§10; P0–P4 flat). */
-function market(state: GameState): MarketSnapshot {
-  return marketSnapshot(state);
-}
-
-/** §10 spot, USD per fine oz. */
-function spotUsdPerFineOz(state: GameState): number {
-  return marketSnapshot(state).spot;
-}
-
-/** Districts where the player holds ground (§5 tenures; none before P1). */
-function heldDistrictIds(_state: GameState): DistrictId[] {
-  return [];
 }
 
 function runStatus(state: GameState): RunStatus {
@@ -74,30 +58,63 @@ function runOutcome(state: GameState): RunOutcome {
   return { runStatus: c.runStatus, endReason: c.endReason, liquidationPath: c.liquidationPath };
 }
 
-/** §2.5 annual rollups, ascending years (completed game years only). */
-function annualHistory(state: GameState): readonly YearRollup[] {
-  return state.history.annual;
+/**
+ * The game's resolved tuning value for a key (s02 #13). Tuning is not hidden (§13 has a tuning viewer); a value an
+ * event may change is a hook, read through the public `effective()` instead.
+ */
+function tuning(state: GameState, key: TuningKey): TuningValue {
+  return state.meta.tuning[key];
 }
 
-/** The weekly history ring (§2.5), ascending turns. */
-function weeklyHistory(state: GameState): readonly WeekSnapshot[] {
-  return state.history.weekly;
-}
-
-export const select = {
-  cashOnHand,
-  netWorth,
-  companyNetWorth,
+/** §2's own selectors. */
+export const frameworkSelectors = {
   dateView,
-  market,
-  spotUsdPerFineOz,
-  heldDistrictIds,
   runStatus,
   runOutcome,
-  weeklyHistory,
-  annualHistory,
+  tuning,
   openDecisions: (state: GameState): PendingDecision[] => openDecisions(state),
   canAdvance: (state: GameState): null | AdvanceRefusal => canAdvance(state),
+} as const;
+
+/** Every source of selectors, by folder ('framework' = §2's own); the composition test checks names are disjoint. */
+export const SELECTOR_SOURCES = {
+  framework: frameworkSelectors,
+  climate: climateSelectors,
+  company: companySelectors,
+  investors: investorsSelectors,
+  history: historySelectors,
+  world: worldSelectors,
+  knowledge: knowledgeSelectors,
+  land: landSelectors,
+  permits: permitsSelectors,
+  ops: opsSelectors,
+  staff: staffSelectors,
+  fleet: fleetSelectors,
+  gold: goldSelectors,
+  finance: financeSelectors,
+  events: eventsSelectors,
+  competitors: competitorsSelectors,
+  inbox: inboxSelectors,
+} as const;
+
+export const select = {
+  ...frameworkSelectors,
+  ...climateSelectors,
+  ...companySelectors,
+  ...investorsSelectors,
+  ...historySelectors,
+  ...worldSelectors,
+  ...knowledgeSelectors,
+  ...landSelectors,
+  ...permitsSelectors,
+  ...opsSelectors,
+  ...staffSelectors,
+  ...fleetSelectors,
+  ...goldSelectors,
+  ...financeSelectors,
+  ...eventsSelectors,
+  ...competitorsSelectors,
+  ...inboxSelectors,
 } as const;
 
 export type Selectors = typeof select;

@@ -1,10 +1,11 @@
 // Save migrations (DESIGN §2.9, D-2.34): pure `vN → vN+1` functions, applied in order until the save reaches the
-// current schema. Every migration has a fixture test. P0 saves are not carried into P1, so the P0 registry is empty;
-// the first entry (v1 → v2) arrives with P1's state changes.
+// current schema. Every migration has a fixture test. P0 (v1) saves are refused with SAVE_TOO_OLD instead of migrated
+// (s02 #7), and shape changes inside P1 need no migration, so the registry stays empty through P1; the first entry
+// (v2 → v3) arrives with the first state change after P1's v2 shape is frozen.
 import { CURRENT_SCHEMA_VERSION } from '../state/schema';
 import type { Migration, MigrationOutcome, VersionedSave } from './types';
 
-export { CURRENT_SCHEMA_VERSION } from '../state/schema';
+export { CURRENT_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION } from '../state/schema';
 
 export const MIGRATIONS: readonly Migration[] = [];
 

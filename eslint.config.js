@@ -110,7 +110,16 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'no-restricted-imports': ['error', {
-        patterns: [{ group: ['**/sim/**', '**/tests/**'], message: 'The UI must not import the simulator or tests.' }],
+        patterns: [
+          { group: ['**/sim/**', '**/tests/**'], message: 'The UI must not import the simulator or tests.' },
+          // Fixture games (BALANCE §2.1) build state no player could reach; only sim/ and tests use them (s02 #2).
+          {
+            group: ['**/engine', '**/engine/index'],
+            importNames: ['newFixtureGame', 'fixtures'],
+            message: 'Fixture games are for the simulator and tests only.',
+          },
+          { group: ['**/engine/state/fixture'], message: 'Fixture games are for the simulator and tests only.' },
+        ],
       }],
     },
   },

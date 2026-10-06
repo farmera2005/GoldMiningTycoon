@@ -4,7 +4,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asAction, registerTestActions } from '../../engine/actions/testActions';
-import type { CalcNode, ExplainRef, WeekReport } from '../../engine';
+import { emptyWeekRecords, type CalcNode, type ExplainRef, type WeekReport } from '../../engine';
 import { App } from '../app/App';
 import { createHarness, loadState, type Harness } from '../testing/harness';
 
@@ -195,7 +195,14 @@ describe('the drawer', () => {
         },
       ],
     };
-    const report: WeekReport = { turn: 0, alerts: [], stopCandidates: [], ops: {}, calc: { 'test.tree': tree } };
+    const report: WeekReport = {
+      turn: 0,
+      alerts: [],
+      stopCandidates: [],
+      ops: {},
+      records: emptyWeekRecords(),
+      calc: { 'test.tree': tree },
+    };
     act(() => {
       h.store.getState().setGame({ calcReports: [report] });
       h.store.getState().openDrawer({ kind: 'report', turn: 0, path: ['test.tree'] }, null);
