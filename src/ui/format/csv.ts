@@ -221,9 +221,7 @@ export function toCsv(doc: CsvDocument): string {
     `# Rules version: ${doc.meta.rulesVersion}`,
   ].map(csvField);
   const header = doc.columns.map((c) => csvField(csvHeader(c))).join(',');
-  const rows = doc.rows.map((row) =>
-    doc.columns.map((c, i) => csvField(cellText(row[i] ?? null, c.unit))).join(','),
-  );
+  const rows = doc.rows.map((row) => doc.columns.map((c, i) => csvField(cellText(row[i] ?? null, c.unit))).join(','));
   return `${CSV_BOM}${[...meta, header, ...rows].join(CRLF)}${CRLF}`;
 }
 
@@ -249,7 +247,8 @@ export interface CsvFile {
   readonly bytes: Uint8Array;
 }
 
-export type CsvExportResult = { readonly ok: true; readonly file: CsvFile } | { readonly ok: false; readonly code: 'EXPORT_EMPTY' };
+export type CsvExportResult =
+  { readonly ok: true; readonly file: CsvFile } | { readonly ok: false; readonly code: 'EXPORT_EMPTY' };
 
 /** `ui/exportCsv` (13.21): the file for a table or report view, or `EXPORT_EMPTY` when the view has no rows. */
 export function exportCsv(doc: CsvDocument, reportId: string): CsvExportResult {

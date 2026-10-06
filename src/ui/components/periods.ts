@@ -46,7 +46,8 @@ export interface PeriodContext {
 function range(fromTurn: number, toTurn: number, ctx: PeriodContext): PeriodRange {
   const a = ctx.dateView(fromTurn);
   const b = ctx.dateView(toTurn);
-  const label = fromTurn === toTurn ? yearWeek(a.year, a.week) : `${yearWeek(a.year, a.week)}–${yearWeek(b.year, b.week)}`;
+  const label =
+    fromTurn === toTurn ? yearWeek(a.year, a.week) : `${yearWeek(a.year, a.week)}–${yearWeek(b.year, b.week)}`;
   return { fromTurn, toTurn, label };
 }
 
@@ -68,7 +69,9 @@ export function resolvePeriod(spec: PeriodSpec, ctx: PeriodContext): PeriodRange
     case 'quarter':
       return range(yearStart + Math.floor((view.week - 1) / QUARTER_WEEKS) * QUARTER_WEEKS, now, ctx);
     case 'season':
-      return ctx.seasonStartTurn === undefined || ctx.seasonStartTurn > now ? null : range(ctx.seasonStartTurn, now, ctx);
+      return ctx.seasonStartTurn === undefined || ctx.seasonStartTurn > now
+        ? null
+        : range(ctx.seasonStartTurn, now, ctx);
     case 'ytd':
       return range(yearStart, now, ctx);
     case 'lastYear':

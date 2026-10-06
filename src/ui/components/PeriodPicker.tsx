@@ -35,7 +35,11 @@ export function PeriodPicker({ value, onChange, ctx, label = 'Period' }: PeriodP
         }}
       >
         {PERIOD_OPTIONS.map((o) => (
-          <option key={o.kind} value={o.kind} disabled={o.kind !== 'custom' && resolvePeriod({ kind: o.kind }, ctx) === null}>
+          <option
+            key={o.kind}
+            value={o.kind}
+            disabled={o.kind !== 'custom' && resolvePeriod({ kind: o.kind }, ctx) === null}
+          >
             {o.label}
           </option>
         ))}

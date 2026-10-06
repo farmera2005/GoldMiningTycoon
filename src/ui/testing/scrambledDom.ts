@@ -8,7 +8,14 @@ import type { KnownRoute } from '../app/router';
 import { renderScreen } from './render';
 
 /** Volatile attributes that differ between two renders of the same thing (React's generated ids). */
-const VOLATILE_ATTRS = new Set(['id', 'aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-activedescendant', 'for']);
+const VOLATILE_ATTRS = new Set([
+  'id',
+  'aria-labelledby',
+  'aria-describedby',
+  'aria-controls',
+  'aria-activedescendant',
+  'for',
+]);
 
 /** A stable serialization of a DOM subtree: tag, non-volatile attributes in name order, text; one line per node. */
 export function domSnapshot(root: Element): string {
@@ -24,7 +31,9 @@ export function domSnapshot(root: Element): string {
       .filter((a) => !VOLATILE_ATTRS.has(a.name))
       .map((a) => `${a.name}=${JSON.stringify(a.value)}`)
       .sort();
-    lines.push(`${'  '.repeat(depth)}<${node.tagName.toLowerCase()}${attrs.length === 0 ? '' : ` ${attrs.join(' ')}`}>`);
+    lines.push(
+      `${'  '.repeat(depth)}<${node.tagName.toLowerCase()}${attrs.length === 0 ? '' : ` ${attrs.join(' ')}`}>`,
+    );
     for (const child of node.childNodes) visit(child, depth + 1);
   };
   visit(root, 0);
@@ -43,7 +52,10 @@ export interface ScrambledPair {
  * The DOM of `route` rendered for each side of the pair; T8 asserts the two strings are equal. Each render is cleaned
  * up before the next.
  */
-export function renderBothSides(route: KnownRoute | string, pair: ScrambledPair): { readonly a: string; readonly b: string } {
+export function renderBothSides(
+  route: KnownRoute | string,
+  pair: ScrambledPair,
+): { readonly a: string; readonly b: string } {
   const side = (state: GameState, reports: readonly WeekReport[] | undefined): string => {
     const r = renderScreen(route, { state });
     if (reports !== undefined) act(() => r.harness.store.getState().setGame({ calcReports: [...reports] }));

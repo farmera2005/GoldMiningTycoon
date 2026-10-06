@@ -64,7 +64,14 @@ function bodyIds(): string[] {
 
 function renderTable(props: Partial<Parameters<typeof DataTable<Lot>>[0]> = {}, rows: readonly Lot[] = LOTS) {
   return renderWithStore(
-    <DataTable<Lot> tableId="test.lots" label="Gold lots" columns={COLUMNS} rows={rows} rowId={(r) => r.id} {...props} />,
+    <DataTable<Lot>
+      tableId="test.lots"
+      label="Gold lots"
+      columns={COLUMNS}
+      rows={rows}
+      rowId={(r) => r.id}
+      {...props}
+    />,
     { state: freshState() },
   );
 }
@@ -133,7 +140,9 @@ describe('columns and the persisted layout (13.2, 13.21 ui/setTableLayout)', () 
     expect(screen.queryByRole('columnheader', { name: /Claim/ })).toBeNull();
     fireEvent.click(within(chooser).getByRole('button', { name: 'Move Status earlier' }));
     const headers = (): string[] =>
-      within(screen.getByRole('table')).getAllByRole('columnheader').map((h) => h.textContent ?? '');
+      within(screen.getByRole('table'))
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent ?? '');
     expect(headers()).toEqual(['Status', 'Lot', 'Raw gold (raw oz)', 'Cleanup week']);
     fireEvent.click(within(screen.getByRole('columnheader', { name: /Lot/ })).getByRole('button'));
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Filter Raw gold (raw oz), minimum' }), {
@@ -219,7 +228,9 @@ describe('bulk selection and CSV (13.2, 13.17)', () => {
     expect(act1).toHaveBeenCalledWith(['lot_000002', 'lot_000010']);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows in view' }));
     expect(document.querySelector('[data-bulk-bar]')?.textContent).toContain('4 selected');
-    fireEvent.click(within(document.querySelector('[data-bulk-bar]') as HTMLElement).getByRole('button', { name: 'Clear selection' }));
+    fireEvent.click(
+      within(document.querySelector('[data-bulk-bar]') as HTMLElement).getByRole('button', { name: 'Clear selection' }),
+    );
     expect(document.querySelector('[data-bulk-bar]')).toBeNull();
   });
 

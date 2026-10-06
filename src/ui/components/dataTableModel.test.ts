@@ -168,7 +168,11 @@ describe('the view and its persisted layout (13.21 ui/setTableLayout)', () => {
         { id: 'claim', value: '' },
       ],
     });
-    expect(view).toEqual({ columns: ['week', 'claim'], sort: [{ id: 'week', desc: true }], filters: { status: ['held'] } });
+    expect(view).toEqual({
+      columns: ['week', 'claim'],
+      sort: [{ id: 'week', desc: true }],
+      filters: { status: ['held'] },
+    });
   });
 
   it('round-trips through the layout it persists', () => {
@@ -222,8 +226,12 @@ describe('the view as CSV (13.17)', () => {
   it('writes the visible columns in view order with raw values, labels for enums and weeks as text', () => {
     const view = { columns: ['status', 'rawOz', 'week'], sort: [{ id: 'week', desc: false }], filters: {} };
     const rows = viewRows(ROWS, COLUMNS, view, '');
-    const doc = viewCsv(COLUMNS, view, rows, { company: 'A', period: 'All', generated: 'Y1 Wk 31', rulesVersion: '0.2.0' }, (t) =>
-      `Wk ${t + 1}`,
+    const doc = viewCsv(
+      COLUMNS,
+      view,
+      rows,
+      { company: 'A', period: 'All', generated: 'Y1 Wk 31', rulesVersion: '0.2.0' },
+      (t) => `Wk ${t + 1}`,
     );
     const parsed = parseCsv(toCsv(doc)).slice(4);
     expect(parsed).toEqual([

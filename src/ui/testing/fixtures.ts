@@ -7,7 +7,10 @@ import { readSave, type SaveNotice } from '../../persistence';
 import type { Harness } from './harness';
 
 /** The engine SaveFile in `bytes` (gzip or plain JSON), with the reader's notices; throws with the reader's message. */
-export function saveFromBytes(bytes: Uint8Array | string): { readonly save: SaveFile; readonly notices: readonly SaveNotice[] } {
+export function saveFromBytes(bytes: Uint8Array | string): {
+  readonly save: SaveFile;
+  readonly notices: readonly SaveNotice[];
+} {
   const read = readSave(bytes, saveCodec);
   if (!read.ok) throw new Error(`fixture save could not be read: ${read.error.code}: ${read.error.message}`);
   return { save: read.value.save as SaveFile, notices: read.value.notices };

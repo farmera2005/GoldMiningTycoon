@@ -37,7 +37,10 @@ function diff(a: ViewNode | undefined, b: ViewNode | undefined): number | null {
 export function compareNodes(now: ViewNode, before: ViewNode | null): WeekComparison {
   const prior = new Map<string, ViewNode>();
   for (const c of before?.children ?? []) if (!prior.has(c.label)) prior.set(c.label, c);
-  const labels = [...now.children.map((c) => c.label), ...[...prior.keys()].filter((l) => !now.children.some((c) => c.label === l))];
+  const labels = [
+    ...now.children.map((c) => c.label),
+    ...[...prior.keys()].filter((l) => !now.children.some((c) => c.label === l)),
+  ];
   const rows = labels.map((label) => {
     const a = now.children.find((c) => c.label === label);
     const b = prior.get(label);

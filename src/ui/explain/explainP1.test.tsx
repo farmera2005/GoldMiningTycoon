@@ -28,7 +28,13 @@ function costTree(labor: number, fuel: number, camp: number, extra?: number): Ca
     { label: 'True grade', value: 0.0188, unit: 'ozPerBcy', hidden: true },
   ];
   if (extra !== undefined) children.push({ label: 'Site fixed', value: extra, unit: 'usd' });
-  return { label: 'Direct operating cost', value: labor + fuel + camp + (extra ?? 0), unit: 'usd', op: 'sum', children };
+  return {
+    label: 'Direct operating cost',
+    value: labor + fuel + camp + (extra ?? 0),
+    unit: 'usd',
+    op: 'sum',
+    children,
+  };
 }
 
 beforeEach(() => {
@@ -45,11 +51,14 @@ describe('generic explainer dispatch (S13-5)', () => {
     const state = freshState();
     for (const name of Object.keys(explain)) {
       expect(isExplainer(name)).toBe(true);
-      const r = resolveExplain({ kind: 'live', explainer: name as never, args: [] }, {
-        state,
-        calcReports: [],
-        reveal: false,
-      });
+      const r = resolveExplain(
+        { kind: 'live', explainer: name as never, args: [] },
+        {
+          state,
+          calcReports: [],
+          reveal: false,
+        },
+      );
       expect(['tree', 'unavailable']).toContain(r.kind);
     }
     expect(resolveExplain(liveRef('cash'), { state, calcReports: [], reveal: false }).root).toMatchObject({
@@ -58,20 +67,23 @@ describe('generic explainer dispatch (S13-5)', () => {
   });
 
   it('answers NOT_FOUND for a name the registry does not have (a stale ref), instead of throwing', () => {
-    const r = resolveExplain({ kind: 'live', explainer: 'noSuchExplainer' as never, args: [] }, {
-      state: freshState(),
-      calcReports: [],
-      reveal: false,
-    });
+    const r = resolveExplain(
+      { kind: 'live', explainer: 'noSuchExplainer' as never, args: [] },
+      {
+        state: freshState(),
+        calcReports: [],
+        reveal: false,
+      },
+    );
     expect(r).toMatchObject({ kind: 'unavailable', reason: 'NOT_FOUND' });
   });
 });
 
 describe('report refs (S13-6)', () => {
   it('are built through the engine calc-key builder, then down the tree by labels', () => {
-    expect(reportRef(5, { folder: 'ops', metric: 'directCostPerBcy', entityId: 'clm_000012', lineId: 'L1' }, 'Fuel')).toEqual(
-      { kind: 'report', turn: 5, path: ['ops/directCostPerBcy/clm_000012/L1', 'Fuel'] },
-    );
+    expect(
+      reportRef(5, { folder: 'ops', metric: 'directCostPerBcy', entityId: 'clm_000012', lineId: 'L1' }, 'Fuel'),
+    ).toEqual({ kind: 'report', turn: 5, path: ['ops/directCostPerBcy/clm_000012/L1', 'Fuel'] });
     expect(() => reportRef(5, { folder: 'ops', metric: 'Bad Metric', entityId: 'clm_000012' })).toThrow(CalcKeyError);
   });
 });
@@ -106,7 +118,10 @@ describe('compare with last week (13.13)', () => {
     render(<App store={h.store} services={h.services} />);
     act(() => {
       h.store.getState().setGame({
-        calcReports: [weekReport(6, { [KEY]: costTree(20_000, 8_000, 2_700) }), weekReport(5, { [KEY]: costTree(19_000, 5_000, 2_600) })],
+        calcReports: [
+          weekReport(6, { [KEY]: costTree(20_000, 8_000, 2_700) }),
+          weekReport(5, { [KEY]: costTree(19_000, 5_000, 2_600) }),
+        ],
       });
       h.store.getState().openDrawer({ kind: 'report', turn: 6, path: [KEY] }, null);
     });

@@ -35,7 +35,11 @@ export function Stepper({ label, steps, current, onSelect, orientation = 'horizo
           const text = (
             <>
               {marker}
-              <span className={state === 'current' ? 'font-semibold text-ink-1' : state === 'done' ? 'text-ink-1' : 'text-ink-2'}>
+              <span
+                className={
+                  state === 'current' ? 'font-semibold text-ink-1' : state === 'done' ? 'text-ink-1' : 'text-ink-2'
+                }
+              >
                 {s.label}
               </span>
               {s.invalid === true ? <span className="text-12 text-status-critical-text">(needs attention)</span> : null}
@@ -43,9 +47,17 @@ export function Stepper({ label, steps, current, onSelect, orientation = 'horizo
             </>
           );
           return (
-            <li key={s.id} aria-current={state === 'current' ? 'step' : undefined} className="flex items-center gap-1.5">
+            <li
+              key={s.id}
+              aria-current={state === 'current' ? 'step' : undefined}
+              className="flex items-center gap-1.5"
+            >
               {state === 'done' && onSelect !== undefined ? (
-                <button type="button" className="inline-flex cursor-pointer items-center gap-1.5" onClick={() => onSelect(i)}>
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-1.5"
+                  onClick={() => onSelect(i)}
+                >
                   {text}
                 </button>
               ) : (

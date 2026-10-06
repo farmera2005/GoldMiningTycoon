@@ -52,7 +52,10 @@ describe('memoSelDeps (declared form, S13-19)', () => {
 
   it('gives the same value as a cold call (the declared slices cover what it reads)', () => {
     const s0 = freshState();
-    const sel = withDeps((s: GameState, mode: 'scoring' | 'appraised') => select.netWorth(s, mode), (s) => [s.finance, s.company]);
+    const sel = withDeps(
+      (s: GameState, mode: 'scoring' | 'appraised') => select.netWorth(s, mode),
+      (s) => [s.finance, s.company],
+    );
     expect(memoSelDeps(sel, touchInbox(s0), 'scoring')).toEqual(select.netWorth(s0, 'scoring'));
   });
 

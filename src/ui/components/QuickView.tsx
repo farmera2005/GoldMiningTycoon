@@ -22,8 +22,7 @@ export function QuickView({ title, onClose, children, openHref, returnFocus }: Q
   const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    openerRef.current =
-      returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    openerRef.current = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     headingRef.current?.focus();
     return () => {
       const opener = openerRef.current;

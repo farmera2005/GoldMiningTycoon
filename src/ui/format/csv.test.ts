@@ -16,7 +16,12 @@ import {
   type CsvDocument,
 } from './csv';
 
-const META = { company: 'Ruby Creek Placers, LLC', period: 'Last 4 weeks', generated: 'Y1 Wk 29', rulesVersion: '0.2.0' };
+const META = {
+  company: 'Ruby Creek Placers, LLC',
+  period: 'Last 4 weeks',
+  generated: 'Y1 Wk 29',
+  rulesVersion: '0.2.0',
+};
 
 describe('RFC 4180 quoting', () => {
   it.each([

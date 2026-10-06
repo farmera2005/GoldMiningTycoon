@@ -157,7 +157,11 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
   switch (ref.kind) {
     case 'live': {
       if (!isExplainer(ref.explainer)) {
-        return { kind: 'unavailable', reason: 'NOT_FOUND', root: message('Explanation', 'This number has no explanation.') };
+        return {
+          kind: 'unavailable',
+          reason: 'NOT_FOUND',
+          root: message('Explanation', 'This number has no explanation.'),
+        };
       }
       let node: CalcNode;
       try {

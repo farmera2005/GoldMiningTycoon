@@ -112,7 +112,10 @@ export function matchesFilter(kind: ColumnKind, cell: CellValue, filter: unknown
 
 /** The global search: any visible text, enum label or id column contains every word. */
 export function matchesSearch(haystack: readonly string[], query: string): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter((w) => w !== '');
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w !== '');
   if (words.length === 0) return true;
   const text = haystack.join(' ').toLowerCase();
   return words.every((w) => text.includes(w));
@@ -281,7 +284,10 @@ export function viewCsv<Row>(
     const c = columns.find((x) => x.id === id);
     return c === undefined ? [] : [c];
   });
-  const csvColumns: CsvColumn[] = visible.map((c) => ({ header: c.header, unit: c.kind === 'number' ? c.unit : 'text' }));
+  const csvColumns: CsvColumn[] = visible.map((c) => ({
+    header: c.header,
+    unit: c.kind === 'number' ? c.unit : 'text',
+  }));
   const cells = (row: Row): CsvCell[] =>
     visible.map((c) => {
       const v = c.value(row);

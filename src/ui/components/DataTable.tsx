@@ -11,16 +11,7 @@
 // Columns must be player-visible fields only, so no sort can rank by hidden truth (13.2).
 import { getCoreRowModel, useReactTable, type ColumnDef, type RowSelectionState } from '@tanstack/react-table';
 import { useVirtualizer, type Rect, type Virtualizer } from '@tanstack/react-virtual';
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { uiConfig } from '../../data/tuning/ui';
 import { select } from '../../engine';
 import { useOptionalServices } from '../app/services';
@@ -117,7 +108,8 @@ function FilterControl<Row>({
   weekOptions: readonly { readonly turn: number; readonly label: string }[];
 }) {
   const label = `Filter ${column.header}`;
-  const input = 'h-7 w-full min-w-0 rounded-control border border-border-control bg-surface-2 px-1.5 text-12 text-ink-1';
+  const input =
+    'h-7 w-full min-w-0 rounded-control border border-border-control bg-surface-2 px-1.5 text-12 text-ink-1';
   switch (column.kind) {
     case 'text':
       return (
@@ -192,7 +184,12 @@ function FilterControl<Row>({
       };
       return (
         <div className="flex gap-1">
-          <select aria-label={`${label}, from`} className={input} value={r.from ?? ''} onChange={(e) => set('from', e.target.value)}>
+          <select
+            aria-label={`${label}, from`}
+            className={input}
+            value={r.from ?? ''}
+            onChange={(e) => set('from', e.target.value)}
+          >
             <option value="">from</option>
             {weekOptions.map((w) => (
               <option key={w.turn} value={w.turn}>
@@ -200,7 +197,12 @@ function FilterControl<Row>({
               </option>
             ))}
           </select>
-          <select aria-label={`${label}, to`} className={input} value={r.to ?? ''} onChange={(e) => set('to', e.target.value)}>
+          <select
+            aria-label={`${label}, to`}
+            className={input}
+            value={r.to ?? ''}
+            onChange={(e) => set('to', e.target.value)}
+          >
             <option value="">to</option>
             {weekOptions.map((w) => (
               <option key={w.turn} value={w.turn}>
@@ -390,7 +392,9 @@ export function DataTable<Row>({
     enabled: virtual,
   });
   const items = virtual ? virtualizer.getVirtualItems() : [];
-  const rendered = virtual ? items.map((it) => ({ index: it.index, start: it.start })) : modelRows.map((_, index) => ({ index, start: 0 }));
+  const rendered = virtual
+    ? items.map((it) => ({ index: it.index, start: it.start }))
+    : modelRows.map((_, index) => ({ index, start: 0 }));
   const padTop = virtual && items.length > 0 ? (items[0]?.start ?? 0) : 0;
   const padBottom = virtual && items.length > 0 ? virtualizer.getTotalSize() - (items[items.length - 1]?.end ?? 0) : 0;
 
@@ -511,11 +515,18 @@ export function DataTable<Row>({
       </div>
       {chooserOpen ? (
         <div className="px-3 pt-2">
-          <ColumnChooser columns={columns} visible={view.columns} onChange={(ids) => setView({ ...view, columns: ids })} />
+          <ColumnChooser
+            columns={columns}
+            visible={view.columns}
+            onChange={(ids) => setView({ ...view, columns: ids })}
+          />
         </div>
       ) : null}
       {selectCol && selectedRows.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 border-b border-hairline bg-surface-2 px-3 py-2 text-13" data-bulk-bar="">
+        <div
+          className="flex flex-wrap items-center gap-2 border-b border-hairline bg-surface-2 px-3 py-2 text-13"
+          data-bulk-bar=""
+        >
           <span className="text-ink-1">{selectedRows.length} selected</span>
           {bulkActions(selectedRows)}
           <Button onClick={() => setSelection({})}>Clear selection</Button>

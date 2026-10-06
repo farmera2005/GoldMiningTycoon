@@ -48,7 +48,17 @@ const STATUS_WORD: Readonly<Record<Status, string>> = {
   critical: 'over limit',
 };
 
-export function Meter({ label, value, max, unit, explain, maxExplain, warnFrac, higherIsBetter, width = 160 }: MeterProps) {
+export function Meter({
+  label,
+  value,
+  max,
+  unit,
+  explain,
+  maxExplain,
+  warnFrac,
+  higherIsBetter,
+  width = 160,
+}: MeterProps) {
   const options = {
     ...(warnFrac === undefined ? {} : { warnFrac }),
     ...(higherIsBetter === undefined ? {} : { higherIsBetter }),
@@ -57,7 +67,13 @@ export function Meter({ label, value, max, unit, explain, maxExplain, warnFrac, 
   const frac = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
   const fill = status === null ? 'var(--seq-slate-500)' : `var(--status-${status})`;
   const word =
-    status === null ? null : higherIsBetter === true ? (status === 'critical' ? 'short' : 'below target') : STATUS_WORD[status];
+    status === null
+      ? null
+      : higherIsBetter === true
+        ? status === 'critical'
+          ? 'short'
+          : 'below target'
+        : STATUS_WORD[status];
   return (
     <div className="flex flex-wrap items-center gap-2 text-13" data-meter="">
       <span className="text-ink-2">{label}</span>
