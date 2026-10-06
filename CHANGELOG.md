@@ -2,6 +2,13 @@
 
 One entry per phase, plus notable changes in between. Balance reports live in `docs/balance/`.
 
+## Phase 1: Core loop (in progress)
+
+Status: being built in waves per `docs/build/p1/plan.md`; entries collect here until the phase exit.
+
+**Golden replays**
+- `tests/golden/p0-passive-52w` regenerated for the P1 framework (saves schema 2, rules version 0.2.0, new history fields that are zero or null in a P0 game: weekly `fineOzRecovered` and `sampleRawOz`, annual cash cost, AISC and per-claim rows). A field-by-field diff of all 53 weekly states against the P0 base shows no other change. Turn 52 `0981c636abe30a57`.
+
 ## Phase 0: Foundation (2026-10-06)
 
 Status: implemented; awaiting the owner's review before Phase 1. Balance report: [`docs/balance/phase-0.md`](docs/balance/phase-0.md); baseline: `docs/balance/baseline-phase-0.json`.
