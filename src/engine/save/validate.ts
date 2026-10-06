@@ -1,20 +1,54 @@
-// Structural validation of a loaded state (DESIGN §2.9: load → migrate forward → validate). It checks the §2.5 frame
-// and the invariants the engine relies on (tuning hash, clock, id counters, ledger balance, sorted id arrays); each
-// owning section's slice internals are its own business and arrive with their checks. Returns the first problem as
-// text (reported as SAVE_CORRUPT), or null.
+// Structural validation of a loaded state (DESIGN §2.9 D-2.43; P1 contract §1.7): load → migrate forward → validate.
+// It checks the §2.5 frame and the invariants the engine relies on (tuning hash, clock, id counters), then every slice:
+// first the generic rule that each top-level `…Ids` array equals the sorted key set of its Record (`claimIds` ↔
+// `claims`, `buyerIds` ↔ `buyers`, …), then the slice owner's own check from its folder's validate.ts (the per-slice
+// validator registry below). Returns the first problem as text (reported as SAVE_CORRUPT), or null.
 import { hashValue } from '../core/hash';
 import { isIdPrefix } from '../core/ids';
 import { idsMatchRecord, isSortedIds, sortedKeysByCodeUnit } from '../core/iter';
 import { turnToYearWeek } from '../core/calendar';
 import { isRulesPhase } from '../state/rules';
 import { SLICE_KEYS } from '../state/types';
-import { ledgerProblem } from '../systems/finance/ledger';
-import type { FinanceSlice } from '../systems/finance/types';
+import { climateSliceProblem } from '../systems/climate/validate';
+import { companySliceProblem } from '../systems/company/validate';
+import { competitorsSliceProblem } from '../systems/competitors/validate';
+import { eventsSliceProblem } from '../systems/events/validate';
+import { financeSliceProblem } from '../systems/finance/validate';
+import { fleetSliceProblem } from '../systems/fleet/validate';
+import { goldSliceProblem } from '../systems/gold/validate';
+import { historySliceProblem } from '../systems/history/validate';
+import { inboxSliceProblem } from '../systems/inbox/validate';
+import { knowledgeSliceProblem } from '../systems/knowledge/validate';
+import { landSliceProblem } from '../systems/land/validate';
+import { opsSliceProblem } from '../systems/ops/validate';
+import { permitsSliceProblem } from '../systems/permits/validate';
+import { staffSliceProblem } from '../systems/staff/validate';
+import { worldSliceProblem } from '../systems/world/validate';
 
 type Rec = Record<string, unknown>;
+type SliceKey = (typeof SLICE_KEYS)[number];
 
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
+
+/** Each slice owner's own check (its folder's validate.ts), keyed by slice. */
+export const SLICE_VALIDATORS: Readonly<Record<SliceKey, (slice: Readonly<Rec>) => string | null>> = {
+  climate: climateSliceProblem,
+  company: companySliceProblem,
+  world: worldSliceProblem,
+  knowledge: knowledgeSliceProblem,
+  land: landSliceProblem,
+  permits: permitsSliceProblem,
+  ops: opsSliceProblem,
+  staff: staffSliceProblem,
+  fleet: fleetSliceProblem,
+  gold: goldSliceProblem,
+  finance: financeSliceProblem,
+  events: eventsSliceProblem,
+  competitors: competitorsSliceProblem,
+  inbox: inboxSliceProblem,
+  history: historySliceProblem,
+};
 
 function metaProblem(meta: unknown): string | null {
   if (!isRec(meta)) return 'meta is missing';
@@ -50,46 +84,21 @@ function idsProblem(ids: unknown): string | null {
   return null;
 }
 
-function financeProblem(finance: Rec): string | null {
-  const books = finance['books'];
-  if (!isRec(books) || !isRec(finance['distress'])) return 'finance';
-  for (const name of ['company', 'owner']) {
-    const book = books[name];
-    if (!isRec(book) || !Array.isArray(book['txns']) || !isRec(book['balances']) || !Array.isArray(book['monthly'])) {
-      return `finance.books.${name}`;
-    }
-  }
-  try {
-    const problem = ledgerProblem(finance as unknown as FinanceSlice);
-    return problem === null ? null : `ledger: ${problem}`;
-  } catch (e) {
-    return `ledger unreadable: ${e instanceof Error ? e.message : String(e)}`;
-  }
-}
-
-function inboxProblem(inbox: Rec): string | null {
-  const pairs: [string, string][] = [
-    ['messages', 'messageIds'],
-    ['decisions', 'decisionIds'],
-    ['closedDecisions', 'closedDecisionIds'],
-  ];
-  for (const [recKey, idsKey] of pairs) {
-    const rec = inbox[recKey];
-    const ids = inbox[idsKey];
-    if (!isRec(rec) || !Array.isArray(ids) || !ids.every((x) => typeof x === 'string')) return `inbox.${recKey}`;
-    if (!isSortedIds(ids as string[]) || !idsMatchRecord(ids as string[], rec)) return `inbox.${idsKey} ≠ its Record`;
-  }
-  return null;
-}
-
-function historyProblem(history: Rec): string | null {
-  const weekly = history['weekly'];
-  if (!Array.isArray(weekly) || !Array.isArray(history['annual'])) return 'history';
-  let last = Number.NEGATIVE_INFINITY;
-  for (const snap of weekly as unknown[]) {
-    if (!isRec(snap) || !isInt(snap['turn']) || !isRec(snap['market'])) return 'history.weekly entry';
-    if (snap['turn'] <= last) return 'history.weekly is not ascending';
-    last = snap['turn'];
+/**
+ * The generic mirror rule (§2.5): for every top-level key `xIds` holding an array, when the slice also has a Record
+ * `xs` or `x`, the array is the Record's key set in ascending id order. Arrays with no sibling Record (an ordered
+ * subset such as `familyRunClaimIds`) are the owner's to check.
+ */
+export function idsMirrorProblem(name: string, slice: Readonly<Rec>): string | null {
+  for (const key of sortedKeysByCodeUnit(slice)) {
+    if (!key.endsWith('Ids') || key.length === 3) continue;
+    const ids = slice[key];
+    if (!Array.isArray(ids)) continue;
+    const stem = key.slice(0, -3);
+    const rec = isRec(slice[`${stem}s`]) ? slice[`${stem}s`] : slice[stem];
+    if (!isRec(rec)) continue;
+    if (!ids.every((x) => typeof x === 'string')) return `${name}.${key} holds a non-string id`;
+    if (!isSortedIds(ids as string[]) || !idsMatchRecord(ids as string[], rec)) return `${name}.${key} ≠ its Record`;
   }
   return null;
 }
@@ -104,7 +113,10 @@ export function stateProblem(state: unknown, schemaVersion: number): string | nu
   if (state['hardRock'] !== undefined && !isRec(state['hardRock'])) return 'hardRock slice';
   const company = state['company'] as Rec;
   if (!['active', 'won', 'lost', 'retired'].includes(company['runStatus'] as string)) return 'company.runStatus';
-  const ledger = financeProblem(state['finance'] as Rec);
-  if (ledger !== null) return ledger;
-  return inboxProblem(state['inbox'] as Rec) ?? historyProblem(state['history'] as Rec);
+  for (const key of SLICE_KEYS) {
+    const slice = state[key] as Rec;
+    const p = idsMirrorProblem(key, slice) ?? SLICE_VALIDATORS[key](slice);
+    if (p !== null) return p;
+  }
+  return null;
 }

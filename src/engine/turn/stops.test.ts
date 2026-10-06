@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ClaimId, DecId, DistrictId, MsgId } from '../core/ids';
+import type { ClaimId, DecId, DistrictId, LineId, MsgId } from '../core/ids';
 import type { Cents } from '../core/money';
 import { applyAction } from '../actions/apply';
 import { asAction, registerTestActions } from '../actions/testActions';
@@ -31,6 +31,15 @@ function act(s: GameState, a: Parameters<typeof asAction>[0]): GameState {
 }
 
 /** A week whose state and report the test controls. */
+/** §13 collation's week-mode stop candidates for a state (the P0 form reads the inbox only). */
+function weekCandidates(state: GameState): ReturnType<typeof collateAlerts> {
+  let out: ReturnType<typeof collateAlerts> = [];
+  produceState(state, (draft) => {
+    out = collateAlerts(draft, [], draft.clock.turn, 'week');
+  });
+  return out;
+}
+
 function week(
   prev: GameState,
   edit: { state?: (s: GameState) => GameState; report?: Partial<WeekReport> } = {},
@@ -84,7 +93,7 @@ describe('evaluateStops (DESIGN §13 13.9, §2.7; T5)', () => {
       },
     ]);
     // §13 collation lists it as a stop candidate too; the dedupe keeps one reason.
-    const withCandidates = { ...w, report: { ...w.report, stopCandidates: collateAlerts(w.state) } };
+    const withCandidates = { ...w, report: { ...w.report, stopCandidates: weekCandidates(w.state) } };
     expect(withCandidates.report.stopCandidates).toEqual([
       { ref: 'dec_000009', kind: 'decision', severity: 'blocking' },
     ]);
@@ -159,9 +168,11 @@ describe('evaluateStops (DESIGN §13 13.9, §2.7; T5)', () => {
 
   it('everyCleanup names each claim once with its lines; machineFailure reads this week’s signals', () => {
     const s = fresh();
+    const result = (claimId: string) => ({ claimId: claimId as ClaimId, turn: 1, payWashedBcy: 0 });
+    const cleanup = (lineId: LineId) => ({ turn: 1, lineId, rawOzWeighed: 1 });
     const ops = {
-      ['clm_000002' as ClaimId]: { result: {}, cleanups: [{ lineId: 'L1' as const }, { lineId: 'L2' as const }] },
-      ['clm_000001' as ClaimId]: { result: {}, cleanups: [] },
+      ['clm_000002' as ClaimId]: { result: result('clm_000002'), cleanups: [cleanup('L1'), cleanup('L2')] },
+      ['clm_000001' as ClaimId]: { result: result('clm_000001'), cleanups: [] },
     };
     const w = week(s, { report: { ops, alerts: [signal('machine.failure', 'warning')] } });
     expect(evaluateStops(s, w, [{ kind: 'everyCleanup', claimIds: 'all', enabled: true }], anchorOf(s))).toEqual([

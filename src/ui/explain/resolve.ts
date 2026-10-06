@@ -4,6 +4,7 @@
 // Every tree passes through redaction before anything renders it (D-13.9).
 import { baseTuning, type TuningKey, type TuningValue } from '../../data/tuning';
 import {
+  HISTORY_METRIC_INFO,
   explain,
   select,
   type CalcNode,
@@ -62,28 +63,9 @@ export function runExplainer(state: GameState, name: ExplainerName): CalcNode {
   }
 }
 
-const HISTORY_METRICS: Readonly<Record<HistoryMetric, { readonly label: string; readonly unit: Unit }>> = {
-  spot: { label: 'Gold spot', unit: 'usdPerFineOz' },
-  goldIdx: { label: 'Gold index', unit: 'index' },
-  cpiIndex: { label: 'Consumer price index', unit: 'index' },
-  cpiYoY: { label: 'Inflation, year on year', unit: 'pct' },
-  baseRate: { label: 'Base interest rate', unit: 'apr' },
-  realRate: { label: 'Real interest rate', unit: 'apr' },
-  usdIdx: { label: 'US dollar index', unit: 'index' },
-  cbPublished: { label: 'Central-bank gold buying', unit: 'index' },
-  geoRisk: { label: 'Geopolitical risk', unit: 'index' },
-  eqSentiment: { label: 'Equity sentiment', unit: 'index' },
-  dieselRack: { label: 'Diesel rack price', unit: 'usdPerGal' },
-  cashCents: { label: 'Cash on hand at week end', unit: 'cents' },
-  ownerNwCents: { label: 'Owner net worth at week end', unit: 'cents' },
-  companyNwCents: { label: 'Company net worth at week end', unit: 'cents' },
-  payWashedBcy: { label: 'Pay washed', unit: 'bcy' },
-  weighedRawOz: { label: 'Raw gold weighed', unit: 'rawOz' },
-  soldFineOz: { label: 'Fine gold sold', unit: 'fineOz' },
-};
-
+/** Label and unit of a history series: §2's table (S13-8), never a copy of it. */
 export function historyMetricInfo(metric: HistoryMetric): { readonly label: string; readonly unit: Unit } {
-  return HISTORY_METRICS[metric];
+  return HISTORY_METRIC_INFO[metric];
 }
 
 /** A metric's value in the weekly history snapshot of `turn`, or null outside the kept ring. */

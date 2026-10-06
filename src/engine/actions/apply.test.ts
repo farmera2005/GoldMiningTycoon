@@ -85,6 +85,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
       ownerSection: 2,
       reveals: false,
       commits: false,
+      fromPhase: 0,
       validate: () => null,
       handle: (_d, a, ctx) => {
         if (a.commit) ctx.markCommits();
@@ -108,6 +109,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
         ownerSection: 2,
         reveals: false,
         commits: false,
+        fromPhase: 0,
         validate: () => null,
         handle: () => undefined,
       }),
@@ -118,6 +120,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
         ownerSection: 2,
         reveals: false,
         commits: false,
+        fromPhase: 0,
         validate: () => null,
         handle: () => undefined,
       }),

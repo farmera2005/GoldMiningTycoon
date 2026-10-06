@@ -39,17 +39,21 @@ export function hookFor(key: HookKey): HookDef | undefined {
   return hasOwn(hooksByKey, key) ? hooksByKey[key] : undefined;
 }
 
-/** Base value: TuningResolved[key] for a tuning key (difficulty and scenario already applied), else hook.neutral. */
+/**
+ * Base value: TuningResolved[key] for a tuning key (difficulty and scenario already applied); for a hook whose base
+ * lives under another key (`baseKey`, S12-14), that key's resolved value; else hook.neutral.
+ */
 export function effectiveBase(state: GameState, key: HookKey): number {
   const tuning = state.meta.tuning as Readonly<Record<string, unknown>>;
-  if (hasOwn(tuning, key)) {
-    const v = tuning[key];
+  const hook = hookFor(key);
+  const tuningKey = hook?.base === 'tuning' && hook.baseKey !== undefined ? hook.baseKey : key;
+  if (hasOwn(tuning, tuningKey)) {
+    const v = tuning[tuningKey];
     if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new EffectiveError(`effective: tuning key ${key} is not a finite number`);
+      throw new EffectiveError(`effective: tuning key ${tuningKey} is not a finite number`);
     }
     return v;
   }
-  const hook = hookFor(key);
   if (hook === undefined) throw new EffectiveError(`effective: ${key} is neither a registered hook nor a tuning key`);
   return hook.neutral;
 }

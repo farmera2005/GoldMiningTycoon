@@ -30,6 +30,8 @@ export const uiText = {
   'save.SAVE_CORRUPT': 'That file could not be read. {message} Nothing was changed.',
   'save.SAVE_FORMAT': '{message} Nothing was changed.',
   'save.SAVE_TOO_NEW': '{message} Update the game to load it. Nothing was changed.',
+  'save.SAVE_TOO_OLD':
+    '{message} Saves from that version cannot be carried forward; start a new game. Nothing was changed.',
   'save.SLOT_NOT_FOUND': '{message}',
   'save.IRONMAN_MANUAL_SAVE': '{message}',
   'save.SAVE_WRITE_FAILED': '{message} Export the game now so you do not lose progress.',

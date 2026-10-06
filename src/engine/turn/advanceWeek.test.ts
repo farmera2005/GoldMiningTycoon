@@ -184,10 +184,16 @@ describe('the weekly pipeline (DESIGN §2.6)', () => {
       if (!r.ok) throw new Error(r.error.code);
       s = r.state;
     }
-    expect(collateAlerts(s)).toEqual([{ ref: 'dec_000001', kind: 'decision', severity: 'blocking' }]);
-    const later = produceState(s, (draft) => {
-      draft.clock.turn = 1;
-    });
-    expect(collateAlerts(later)).toEqual([]);
+    const collate = (state: GameState, turn: number, mode: 'week' | 'action') => {
+      let out: ReturnType<typeof collateAlerts> = [];
+      produceState(state, (draft) => {
+        out = collateAlerts(draft, [], turn, mode);
+      });
+      return out;
+    };
+    expect(collate(s, 0, 'week')).toEqual([{ ref: 'dec_000001', kind: 'decision', severity: 'blocking' }]);
+    expect(collate(s, 1, 'week')).toEqual([]);
+    // Action-time collation never produces stop candidates (S12-3).
+    expect(collate(s, 0, 'action')).toEqual([]);
   });
 });

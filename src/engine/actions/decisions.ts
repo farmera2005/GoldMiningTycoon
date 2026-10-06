@@ -25,7 +25,7 @@ function checkSpec(spec: DecisionSpec, turn: number): void {
   if (ids.some((id, i) => ids.indexOf(id) !== i)) {
     throw new DecisionError(`decision ${spec.kind}: option ids must be unique`);
   }
-  if (spec.options.some((o) => o.action.type === 'decision/answer')) {
+  if (spec.options.some((o) => o.action?.type === 'decision/answer')) {
     throw new DecisionError(`decision ${spec.kind}: an option cannot answer another decision`);
   }
   if (!Number.isSafeInteger(spec.deadlineTurn) || spec.deadlineTurn < turn) {

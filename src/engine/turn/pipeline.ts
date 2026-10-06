@@ -1,5 +1,7 @@
-// The weekly pipeline (DESIGN §2.6): steps 0–16 in this fixed order. Changing the order is an expensive decision
-// (CLAUDE.md "Ask before"); a test pins it.
+// The weekly pipeline (DESIGN §2.6): steps 0–16 in this fixed order, each running its parts from the part table
+// (turn/parts.ts) in §2.6 sub-order. Changing the order is an expensive decision (CLAUDE.md "Ask before"); tests pin
+// both the steps and the parts.
+import { runStepParts } from './parts';
 import { step00Guard } from './steps/step00Guard';
 import { step01Calendar } from './steps/step01Calendar';
 import { step02Market } from './steps/step02Market';
@@ -17,9 +19,9 @@ import { step13Permits } from './steps/step13Permits';
 import { step14Finance } from './steps/step14Finance';
 import { step15Distress } from './steps/step15Distress';
 import { step16WrapUp } from './steps/step16WrapUp';
-import type { PipelineStep } from './types';
+import type { PipelineStep, StepDef } from './types';
 
-export const PIPELINE: readonly PipelineStep[] = [
+const STEP_DEFS: readonly StepDef[] = [
   step00Guard,
   step01Calendar,
   step02Market,
@@ -38,3 +40,8 @@ export const PIPELINE: readonly PipelineStep[] = [
   step15Distress,
   step16WrapUp,
 ];
+
+export const PIPELINE: readonly PipelineStep[] = STEP_DEFS.map((def) => ({
+  ...def,
+  run: (state, ctx) => runStepParts(def.index, state, ctx),
+}));
