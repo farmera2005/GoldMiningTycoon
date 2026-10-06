@@ -1,5 +1,5 @@
 // `npm run calibrate:estimator -- [--claims N] [--seed-base S] [--population held|listed|all] [--mix <stage>]
-//   [--quota cell=N,...] [--workers N] [--max-worlds W] [--tuning overrides.json] [--json path]`
+//   [--cells c1,c2] [--quota cell=N,...] [--workers N] [--max-worlds W] [--tuning overrides.json] [--json path]`
 // The §4 estimator calibration against §3's engine generator (DESIGN §4.22 "Calibration", §4.19 P0 gate): N claims
 // per cell (template × setting, old-timer kind, deep muck, 160-acre claims, listing pool) at every evidence mix.
 // Gates per cell and mix: P10–P90 coverage 0.72–0.88, median ln(P50/truth) within ±0.10, block z sd 0.85–1.15; the

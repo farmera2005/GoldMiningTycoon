@@ -84,22 +84,28 @@ const held = world.claimIds.map((id) => world.claims[id] as Claim).filter((c) =>
 const small = held.filter((c) => c.acres === 20 && c.nAlong * c.nAcross >= 20).slice(0, reps);
 const large = held.filter((c) => c.acres === 160).slice(0, Math.max(3, Math.ceil(reps / 4)));
 
-// (1) Full solve, cold memo.
+// (1) Full solve: cold (every memo cleared, the claim's prior model built too) and on new evidence (the prior model,
+// built once per claim and priors object, cached; the statistical layer solved afresh).
 const tSmall: number[] = [];
+const tSmallWarm: number[] = [];
 for (const c of small) {
   const n = c.nAlong * c.nAcross;
   const recs = samples(
     world,
     c,
-    [...Array(20).keys()].map((i) => ({ idx: i % n, method: 'excavatorPit', volumeBcy: 5 })),
+    [...Array(20).keys()].map((i) => ({ idx: i % n, method: 'excavatorPit' as MethodId, volumeBcy: 5 })),
   );
   const priors = claimPriors(world, c.id, 'held');
   clearAllMemos();
-  const t0 = performance.now();
-  estimateFromEvidence(priors, evidence(c, recs), planningFor(h, priors), h.ctx);
+  let t0 = performance.now();
+  estimateFromEvidence(priors, evidence(c, recs.slice(0, 19)), planningFor(h, priors), h.ctx);
   tSmall.push(performance.now() - t0);
+  t0 = performance.now();
+  estimateFromEvidence(priors, evidence(c, recs), planningFor(h, priors), h.ctx);
+  tSmallWarm.push(performance.now() - t0);
 }
 const tLarge: number[] = [];
+const tLargeWarm: number[] = [];
 let largeBlocks = 0;
 let largeHyps = 0;
 for (const c of large) {
@@ -113,9 +119,12 @@ for (const c of large) {
   const recs = samples(world, c, plan);
   const priors = claimPriors(world, c.id, 'held');
   clearAllMemos();
-  const t0 = performance.now();
-  const e = estimateFromEvidence(priors, evidence(c, recs), planningFor(h, priors), h.ctx);
+  let t0 = performance.now();
+  estimateFromEvidence(priors, evidence(c, recs.slice(0, 59)), planningFor(h, priors), h.ctx);
   tLarge.push(performance.now() - t0);
+  t0 = performance.now();
+  const e = estimateFromEvidence(priors, evidence(c, recs), planningFor(h, priors), h.ctx);
+  tLargeWarm.push(performance.now() - t0);
   largeHyps = e.claim.hypotheses.evaluated;
 }
 
@@ -170,10 +179,12 @@ for (let wk = 0; wk < weeks; wk++) {
 }
 
 console.log(`§4 estimator performance (Node ${process.version}; world seed 2013)`);
-console.log(`  full solve, 20-acre claim, 20 pits (${small.length} claims): ${stats(tSmall)}   [budget ≤ 10 ms]`);
+console.log(`  full solve, 20-acre claim, 20 pits (${small.length} claims), cold: ${stats(tSmall)}   [budget ≤ 10 ms]`);
+console.log(`  full solve, 20-acre claim, 20 pits, prior model cached: ${stats(tSmallWarm)}`);
 console.log(
-  `  full solve, 160-acre claim (${largeBlocks} blocks), 60 samples, large-claim mode (${large.length} claims, ${largeHyps} hypotheses): ${stats(tLarge)}   [budget ≤ 60 ms]`,
+  `  full solve, 160-acre claim (${largeBlocks} blocks), 60 samples, large-claim mode (${large.length} claims, ${largeHyps} hypotheses), cold: ${stats(tLarge)}   [budget ≤ 60 ms]`,
 );
+console.log(`  full solve, 160-acre claim, prior model cached: ${stats(tLargeWarm)}`);
 console.log(`  economic-layer rerun (price moved, statistical layer cached): ${stats(tEcon)}   [budget ≤ 0.5 ms]`);
 console.log(
   `  amortized refresh, 8 tracked claims, 2 new pit batches a week, weekly price: ${(total / weeks).toFixed(2)} ms per game-week   [budget ≤ 1.5 ms]`,
