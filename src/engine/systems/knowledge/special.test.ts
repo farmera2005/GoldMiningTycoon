@@ -17,8 +17,13 @@ describe('digamma and trigamma (§4.5.3)', () => {
     for (const a of [0.3, 1, 4.2, 11.66, 50, 400]) expect(invTrigamma(trigamma(a))).toBeCloseTo(a, 6);
   });
 
-  it('gives the §4.5.3 Gamma prior: α0 = ψ₁⁻¹(0.30²) = 11.66', () => {
-    expect(invTrigamma(0.3 * 0.3)).toBeCloseTo(11.66, 1);
+  // DESIGN §4.5.3 / §4.22 print α0 = 11.66 and β0 = 34.13; the exact inverse is 11.60 (ψ₁(11.66) = 0.0895, not 0.09), and
+  // β0 = e^ψ(α0)/R0 = 33.92 at R0 0.3275 (design delta: rounding in the DESIGN figures).
+  it('gives the §4.5.3 Gamma prior: α0 = ψ₁⁻¹(0.30²) ≈ 11.60, β0 = e^ψ(α0)/R0', () => {
+    const a0 = invTrigamma(0.3 * 0.3);
+    expect(a0).toBeCloseTo(11.6036, 3);
+    expect(trigamma(a0)).toBeCloseTo(0.09, 12);
+    expect(Math.exp(digamma(a0)) / 0.3275).toBeCloseTo(33.92, 2);
   });
 });
 
