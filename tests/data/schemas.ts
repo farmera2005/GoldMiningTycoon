@@ -3,6 +3,7 @@
 // DESIGN states them, mixes that sum to 1, complete enum keys and cross-references. They live with the tests because
 // data/ may import only data/ and engine types (DESIGN §2.1), and zod is a test-time dependency.
 import { z } from 'zod';
+import { FLEET_TUNING_KEY_SCHEMAS } from './schemas/equipment';
 
 // ------------------------------------------------------------------------------------------------ building blocks
 
@@ -460,6 +461,8 @@ export const TUNING_KEY_SCHEMAS: Readonly<Record<string, z.ZodType>> = {
   'market.openingDieselRackUsdPerGal': pos,
   'market.preHistory.keepWeeks': nonNegInt,
   'market.cb.normal': nonNeg,
+  // ---- fleet.* (§9 9.15): tests/data/schemas/equipment.ts
+  ...FLEET_TUNING_KEY_SCHEMAS,
 };
 
 /**
