@@ -83,3 +83,61 @@ export function cellNumber(cell: string): number {
 export function cellNumbers(cell: string): number[] {
   return cell.split('/').map((p) => cellNumber(p.trim()));
 }
+
+/** One row of DESIGN §4.2.B (measurement parameters), with the numbers its cells state; null where a cell gives none. */
+export interface MethodMeasurementRow {
+  readonly id: string;
+  readonly positionMode: string;
+  /** A number, 'reach' (the machine's reach) or null ('—'). */
+  readonly maxDepthFt: number | 'reach' | null;
+  readonly frozenOk: boolean | null;
+  readonly bedrockPenFt: number | null;
+  /** coarse / medium / fine / ultrafine, or null when the cell gives no four-number row. */
+  readonly capture: readonly [number, number, number, number] | null;
+  /** volumeCv / weighCv / geomCv / thickCv; an entry is null where the cell prints '—'. */
+  readonly cvs: readonly (number | null)[] | null;
+  readonly falseBedrockP: number | null;
+}
+
+function leadingNumber(cell: string): number | null {
+  const m = /^(\d+(?:\.\d+)?)\b/.exec(cell.trim());
+  return m === null ? null : Number(m[1]);
+}
+
+/** DESIGN §4.2.B's rows (the `SampleMethodParams` values §3's drawSample consumes), in document order. */
+export function methodMeasurementRowsFromDesign(
+  text: string = readFileSync(DESIGN_URL, 'utf8'),
+): MethodMeasurementRow[] {
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('**4.2.B Measurement parameters**'));
+  if (start < 0) throw new Error('DESIGN.md has no "4.2.B Measurement parameters" table');
+  const rows: MethodMeasurementRow[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i] as string;
+    if (rows.length > 0 && !line.startsWith('|')) break;
+    if (!line.startsWith('|') || /^\|\s*-/.test(line)) continue;
+    const c = tableCells(line);
+    const id = /^`([^`]+)`/.exec(c[0] ?? '')?.[1];
+    if (id === undefined || id === 'id') continue; // the header row names its first column `id`
+    const capCell = (c[5] ?? '').replace(/^contractor\s+/, '');
+    const cap = /^(\d*\.?\d+) \/ (\d*\.?\d+) \/ (\d*\.?\d+) \/ (\d*\.?\d+)/.exec(capCell);
+    const cvParts = (c[6] ?? '').split(' / ').map((p) => p.trim());
+    const cvs =
+      cvParts.length === 4 && cvParts.every((p) => p === '—' || /^\d*\.?\d+$/.test(p))
+        ? cvParts.map((p) => (p === '—' ? null : Number(p)))
+        : null;
+    const depth = (c[2] ?? '').trim();
+    const frozen = (c[3] ?? '').trim();
+    rows.push({
+      id,
+      positionMode: (c[1] ?? '').trim().split(/[\s(]/)[0] as string,
+      maxDepthFt: depth === 'reach' ? 'reach' : leadingNumber(depth),
+      frozenOk: frozen === 'yes' ? true : frozen === 'no' ? false : null,
+      bedrockPenFt: /^\d*\.?\d+$/.test((c[4] ?? '').trim()) ? Number((c[4] ?? '').trim()) : null,
+      capture: cap === null ? null : [Number(cap[1]), Number(cap[2]), Number(cap[3]), Number(cap[4])],
+      cvs,
+      falseBedrockP: leadingNumber(c[10] ?? ''),
+    });
+  }
+  return rows;
+}

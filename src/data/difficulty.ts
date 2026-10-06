@@ -43,6 +43,11 @@ export const difficultyTable = {
     standard: { set: TELL_DETECT },
     hard: { set: scaledProbabilities(TELL_DETECT, 0.85) },
   },
+  // §4 4.10.2: multiplies every records-review find probability; base 1.0, set to 1.11's values.
+  'geology.recordsFindMult': { easy: { set: 1 }, standard: { set: 1 }, hard: { set: 0.9 } },
+  // ---- Field and regulatory friction (§4 4.3, 4.12): multipliers with base 1.0, set to 1.11's values.
+  'geology.pitStopMult': { easy: { set: 0.7 }, standard: { set: 1 }, hard: { set: 1.3 } },
+  'geology.contractorLeadMult': { easy: { set: 0.8 }, standard: { set: 1 }, hard: { set: 1.25 } },
   // ---- Start and scoring (§1 1.8, D-1.43, D-1.64): the keys are multipliers with base 1.0, set to 1.11's values.
   'game.startCompanyCashMult': { easy: { set: 1.25 }, standard: { set: 1 }, hard: { set: 0.85 } },
   'game.startPersonalCashMult': { easy: { set: 1.1 }, standard: { set: 1 }, hard: { set: 0.9 } },
