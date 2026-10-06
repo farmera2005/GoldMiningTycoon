@@ -15,7 +15,15 @@ import {
   type GameState,
   type NewGameSetup,
 } from '../../src/engine';
-import { cellNumber, cellNumbers, difficultyRowsFromDesign, type DifficultyRow } from './designTables';
+import {
+  cellNumber,
+  cellNumbers,
+  difficultyRowsFromDesign,
+  tuningKeysOfCell,
+  tuningTableRowsFromDesign,
+  type DifficultyRow,
+  type TuningTableRow,
+} from './designTables';
 
 const DIFFICULTIES: readonly Difficulty[] = ['easy', 'standard', 'hard'];
 const ROWS: readonly DifficultyRow[] = difficultyRowsFromDesign();
@@ -44,6 +52,28 @@ const INTERPRETATION: Readonly<Record<string, Interpretation>> = {
   'geology.contractorLeadMult': { kind: 'number' },
   'game.startCompanyCashMult': { kind: 'number' },
   'game.startPersonalCashMult': { kind: 'number' },
+  // P1 Wave 0 (contracts-data; P1 contract §9.2): every cell a plain number, so each is { set }.
+  'land.askMarkup': { kind: 'number' },
+  'staff.resumeBiasMult': { kind: 'number' },
+  'finance.p1InsolvencyGraceWeeks': { kind: 'number' },
+  'finance.distress.watchWeeks': { kind: 'number' },
+  'land.leaseCureWeeks': { kind: 'number' },
+  'events.frequencyMult': { kind: 'number' },
+  'events.severityMult': { kind: 'number' },
+  'events.budgetPerHalf': { kind: 'number' },
+  'events.catastropheEarliestTurn': { kind: 'number' },
+  'events.distressMercyMult': { kind: 'number' },
+  'game.season.sigmaMult': { kind: 'number' },
+  'game.season.freezeUpMeanShift': { kind: 'number' },
+  'staff.poolSizeMult': { kind: 'number' },
+  'staff.wageAskMult': { kind: 'number' },
+  'staff.quitHazardMult': { kind: 'number' },
+  'game.inheritorDebtMult': { kind: 'number' },
+  'game.scoreMult': { kind: 'number' },
+  // §9's two rows, ready for when fleet-catalog's keys land (P1 contract §9.2 defers them to P3; the rows join
+  // data/difficulty.ts with the keys, so this test fails and names them if a key arrives without its row).
+  'fleet.privateLemonShare': { kind: 'number' },
+  'fleet.failureHazardMult': { kind: 'number' },
 };
 
 function expectedValue(key: string, cell: string): TuningValue {
@@ -75,7 +105,7 @@ const setupFor = (difficulty: Difficulty): NewGameSetup =>
 const resolved = (d: Difficulty): Readonly<Record<string, TuningValue>> => resolveTuning(setupFor(d));
 
 describe('DESIGN §1 1.11 as read from DESIGN.md', () => {
-  it('lists the table’s keys, including the four this build already resolves', () => {
+  it('lists the table’s keys, including every one this build interprets', () => {
     expect(ROWS.length).toBeGreaterThanOrEqual(40);
     for (const k of Object.keys(INTERPRETATION)) expect(ROW_BY_KEY[k], k).toBeDefined();
     expect(ROW_BY_KEY['game.startCompanyCashMult']?.cells).toEqual({ easy: '1.25', standard: '1.0', hard: '0.85' });
@@ -158,8 +188,9 @@ describe('src/data/difficulty.ts ↔ §1 1.11 (D-1.44)', () => {
         else expect(t[key], `${key} on ${d}`).toEqual(BASE[key]);
       }
     }
-    // honesty mix 2, tell detection 2, records find 1 (hard only), pit stops 2, contractor lead 2, start cash 2 + 2.
-    expect(differing).toBe(13);
+    // P0: honesty mix 2, tell detection 2, records find 1 (hard only), pit stops 2, contractor lead 2, start cash
+    // 2 + 2 = 13. P1 Wave 0's 17 rows each differ on easy and on hard: 13 + 34 = 47.
+    expect(differing).toBe(47);
     const hashes = DIFFICULTIES.map((d) => tuningHashOf(resolveTuning(setupFor(d))));
     expect(new Set(hashes).size).toBe(3);
   });
@@ -167,6 +198,63 @@ describe('src/data/difficulty.ts ↔ §1 1.11 (D-1.44)', () => {
   it('leaves ops.freezeDamageProb unscaled (§1 1.11 note, D-7.41)', () => {
     expect(ROW_BY_KEY['ops.freezeDamageProb']).toBeUndefined();
     expect(has(TABLE, 'ops.freezeDamageProb')).toBe(false);
+  });
+});
+
+describe('converse Diff-cell scan of every tuning table (§1 1.22, D-1.67, §2.10)', () => {
+  const TABLE_ROWS: readonly TuningTableRow[] = tuningTableRowsFromDesign();
+  const KEYS_111 = new Set(ROWS.map((r) => r.key));
+  const where = (r: TuningTableRow): string => `§${r.section} line ${r.line} (${r.keys.join(', ') || 'no key'})`;
+  const keyRows = TABLE_ROWS.filter((r) => !r.pointer);
+
+  it('reads every section’s tuning table', () => {
+    const sections = new Set(TABLE_ROWS.map((r) => r.section));
+    for (const s of ['1.20', '2.16', '3.16', '4.20', '5.19', '6.19', '7.21', '8.18', '9.15', '10.19', '11.25', '12.22'])
+      expect(sections.has(s), s).toBe(true);
+    for (const s of ['13.25', '14.19']) expect(sections.has(s), s).toBe(true);
+    expect(keyRows.length).toBeGreaterThan(500);
+  });
+
+  it('parses the key-cell notations the tables use', () => {
+    expect(tuningKeysOfCell('`capex.overrunMed` / `scheduleMed`', '14')).toEqual([
+      'hardrock.capex.overrunMed',
+      'hardrock.capex.scheduleMed',
+    ]);
+    expect(tuningKeysOfCell('`poolSizeMult` / `wageAskMult` / `quitHazardMult`', '8')).toEqual([
+      'staff.poolSizeMult',
+      'staff.wageAskMult',
+      'staff.quitHazardMult',
+    ]);
+    expect(tuningKeysOfCell('`autoPayDefault` (land / permit / bond)', '6')).toEqual(['permits.autoPayDefault']);
+    expect(tuningKeysOfCell('`market.localBuyer.{repHighMin,repLowMax}`', '10')).toEqual([
+      'market.localBuyer.repHighMin',
+      'market.localBuyer.repLowMax',
+    ]);
+  });
+
+  it('every Diff cell reads exactly yes or no, pointer rows (no key of their own) aside', () => {
+    const bad = keyRows.filter((r) => r.diff !== 'yes' && r.diff !== 'no').map(where);
+    expect(bad).toEqual([]);
+  });
+
+  it('a yes row names only 1.11 keys, and a no row names none', () => {
+    const yesWithOthers = keyRows.filter((r) => r.diff === 'yes' && r.keys.some((k) => !KEYS_111.has(k)));
+    expect(yesWithOthers.map(where)).toEqual([]);
+    const noWith111 = keyRows.filter((r) => r.diff === 'no' && r.keys.some((k) => KEYS_111.has(k)));
+    expect(noWith111.map(where)).toEqual([]);
+  });
+
+  it('every 1.11 key has a yes row in its owner’s table (ops.freezeDamageProb reads no)', () => {
+    const yesKeys = new Map<string, string>();
+    for (const r of keyRows) if (r.diff === 'yes') for (const k of r.keys) yesKeys.set(k, r.section);
+    const missing = ROWS.filter((r) => !yesKeys.has(r.key)).map((r) => r.key);
+    expect(missing).toEqual([]);
+    const wrongOwner = ROWS.filter(
+      (r) => r.owner !== null && yesKeys.get(r.key)?.split('.')[0] !== r.owner,
+    ).map((r) => `${r.key}: 1.11 owner §${r.owner}, yes row in §${yesKeys.get(r.key) ?? '—'}`);
+    expect(wrongOwner).toEqual([]);
+    const freeze = keyRows.find((r) => r.keys.includes('ops.freezeDamageProb'));
+    expect(freeze?.diff).toBe('no');
   });
 });
 

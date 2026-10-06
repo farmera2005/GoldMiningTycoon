@@ -9,6 +9,8 @@ export interface DifficultyRow {
   readonly key: string;
   readonly knob: string;
   readonly cells: DifficultyCells;
+  /** The owning section named in the key cell ("(§5)" → "5"), or null. */
+  readonly owner: string | null;
 }
 
 const DESIGN_URL = new URL('../../DESIGN.md', import.meta.url);
@@ -61,13 +63,119 @@ export function difficultyRowsFromDesign(text: string = readFileSync(DESIGN_URL,
     if (knob === undefined || knob === 'Knob' || easy === undefined || standard === undefined || hard === undefined)
       continue;
     const keys = keysOfCell(keyCell ?? '');
+    const owner = /\(§(\d+)/.exec(keyCell ?? '')?.[1] ?? null;
     const e = splitPerKey(easy, keys.length);
     const s = splitPerKey(standard, keys.length);
     const h = splitPerKey(hard, keys.length);
     keys.forEach((key, j) => {
-      rows.push({ key, knob, cells: { easy: e[j] as string, standard: s[j] as string, hard: h[j] as string } });
+      rows.push({ key, knob, owner, cells: { easy: e[j] as string, standard: s[j] as string, hard: h[j] as string } });
     });
   }
+  return rows;
+}
+
+// ------------------------------------------------------------------------------- tuning tables (Diff-cell scan)
+
+/** Every engine and app-config tuning namespace (a key's first segment). */
+const NAMESPACES = new Set([
+  'game',
+  'geology',
+  'ops',
+  'fleet',
+  'staff',
+  'land',
+  'permits',
+  'market',
+  'finance',
+  'events',
+  'ai',
+  'hardrock',
+  'ui',
+  'sim',
+  'save',
+]);
+
+/** Sections whose tuning table writes keys without their namespace (§2.10: "the one namespace its table states"). */
+const TABLE_NAMESPACE: Readonly<Record<string, string>> = { '6': 'permits', '8': 'staff', '14': 'hardrock' };
+
+/** One row of a section's "Tuning constants" table. */
+export interface TuningTableRow {
+  /** "1.20", "7.21", … */
+  readonly section: string;
+  /** 1-based line in DESIGN.md. */
+  readonly line: number;
+  /** The row's keys, each a full dotted key (namespace added where the table omits it). */
+  readonly keys: readonly string[];
+  /** The Diff cell as written. */
+  readonly diff: string;
+  /** A pointer row (no key of its own, or a Default of "—"): it names keys owned elsewhere. */
+  readonly pointer: boolean;
+}
+
+/** Table cells, honouring `\|` escapes inside code spans. */
+function escapedCells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split(/(?<!\\)\|/)
+    .map((c) => c.trim());
+}
+
+/**
+ * The keys of a tuning-table key cell. A key written without its namespace in a §6, §8 or §14 table gets it; a later
+ * dotless token is a sibling of the previous key (`capex.overrunMed` / `scheduleMed` → `hardrock.capex.scheduleMed`);
+ * `a.{b,c}` expands to `a.b`, `a.c`. Text outside backticks (`(land / permit / bond)`) is ignored.
+ */
+export function tuningKeysOfCell(cell: string, sectionMajor: string): string[] {
+  const ns = TABLE_NAMESPACE[sectionMajor];
+  const out: string[] = [];
+  for (const m of cell.matchAll(/`([^`]+)`/g)) {
+    const token = m[1] as string;
+    const brace = /^(.*)\{([^}]+)\}$/.exec(token);
+    const tokens = brace ? (brace[2] as string).split(',').map((t) => `${brace[1] as string}${t.trim()}`) : [token];
+    for (const t of tokens) {
+      const first = t.split('.')[0] as string;
+      if (t.includes('.') && NAMESPACES.has(first)) out.push(t);
+      else if (out.length > 0 && !t.includes('.')) {
+        const prev = out[out.length - 1] as string;
+        out.push(prev.slice(0, prev.lastIndexOf('.') + 1) + t);
+      } else if (ns !== undefined) out.push(`${ns}.${t}`);
+    }
+  }
+  return out;
+}
+
+/** Every row of every "### N.M Tuning constants" table whose header has a Diff column, in document order. */
+export function tuningTableRowsFromDesign(text: string = readFileSync(DESIGN_URL, 'utf8')): TuningTableRow[] {
+  const lines = text.split('\n');
+  const rows: TuningTableRow[] = [];
+  let section: string | null = null;
+  let diffCol = -1;
+  let defaultCol = -1;
+  lines.forEach((line, i) => {
+    const heading = /^### (\d+\.\d+) (.*)$/.exec(line);
+    if (heading || line.startsWith('## ')) {
+      section = heading && /Tuning constants/.test(heading[2] as string) ? (heading[1] as string) : null;
+      diffCol = -1;
+      return;
+    }
+    if (section === null || !line.startsWith('|')) {
+      if (!line.startsWith('|')) diffCol = -1;
+      return;
+    }
+    const cells = escapedCells(line);
+    if (cells[0] === 'Key') {
+      diffCol = cells.findIndex((c) => /^Diff/.test(c));
+      defaultCol = cells.indexOf('Default');
+      return;
+    }
+    if (diffCol < 0 || /^-/.test(cells[0] ?? '')) return;
+    const major = section.split('.')[0] as string;
+    const keys = tuningKeysOfCell(cells[0] ?? '', major);
+    const dflt = defaultCol >= 0 ? (cells[defaultCol] ?? '') : '';
+    rows.push({ section, line: i + 1, keys, diff: cells[diffCol] ?? '', pointer: keys.length === 0 || dflt === '—' });
+  });
   return rows;
 }
 
