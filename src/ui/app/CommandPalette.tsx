@@ -58,6 +58,11 @@ function PaletteDialog({ returnFocus }: { returnFocus: HTMLElement | null }) {
         setActive(Math.max(0, results.length - 1));
         break;
       case 'Enter': {
+        // A chord (Ctrl+Enter is Advance elsewhere) does nothing here: the palette never acts on the game.
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          e.preventDefault();
+          break;
+        }
         e.preventDefault();
         const item = results[activeIndex];
         if (item !== undefined) open(item);
