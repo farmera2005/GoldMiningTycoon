@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { asAction, registerTestActions } from '../../engine/actions/testActions';
 import { select, type GameState } from '../../engine';
 import { createMemoryKv, type KvStore } from '../../persistence';
-import { createHarness, loadState, type Harness } from '../testing/harness';
+import { createHarness, faultyKv, loadState, type Harness } from '../testing/harness';
 import { App } from './App';
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -82,6 +82,17 @@ describe('top bar and Advance (13.1, 13.9, 13.15)', () => {
     expect(within(banner()).getByText('Saved Wk 3')).toBeTruthy();
   });
 
+  it('advances one week per press: holding Ctrl+Enter (key auto-repeat) does not skip weeks', () => {
+    const h = renderApp();
+    fireEvent.keyDown(document.body, { key: 'Enter', ctrlKey: true });
+    for (let i = 0; i < 10; i++) fireEvent.keyDown(document.body, { key: 'Enter', ctrlKey: true, repeat: true });
+    expect((h.store.getState().game.state as GameState).clock.turn).toBe(1);
+    expect(within(banner()).getByText('Y1 Wk 2 · Jan 8–14, 2027')).toBeTruthy();
+    // The next deliberate press advances again.
+    fireEvent.keyDown(document.body, { key: 'Enter', ctrlKey: true });
+    expect((h.store.getState().game.state as GameState).clock.turn).toBe(2);
+  });
+
   it('ignores Ctrl+Enter while typing in a text field', () => {
     renderApp();
     go('#/saves');
@@ -148,6 +159,24 @@ describe('top bar and Advance (13.1, 13.9, 13.15)', () => {
     expect(within(toasts).queryByText('Critical')).toBeNull();
   });
 
+  it('reports a failed Ctrl+S with the critical toast and stays put, instead of opening Saves', async () => {
+    const f = faultyKv();
+    const h = createHarness({ kv: f.kv });
+    loadState(h.client);
+    await h.client.saveToSlot({ slotName: 'Camp' });
+    render(<App store={h.store} services={h.services} />);
+    f.broken.setMany = true;
+    fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
+    const toasts = screen.getByRole('list', { name: 'Critical notifications' });
+    await waitFor(() => expect(within(toasts).getByText(/^Quick save failed: .*UnknownError/)).toBeTruthy());
+    expect(within(toasts).getByRole('button', { name: 'Export now' })).toBeTruthy();
+    expect(window.location.hash).toBe('');
+    // A held chord writes once.
+    fireEvent.keyDown(document.body, { key: 's', ctrlKey: true, repeat: true });
+    await act(() => h.client.settled());
+    expect(h.store.getState().toasts).toHaveLength(1);
+  });
+
   it('quick-saves with Ctrl+S, or opens Saves when the game has no slot yet', async () => {
     const h = renderApp();
     fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
@@ -208,6 +237,19 @@ describe('dashboard (13.24 P0)', () => {
     ).toBeTruthy();
   });
 
+  it('says so on the title screen when saved games cannot be read, instead of waiting forever', async () => {
+    const f = faultyKv();
+    f.breakAll();
+    const h = createHarness({ kv: f.kv });
+    render(<App store={h.store} services={h.services} />);
+    await waitFor(() =>
+      expect(screen.getByRole('alert', { name: 'Problems' }).textContent).toMatch(
+        /Autosaves could not be read.*UnknownError/,
+      ),
+    );
+    expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('is the title screen with no game: Continue loads the latest autosave', async () => {
     const h = createHarness();
     loadState(h.client);
@@ -259,7 +301,8 @@ describe('new game wizard stub (13.14, 13.24 P0)', () => {
     expect(state.company.name).toBe('Hardrock Gulch Mining');
     expect(state.meta.seed).toBe('GOLDEN-SEED-1');
     await h.client.settled();
-    expect((await h.saves.latestAutosave())?.summary).toMatchObject({ company: 'Hardrock Gulch Mining', week: 1 });
+    const latest = await h.saves.latestAutosave();
+    expect(latest.ok && latest.value?.summary).toMatchObject({ company: 'Hardrock Gulch Mining', week: 1 });
     expect(select.cashOnHand(state)).toBe(40_000_000);
   });
 });

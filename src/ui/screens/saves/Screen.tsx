@@ -1,7 +1,24 @@
 // Saves screen (DESIGN §13.16; 13.21 `ui/save`, `ui/load`, `ui/deleteSlot`, `ui/export`, `ui/import`). Slots come
-// from the persistence store with the engine's codec; the slot table reads only `SaveFile.summary`. A failed import or
-// load shows its typed error and changes nothing.
-import { useCallback, useEffect, useId, useState, type DragEvent, type FormEvent } from 'react';
+// from the persistence store with the engine's codec; the slot table reads only `SaveFile.summary`. A failed
+// operation (a refused file, a missing slot, or browser storage that cannot be read or written) shows its typed error
+// and changes nothing; the screen never stays busy after one.
+//
+// Keyboard focus (13.19) never drops to <body>: while an operation runs the row controls stay focusable but inert
+// (`aria-disabled`), Rename and Delete move focus into their input or confirmation and back to their trigger, and
+// after a slot is deleted focus moves to the next row (or the list itself when it is empty).
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentPropsWithRef,
+  type DragEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import type { Result, SlotMeta } from '../../../persistence';
 import { readFileBytes } from '../../app/files';
 import { useServices } from '../../app/services';
@@ -18,43 +35,117 @@ interface Feedback {
 
 const NO_FEEDBACK: Feedback = { errors: [], notices: [] };
 
+function unexpected(e: unknown): string {
+  return errorText({
+    code: 'SAVE_WRITE_FAILED',
+    message: `The operation failed (${e instanceof Error ? e.message : String(e)}).`,
+  });
+}
+
+/** Which slot list a slot appears in. */
+type ListKind = 'manual' | 'autos';
+
+const listOf = (slot: SlotMeta): ListKind => (slot.kind === 'manual' ? 'manual' : 'autos');
+
+/**
+ * A button that is unavailable while an operation runs but keeps keyboard focus (13.19): `aria-disabled` and an
+ * ignored click, not `disabled`, which would drop focus to <body> under the player's fingers.
+ */
+function BusyButton({ busy, onClick, ...rest }: ComponentPropsWithRef<typeof Button> & { readonly busy: boolean }) {
+  return (
+    <Button
+      {...rest}
+      aria-disabled={busy || undefined}
+      onClick={(e) => {
+        if (!busy) onClick?.(e);
+      }}
+    />
+  );
+}
+
 export function SavesScreen() {
   const { client, saves: store, download } = useServices();
   const hasGame = useUi((s) => s.game.state !== null);
   const ironman = useUi((s) => s.persisted.ironman);
   const companyName = useUi((s) => s.game.state?.company.name ?? '');
   const [slots, setSlots] = useState<readonly SlotMeta[] | null>(null);
+  const [listFailed, setListFailed] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(NO_FEEDBACK);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(0);
+  const busy = pending > 0;
   const [gzip, setGzip] = useState(true);
+  const manualListRef = useRef<HTMLDivElement>(null);
+  const autosListRef = useRef<HTMLDivElement>(null);
+  /** Where focus goes once a delete has finished and the list has been re-read. */
+  const focusAfterDelete = useRef<{ readonly list: ListKind; readonly index: number } | null>(null);
 
-  const refresh = useCallback(async () => {
-    const list = await store.list();
-    setSlots(list);
+  /** Re-reads the slot list: null on success, or the error to show (the last list stays on screen). */
+  const refresh = useCallback(async (): Promise<string | null> => {
+    const listed = await store.list();
+    if (listed.ok) {
+      setSlots(listed.value);
+      setListFailed(false);
+      return null;
+    }
+    setSlots((s) => s ?? []);
+    setListFailed(true);
+    return errorText(listed.error);
   }, [store]);
 
   useEffect(() => {
     let live = true;
-    void store.list().then((list) => {
-      if (live) setSlots(list);
+    void store.list().then((listed) => {
+      if (!live) return;
+      if (listed.ok) {
+        setSlots(listed.value);
+      } else {
+        setSlots([]);
+        setListFailed(true);
+        setFeedback({ errors: [errorText(listed.error)], notices: [] });
+      }
     });
     return () => {
       live = false;
     };
   }, [store]);
 
-  /** Runs one store operation: shows its error, or its success notices, then re-reads the slot list. */
+  // After a delete, focus the row that took the deleted one's place (or the one before it), else the list itself.
+  useEffect(() => {
+    const target = focusAfterDelete.current;
+    if (busy || target === null) return;
+    focusAfterDelete.current = null;
+    const container = (target.list === 'manual' ? manualListRef : autosListRef).current;
+    const rows = container?.querySelectorAll<HTMLTableRowElement>('tbody tr');
+    const row = rows === undefined ? undefined : rows[Math.min(target.index, rows.length - 1)];
+    (row?.querySelector<HTMLElement>('button') ?? container)?.focus();
+  }, [busy, slots]);
+
+  /**
+   * Runs one store operation: shows its error, or its success notices, then re-reads the slot list. Whatever happens
+   * (a failed Result, a rejection, a failed re-read) the error is shown and the screen leaves its busy state.
+   */
   const run = useCallback(
     async <T,>(op: () => Promise<Result<T>>, onOk: (value: T) => readonly string[]): Promise<void> => {
-      setBusy(true);
+      setPending((n) => n + 1);
+      let next: Feedback;
       try {
         const result = await op();
-        setFeedback(
-          result.ok ? { errors: [], notices: onOk(result.value) } : { errors: [errorText(result.error)], notices: [] },
-        );
+        next = result.ok
+          ? { errors: [], notices: onOk(result.value) }
+          : { errors: [errorText(result.error)], notices: [] };
+      } catch (e) {
+        next = { errors: [unexpected(e)], notices: [] };
+      }
+      try {
+        const listError = await refresh();
+        if (listError !== null && !next.errors.includes(listError)) {
+          next = { ...next, errors: [...next.errors, listError] };
+        }
+      } catch (e) {
+        next = { ...next, errors: [...next.errors, unexpected(e)] };
       } finally {
-        await refresh();
-        setBusy(false);
+        setFeedback(next);
+        setPending((n) => n - 1);
       }
     },
     [refresh],
@@ -66,6 +157,7 @@ export function SavesScreen() {
       ? 'Ironman games have no manual slots.'
       : null;
 
+  const all = slots ?? [];
   const actions: SlotActions = {
     busy,
     saveDisabledReason,
@@ -73,9 +165,7 @@ export function SavesScreen() {
       run(
         async (): Promise<Result<readonly string[]>> => {
           const loaded = await client.loadSlot(slot);
-          return loaded.ok
-            ? { ok: true, value: loaded.notices.map(noticeText) }
-            : { ok: false, error: { code: 'SAVE_CORRUPT', message: loaded.message } };
+          return loaded.ok ? { ok: true, value: loaded.notices.map(noticeText) } : loaded;
         },
         (notices) => [`Loaded “${slot.slotName}”.`, ...notices],
       ),
@@ -89,11 +179,16 @@ export function SavesScreen() {
         () => store.rename(slot.slotId, name),
         (meta) => [`Renamed to “${meta.slotName}”.`],
       ),
-    remove: (slot) =>
-      run(
+    remove: (slot) => {
+      const list = listOf(slot);
+      // The confirmation that had focus is about to go: hold focus on the list until the next row can take it.
+      (list === 'manual' ? manualListRef : autosListRef).current?.focus();
+      focusAfterDelete.current = { list, index: all.filter((s) => listOf(s) === list).indexOf(slot) };
+      return run(
         () => store.remove(slot.slotId),
         () => [`Deleted “${slot.slotName}”.`],
-      ),
+      );
+    },
     exportSlot: (slot) =>
       run(
         () => store.exportSlot(slot.slotId, { gzip }),
@@ -127,8 +222,8 @@ export function SavesScreen() {
     await importBytes(bytes, file.name);
   };
 
-  const manual = (slots ?? []).filter((s) => s.kind === 'manual');
-  const autos = (slots ?? []).filter((s) => s.kind !== 'manual');
+  const manual = all.filter((s) => s.kind === 'manual');
+  const autos = all.filter((s) => s.kind !== 'manual');
 
   return (
     <div>
@@ -150,25 +245,33 @@ export function SavesScreen() {
       </Panel>
 
       <Panel title="Saved games" id="slots">
-        {slots === null ? (
-          <p className="text-14 text-ink-2">Reading saves{'…'}</p>
-        ) : manual.length === 0 ? (
-          <p className="text-14 text-ink-2">No saved games yet.</p>
-        ) : (
-          <SlotTable caption="Saved games" slots={manual} actions={actions} manual />
-        )}
+        <SlotList listRef={manualListRef} label="Saved games list">
+          {slots === null ? (
+            <p className="text-14 text-ink-2">Reading saves{'…'}</p>
+          ) : manual.length === 0 ? (
+            <p className="text-14 text-ink-2">
+              {listFailed ? 'Saved games could not be read.' : 'No saved games yet.'}
+            </p>
+          ) : (
+            <SlotTable caption="Saved games" slots={manual} actions={actions} manual />
+          )}
+        </SlotList>
       </Panel>
 
       <Panel title="Autosaves" id="autosaves">
-        {slots === null ? null : autos.length === 0 ? (
-          <p className="text-14 text-ink-2">Autosaves appear after the first week is played.</p>
-        ) : (
-          <SlotTable caption="Autosaves" slots={autos} actions={actions} manual={false} />
-        )}
+        <SlotList listRef={autosListRef} label="Autosaves list">
+          {slots === null ? null : autos.length === 0 ? (
+            <p className="text-14 text-ink-2">
+              {listFailed ? 'Autosaves could not be read.' : 'Autosaves appear after the first week is played.'}
+            </p>
+          ) : (
+            <SlotTable caption="Autosaves" slots={autos} actions={actions} manual={false} />
+          )}
+        </SlotList>
       </Panel>
 
       <Panel title="Import and export" id="import-export">
-        <ImportControls busy={busy} onFile={(f) => void importFile(f)} />
+        <ImportControls onFile={(f) => void importFile(f)} />
         <label className="mt-4 flex items-center gap-2 text-14 text-ink-1">
           <input
             type="checkbox"
@@ -179,6 +282,23 @@ export function SavesScreen() {
           Compress exports (.gmt.json.gz)
         </label>
       </Panel>
+    </div>
+  );
+}
+
+/** The focus target that holds a slot list: focusable by script only, so focus has somewhere to go after a delete. */
+function SlotList({
+  listRef,
+  label,
+  children,
+}: {
+  listRef: RefObject<HTMLDivElement | null>;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div ref={listRef} tabIndex={-1} role="group" aria-label={label} data-slot-list="">
+      {children}
     </div>
   );
 }
@@ -267,13 +387,57 @@ function SlotRow({ slot, actions, manual }: { slot: SlotMeta; actions: SlotActio
   const inputId = useId();
   const ended = slot.status === 'ended';
   const saveHereReason = actions.saveDisabledReason ?? (ended ? 'This run has ended; its save is read-only.' : null);
+  const renameRef = useRef<HTMLButtonElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  /** The trigger that takes focus back when the row returns to idle; null on first render and after a delete. */
+  const returnTo = useRef<'rename' | 'delete' | null>(null);
+  const { busy } = actions;
+
+  useEffect(() => {
+    if (mode.kind === 'renaming') {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    } else if (mode.kind === 'confirmDelete') {
+      // The safe choice of a destructive confirmation takes focus.
+      keepRef.current?.focus();
+    } else if (returnTo.current !== null) {
+      (returnTo.current === 'rename' ? renameRef : deleteRef).current?.focus();
+      returnTo.current = null;
+    }
+  }, [mode.kind]);
+
+  const startRename = (): void => {
+    setName(slot.slotName);
+    returnTo.current = 'rename';
+    setMode({ kind: 'renaming' });
+  };
+  const startDelete = (): void => {
+    returnTo.current = 'delete';
+    setMode({ kind: 'confirmDelete' });
+  };
+  const cancel = (): void => setMode({ kind: 'idle' });
+  const cancelOnEscape = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancel();
+  };
 
   const submitRename = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
-    if (trimmed === '') return;
+    if (trimmed === '' || busy) return;
     setMode({ kind: 'idle' });
     void actions.rename(slot, trimmed);
+  };
+
+  const confirmDelete = (): void => {
+    // Focus goes to the list (then the next row), not back to this row's trigger: the row is about to go.
+    returnTo.current = null;
+    void actions.remove(slot);
+    setMode({ kind: 'idle' });
   };
 
   return (
@@ -297,86 +461,74 @@ function SlotRow({ slot, actions, manual }: { slot: SlotMeta; actions: SlotActio
       <td className="px-2 py-1 text-ink-2">{ended ? 'Ended (read-only)' : 'Active'}</td>
       <td className="px-2 py-1">
         {mode.kind === 'renaming' ? (
-          <form className="flex items-center gap-2" onSubmit={submitRename}>
+          <form className="flex items-center gap-2" onSubmit={submitRename} onKeyDown={cancelOnEscape}>
             <label htmlFor={inputId} className="sr-only">
               New name for {slot.slotName}
             </label>
             <input
               id={inputId}
+              ref={inputRef}
               className="h-8 rounded-control border border-border-control bg-surface-2 px-2 text-13 text-ink-1"
               value={name}
               maxLength={80}
               onChange={(e) => setName(e.currentTarget.value)}
             />
-            <Button type="submit" variant="primary" disabled={actions.busy || name.trim() === ''}>
+            <Button type="submit" variant="primary" disabled={name.trim() === ''} aria-disabled={busy || undefined}>
               Rename
             </Button>
-            <Button onClick={() => setMode({ kind: 'idle' })}>Cancel</Button>
+            <Button onClick={cancel}>Cancel</Button>
           </form>
         ) : mode.kind === 'confirmDelete' ? (
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2"
+            role="group"
+            aria-label={`Delete ${slot.slotName}?`}
+            onKeyDown={cancelOnEscape}
+          >
             <span className="text-13 text-ink-1">
               Delete {'“'}
               {slot.slotName}
               {'”'}?
             </span>
-            <Button
-              variant="primary"
-              disabled={actions.busy}
-              onClick={() => {
-                setMode({ kind: 'idle' });
-                void actions.remove(slot);
-              }}
-            >
+            <BusyButton variant="primary" busy={busy} onClick={confirmDelete}>
               Delete
+            </BusyButton>
+            <Button ref={keepRef} onClick={cancel}>
+              Cancel
             </Button>
-            <Button onClick={() => setMode({ kind: 'idle' })}>Cancel</Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              aria-label={`Load ${slot.slotName}`}
-              disabled={actions.busy}
-              onClick={() => void actions.load(slot)}
-            >
+            <BusyButton aria-label={`Load ${slot.slotName}`} busy={busy} onClick={() => void actions.load(slot)}>
               Load
-            </Button>
+            </BusyButton>
             {manual ? (
               <>
-                <Button
+                <BusyButton
                   aria-label={`Save here: ${slot.slotName}`}
-                  disabled={actions.busy || saveHereReason !== null}
+                  disabled={saveHereReason !== null}
                   title={saveHereReason ?? undefined}
+                  busy={busy}
                   onClick={() => void actions.saveHere(slot)}
                 >
                   Save here
-                </Button>
-                <Button
-                  aria-label={`Rename ${slot.slotName}`}
-                  disabled={actions.busy}
-                  onClick={() => {
-                    setName(slot.slotName);
-                    setMode({ kind: 'renaming' });
-                  }}
-                >
+                </BusyButton>
+                <BusyButton ref={renameRef} aria-label={`Rename ${slot.slotName}`} busy={busy} onClick={startRename}>
                   Rename
-                </Button>
-                <Button
-                  aria-label={`Delete ${slot.slotName}`}
-                  disabled={actions.busy}
-                  onClick={() => setMode({ kind: 'confirmDelete' })}
-                >
-                  Delete
-                </Button>
+                </BusyButton>
               </>
             ) : null}
-            <Button
+            {/* Autosaves can be deleted too: they are kept per game (13.16), so this is how a player clears a game. */}
+            <BusyButton ref={deleteRef} aria-label={`Delete ${slot.slotName}`} busy={busy} onClick={startDelete}>
+              Delete
+            </BusyButton>
+            <BusyButton
               aria-label={`Export ${slot.slotName}`}
-              disabled={actions.busy}
+              busy={busy}
               onClick={() => void actions.exportSlot(slot)}
             >
               Export
-            </Button>
+            </BusyButton>
           </div>
         )}
       </td>
@@ -400,6 +552,7 @@ function SaveCurrentForm({
   const reasonId = useId();
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (busy || disabledReason !== null) return;
     onSave(name.trim() === '' ? defaultName : name.trim());
     setName('');
   };
@@ -420,7 +573,7 @@ function SaveCurrentForm({
           onChange={(e) => setName(e.currentTarget.value)}
         />
       </div>
-      <Button type="submit" variant="primary" disabled={busy || disabledReason !== null}>
+      <Button type="submit" variant="primary" disabled={disabledReason !== null} aria-disabled={busy || undefined}>
         Save to new slot
       </Button>
       {disabledReason === null ? null : (
@@ -432,7 +585,7 @@ function SaveCurrentForm({
   );
 }
 
-function ImportControls({ busy, onFile }: { busy: boolean; onFile: (file: File | undefined) => void }) {
+function ImportControls({ onFile }: { onFile: (file: File | undefined) => void }) {
   const inputId = useId();
   const [dragging, setDragging] = useState(false);
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -453,12 +606,12 @@ function ImportControls({ busy, onFile }: { busy: boolean; onFile: (file: File |
       <label htmlFor={inputId} className="block text-14 text-ink-1">
         Import a save file (.gmt.json or .gmt.json.gz), or drop it here
       </label>
+      {/* Never disabled while another operation runs: imports queue behind it in the store, and the picker keeps focus. */}
       <input
         id={inputId}
         type="file"
         accept=".json,.gz,application/json,application/gzip"
         className="mt-2 text-13 text-ink-1"
-        disabled={busy}
         onChange={(e) => {
           onFile(e.currentTarget.files?.[0]);
           e.currentTarget.value = '';

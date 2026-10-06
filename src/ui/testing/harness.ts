@@ -55,6 +55,41 @@ export function manualScheduler(): ManualScheduler {
   };
 }
 
+export type KvOperation = 'get' | 'keys' | 'setMany' | 'delMany';
+
+export interface FaultyKv {
+  readonly kv: KvStore;
+  /** The data underneath, for asserting that a failed operation changed nothing. */
+  readonly memory: MemoryKv;
+  /** Operations to reject, as IndexedDB does when blocked, evicted, closed or full; switch them on and off live. */
+  readonly broken: Record<KvOperation, boolean>;
+  /** Breaks (or repairs) every operation at once. */
+  breakAll(on?: boolean): void;
+}
+
+/** A memory KV whose operations can be made to reject with a browser-like storage error. */
+export function faultyKv(message = 'Internal error opening backing store'): FaultyKv {
+  const memory = createMemoryKv();
+  const broken: Record<KvOperation, boolean> = { get: false, keys: false, setMany: false, delMany: false };
+  const refuse = (): Promise<never> => Promise.reject(new DOMException(message, 'UnknownError'));
+  return {
+    memory,
+    broken,
+    kv: {
+      get: (k) => (broken.get ? refuse() : memory.get(k)),
+      keys: () => (broken.keys ? refuse() : memory.keys()),
+      setMany: (e) => (broken.setMany ? refuse() : memory.setMany(e)),
+      delMany: (k) => (broken.delMany ? refuse() : memory.delMany(k)),
+    },
+    breakAll(on = true) {
+      broken.get = on;
+      broken.keys = on;
+      broken.setMany = on;
+      broken.delMany = on;
+    },
+  };
+}
+
 export interface Harness {
   readonly store: UiStore;
   readonly kv: MemoryKv | KvStore;

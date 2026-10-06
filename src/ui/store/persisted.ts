@@ -10,9 +10,13 @@ import {
   type StopRule,
   type WeekReport,
 } from '../../engine';
+import { GAME_ID_PATTERN } from './gameId';
 
-/** Bumps when this shape changes; `readUiPersisted` migrates older blocks forward. */
-export const UI_PERSISTED_VERSION = 1;
+/**
+ * Bumps when this shape changes; `readUiPersisted` migrates older blocks forward. v2 added `gameId` (13.16 per-game
+ * autosaves): a v1 block, or a save with none, takes the id the caller derives from the save.
+ */
+export const UI_PERSISTED_VERSION = 2;
 
 export interface InboxFlags {
   readonly read: boolean;
@@ -60,6 +64,11 @@ export type UiPersisted = {
   readonly recentReports: readonly WeekReport[];
   /** UI-only: one slot plus autosave, no undo (13.14, 13.16). */
   readonly ironman: boolean;
+  /**
+   * The game's identity (ui/store/gameId.ts): minted at `ui/newGame`, kept through every save, load, export and
+   * import, so autosave rotation and year-start snapshots stay per game (13.16). '' only while no game is loaded.
+   */
+  readonly gameId: string;
   readonly uiVersion: number;
 };
 
@@ -72,7 +81,7 @@ export function uiDefaultStopRules(): StopRule[] {
 }
 
 export function defaultUiPersisted(
-  options: { readonly ironman?: boolean; readonly tutorial?: boolean } = {},
+  options: { readonly ironman?: boolean; readonly tutorial?: boolean; readonly gameId?: string } = {},
 ): UiPersisted {
   return {
     inbox: {},
@@ -84,6 +93,7 @@ export function defaultUiPersisted(
     tutorial: { enabled: options.tutorial ?? false, completed: [], dismissed: [] },
     recentReports: [],
     ironman: options.ironman ?? false,
+    gameId: options.gameId ?? '',
     uiVersion: UI_PERSISTED_VERSION,
   };
 }
@@ -134,12 +144,17 @@ function readReports(v: unknown): WeekReport[] {
   return v.filter((r): r is WeekReport => isRec(r) && Number.isSafeInteger(r['turn']) && Array.isArray(r['alerts']));
 }
 
+function readGameId(v: unknown, fallback: string): string {
+  return typeof v === 'string' && GAME_ID_PATTERN.test(v) ? v : fallback;
+}
+
 /**
  * Reads `SaveFile.ui` from any build: a missing block gives the defaults, and each field is read on its own so one
- * damaged field keeps the others. Version 1 is the first shape, so there is nothing older to migrate yet.
+ * damaged field keeps the others. A block without a usable `gameId` (v1, or none) takes `fallbackGameId`, which the
+ * caller derives from the save (legacyGameId), so the same old save always loads as the same game.
  */
-export function readUiPersisted(raw: unknown): UiPersisted {
-  if (!isRec(raw)) return defaultUiPersisted();
+export function readUiPersisted(raw: unknown, fallbackGameId: string): UiPersisted {
+  if (!isRec(raw)) return defaultUiPersisted({ gameId: fallbackGameId });
   return {
     inbox: readInbox(raw['inbox']),
     stopRules: readStopRules(raw['stopRules']),
@@ -150,6 +165,7 @@ export function readUiPersisted(raw: unknown): UiPersisted {
     tutorial: readTutorial(raw['tutorial']),
     recentReports: readReports(raw['recentReports']),
     ironman: raw['ironman'] === true,
+    gameId: readGameId(raw['gameId'], fallbackGameId),
     uiVersion: UI_PERSISTED_VERSION,
   };
 }

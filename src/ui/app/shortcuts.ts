@@ -21,7 +21,7 @@ const SEQUENCE_MS = 1_500;
 
 export interface ShortcutHandlers {
   readonly client: EngineClient;
-  /** Ctrl+S with no current slot: the Saves screen. */
+  /** Ctrl+S with nowhere to save (no game, no current slot, Ironman): the Saves screen. */
   readonly onQuickSaveWithoutSlot: () => void;
 }
 
@@ -31,15 +31,19 @@ export function useGlobalShortcuts({ client, onQuickSaveWithoutSlot }: ShortcutH
     const onKey = (e: KeyboardEvent): void => {
       if (e.defaultPrevented || isTextEntry(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
+      // Advance and quick save ignore key auto-repeat: one week (or one save) per deliberate press, so holding the
+      // chord a moment too long cannot skip weeks and roll every autosave past the mistake (13.15).
       if (mod && !e.shiftKey && e.key === 'Enter') {
         e.preventDefault();
-        client.advance();
+        if (!e.repeat) client.advance();
         return;
       }
       if (mod && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
-        void client.quickSave().then((saved) => {
-          if (!saved) onQuickSaveWithoutSlot();
+        if (e.repeat) return;
+        // A failed write has already raised the critical toast (with Export now); only "nowhere to save" opens Saves.
+        void client.quickSave().then((outcome) => {
+          if (outcome.kind !== 'saved' && outcome.kind !== 'failed') onQuickSaveWithoutSlot();
         });
         return;
       }

@@ -17,19 +17,22 @@ export function lcy(x: number, o: SignOpt = {}): string {
   return `${fixed(x, 0, o)} lcy`;
 }
 
-/** A decimal fraction as a percentage to ui.fmt.pctDecimals: 0.78432 → `78.4%`. */
+/**
+ * A decimal fraction as a percentage to ui.fmt.pctDecimals: 0.78432 → `78.4%`. The × 100 is an exact decimal shift,
+ * as in Intl's percent style, so 0.0045 is `0.5%` even though 0.0045 × 100 is 0.44999999999999996 in binary.
+ */
 export function pct(fraction: number, o: SignOpt = {}): string {
-  return `${fixed(fraction * 100, uiConfig['ui.fmt.pctDecimals'], o)}%`;
+  return `${fixed(fraction, uiConfig['ui.fmt.pctDecimals'], { ...o, shift: 2 })}%`;
 }
 
 /** A change in a rate, in percentage points, always signed: 0.005 → `+0.5 pp`. */
 export function pp(deltaFraction: number): string {
-  return `${fixed(deltaFraction * 100, uiConfig['ui.fmt.pctDecimals'], { plus: true })} pp`;
+  return `${fixed(deltaFraction, uiConfig['ui.fmt.pctDecimals'], { plus: true, shift: 2 })} pp`;
 }
 
 /** Interest rates and APRs to ui.fmt.rateDecimals (D-13.16): 0.0875 → `8.75%`. */
 export function rate(fraction: number, o: SignOpt = {}): string {
-  return `${fixed(fraction * 100, uiConfig['ui.fmt.rateDecimals'], o)}%`;
+  return `${fixed(fraction, uiConfig['ui.fmt.rateDecimals'], { ...o, shift: 2 })}%`;
 }
 
 /** A machine hour meter, integer: `12,430 h`. */

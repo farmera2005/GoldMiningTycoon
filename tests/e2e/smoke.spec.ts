@@ -1,6 +1,7 @@
 // P0 smoke and keyboard path (DESIGN §13.24 P0, §13.15, §13.19 "everything works by keyboard"): new game → advance
-// three weeks → save to a slot → reload → load → same date and cash, every step by keyboard. Also: formatting stays
-// en-US in a de-DE browser (T1, D-13.12), and the production build has no dev reveal (D-13.41).
+// three weeks → save to a slot → reload → load → same date and cash, every step by keyboard. Also: a held Ctrl+Enter
+// advances one week, formatting stays en-US in a de-DE browser (T1, D-13.12), and the production build has no dev
+// reveal (D-13.41).
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -60,6 +61,18 @@ test('keyboard path: new game, advance 3 weeks, save, reload, load', async ({ pa
   await expect(topBarDate(page)).toHaveText('Y1 Wk 4 · Jan 22–28, 2027');
   await expect(topBarCash(page)).toHaveText(cash ?? '');
   await expect(page.getByRole('status', { name: 'Notices' })).toContainText('Loaded “Keyboard camp”.');
+});
+
+test('holding Ctrl+Enter advances one week, not one per key repeat (13.15)', async ({ page }) => {
+  await startGame(page, 'Held Key Placers', 'HELD-KEY-SEED');
+  await page.keyboard.down('Control');
+  // Repeated keydowns of a held key carry `repeat: true`, as the operating system's auto-repeat does.
+  for (let i = 0; i < 8; i++) await page.keyboard.down('Enter');
+  await page.keyboard.up('Enter');
+  await page.keyboard.up('Control');
+  await expect(topBarDate(page)).toHaveText('Y1 Wk 2 · Jan 8–14, 2027');
+  await page.keyboard.press('Control+Enter');
+  await expect(topBarDate(page)).toHaveText('Y1 Wk 3 · Jan 15–21, 2027');
 });
 
 test.describe('a de-DE browser', () => {

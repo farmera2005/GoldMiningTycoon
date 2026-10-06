@@ -1,6 +1,6 @@
 // Small shared building blocks for the P0 screens. Theme rules (DESIGN §13.20): the display face appears only in
 // titles and headers; grain only on the title band, which holds nothing but its heading text (T28).
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { CriticalIcon } from './icons';
 
 /**
@@ -50,11 +50,11 @@ export function Button({
   className = '',
   type = 'button',
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+}: ComponentPropsWithRef<'button'> & { variant?: Variant }) {
   return (
     <button
       type={type}
-      className={`inline-flex h-8 items-center gap-2 rounded-control border px-3 text-13 font-medium disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex h-8 items-center gap-2 rounded-control border px-3 text-13 font-medium disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${className}`}
       {...rest}
     />
   );

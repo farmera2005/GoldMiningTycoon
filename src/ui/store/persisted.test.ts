@@ -43,6 +43,7 @@ describe('defaults', () => {
       tutorial: { enabled: false, completed: [], dismissed: [] },
       recentReports: [],
       ironman: false,
+      gameId: '',
       uiVersion: UI_PERSISTED_VERSION,
     });
   });
@@ -50,20 +51,30 @@ describe('defaults', () => {
 
 describe('readUiPersisted', () => {
   it('gives the defaults for a save with no UI block', () => {
-    expect(readUiPersisted(undefined)).toEqual(defaultUiPersisted());
-    expect(readUiPersisted('junk')).toEqual(defaultUiPersisted());
+    expect(readUiPersisted(undefined, 'lfallback')).toEqual(defaultUiPersisted({ gameId: 'lfallback' }));
+    expect(readUiPersisted('junk', 'lfallback')).toEqual(defaultUiPersisted({ gameId: 'lfallback' }));
+  });
+
+  it('keeps a saved game id, and gives a v1 block (no id) or a damaged id the fallback (13.16)', () => {
+    expect(readUiPersisted({ gameId: 'gabc123', uiVersion: 2 }, 'lfallback').gameId).toBe('gabc123');
+    expect(readUiPersisted({ uiVersion: 1 }, 'lfallback').gameId).toBe('lfallback');
+    expect(readUiPersisted({ gameId: 'a/b', uiVersion: 2 }, 'lfallback').gameId).toBe('lfallback');
+    expect(readUiPersisted({ gameId: 7, uiVersion: 2 }, 'lfallback').gameId).toBe('lfallback');
   });
 
   it('keeps each good field and replaces each damaged one', () => {
-    const p = readUiPersisted({
-      inbox: { msg_000001: { read: true, archived: 'no', snoozedUntilTurn: 7 }, msg_000002: 5 },
-      stopRules: [{ kind: 'nonsense' }],
-      tutorial: { enabled: true, completed: ['a', 3], dismissed: 'x' },
-      ironman: true,
-      tableLayouts: [],
-      recentReports: [report(4), { turn: 'x' }],
-      uiVersion: 0,
-    });
+    const p = readUiPersisted(
+      {
+        inbox: { msg_000001: { read: true, archived: 'no', snoozedUntilTurn: 7 }, msg_000002: 5 },
+        stopRules: [{ kind: 'nonsense' }],
+        tutorial: { enabled: true, completed: ['a', 3], dismissed: 'x' },
+        ironman: true,
+        tableLayouts: [],
+        recentReports: [report(4), { turn: 'x' }],
+        uiVersion: 0,
+      },
+      'lfallback',
+    );
     expect(p.inbox).toEqual({ msg_000001: { read: true, archived: false, snoozedUntilTurn: 7 } });
     expect(p.stopRules).toEqual(uiDefaultStopRules());
     expect(p.tutorial).toEqual({ enabled: true, completed: ['a'], dismissed: [] });
@@ -74,8 +85,8 @@ describe('readUiPersisted', () => {
   });
 
   it('round-trips its own output', () => {
-    const p = { ...defaultUiPersisted({ ironman: true }), recentReports: [report(2)] };
-    expect(readUiPersisted(JSON.parse(JSON.stringify(p)))).toEqual(p);
+    const p = { ...defaultUiPersisted({ ironman: true, gameId: 'g0123' }), recentReports: [report(2)] };
+    expect(readUiPersisted(JSON.parse(JSON.stringify(p)), 'lother')).toEqual(p);
   });
 });
 

@@ -28,6 +28,7 @@ export {
   autosaveSlotId,
   createSaveStore,
   yearlySlotId,
+  type AutosaveTarget,
   type ImportedSlot,
   type RunStatus,
   type SaveStore,

@@ -6,11 +6,18 @@ import { fixed, roundedParts } from './numbers';
 
 export type OzKind = 'raw' | 'fine';
 
+export interface GoldOptions {
+  readonly plus?: boolean;
+  /** The value is in milli-ounces (§2.4 MilliOz), rounded from the integer's own digits (128,015 → `128.02`). */
+  readonly milli?: boolean;
+}
+
 /** `52.901 raw oz`, `1,234.50 fine oz`. The threshold applies to the rounded value, so 99.9996 shows `100.00`. */
-export function gold(oz: number, kind: OzKind, options: { readonly plus?: boolean } = {}): string {
+export function gold(oz: number, kind: OzKind, options: GoldOptions = {}): string {
   const small = uiConfig['ui.fmt.ozDecimalsBelow100'];
   const large = uiConfig['ui.fmt.ozDecimalsAtOrAbove100'];
-  const p = roundedParts(oz, small);
+  const shift = options.milli === true ? -3 : 0;
+  const p = roundedParts(oz, small, shift);
   const dp = Number(`${p.int}.${p.frac}`) < 100 ? small : large;
-  return `${fixed(oz, dp, options)} ${kind} oz`;
+  return `${fixed(oz, dp, { shift, ...(options.plus === undefined ? {} : { plus: options.plus }) })} ${kind} oz`;
 }

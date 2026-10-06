@@ -56,8 +56,19 @@ export interface SaveCodec {
   runStatusOf?(save: SaveEnvelope): 'active' | 'ended';
 }
 
+/**
+ * §13.21's `ui/save`, `ui/load` and `ui/import` codes, plus the storage failures: `SAVE_WRITE_FAILED` (a write, or a
+ * read a write depends on, failed) and `SAVE_READ_FAILED` (browser storage could not be read: blocked, evicted or
+ * closed), so every store operation reports a typed failure instead of rejecting (13.16).
+ */
 export type SaveErrorCode =
-  'SAVE_CORRUPT' | 'SAVE_FORMAT' | 'SAVE_TOO_NEW' | 'SLOT_NOT_FOUND' | 'IRONMAN_MANUAL_SAVE' | 'SAVE_WRITE_FAILED';
+  | 'SAVE_CORRUPT'
+  | 'SAVE_FORMAT'
+  | 'SAVE_TOO_NEW'
+  | 'SLOT_NOT_FOUND'
+  | 'IRONMAN_MANUAL_SAVE'
+  | 'SAVE_WRITE_FAILED'
+  | 'SAVE_READ_FAILED';
 
 export interface SaveError {
   readonly code: SaveErrorCode;

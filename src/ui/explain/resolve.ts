@@ -111,6 +111,9 @@ function tuningView(key: string, value: TuningValue | undefined): ViewNode {
   return { ...base, value: null, valueText: value === undefined ? 'not set' : JSON.stringify(value) };
 }
 
+/** The ledger is the record of account: its amounts stay integer cents and always show them (13.2, D-13.13). */
+const LEDGER_MONEY = { unit: 'cents', fmt: { money: 'ledger' } } as const;
+
 function ledgerView(state: GameState, filter: LedgerFilter, query: LedgerQuery): ViewNode {
   const week = (turn: number): string => {
     const v = select.dateView(state, turn);
@@ -119,15 +122,15 @@ function ledgerView(state: GameState, filter: LedgerFilter, query: LedgerQuery):
   const children: ViewNode[] = [
     ...query.summaries.map((s) => ({
       label: s.label,
-      value: (s.debitCents - s.creditCents) / 100,
-      unit: 'usd' as const,
+      value: s.debitCents - s.creditCents,
+      ...LEDGER_MONEY,
       children: [],
       note: s.account,
     })),
     ...query.rows.map((r) => ({
       label: r.memo,
-      value: (r.debitCents - r.creditCents) / 100,
-      unit: 'usd' as const,
+      value: r.debitCents - r.creditCents,
+      ...LEDGER_MONEY,
       children: [],
       source: { kind: 'entity' as const, ref: { kind: 'ledgerTxn' as const, id: r.txnId } },
       note: `${r.account} · ${r.source} · ${week(r.turn)}`,
@@ -135,8 +138,8 @@ function ledgerView(state: GameState, filter: LedgerFilter, query: LedgerQuery):
   ];
   return {
     label: describeLedgerFilter(state, filter),
-    value: query.netCents / 100,
-    unit: 'usd',
+    value: query.netCents,
+    ...LEDGER_MONEY,
     op: 'sum',
     children,
     note: 'Net of the matching postings (debits less credits), exact to the cent',

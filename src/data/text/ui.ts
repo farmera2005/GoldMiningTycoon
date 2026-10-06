@@ -33,9 +33,11 @@ export const uiText = {
   'save.SLOT_NOT_FOUND': '{message}',
   'save.IRONMAN_MANUAL_SAVE': '{message}',
   'save.SAVE_WRITE_FAILED': '{message} Export the game now so you do not lose progress.',
+  'save.SAVE_READ_FAILED': '{message} The browser may be blocking or clearing site storage. Nothing was changed.',
   'notice.SAVE_MIGRATED': 'Updated from save version {from} to {to}{list}.',
   'notice.TUNING_DIFFERS': 'This game keeps the tuning it was created with.',
-  'autosave.failed': 'Autosave failed: {message}',
+  'autosave.failed': 'Autosave failed: {message} Export the game now so you do not lose progress.',
+  'quickSave.failed': 'Quick save failed: {message} Export the game now so you do not lose progress.',
 } as const satisfies Readonly<Record<string, string>>;
 
 export type UiTextKey = keyof typeof uiText;
