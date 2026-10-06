@@ -6,16 +6,30 @@ import { uiConfig } from '../../data/tuning/ui';
 export type ThemePref = 'system' | 'daylight' | 'lamplight';
 export type Density = 'comfortable' | 'compact';
 export type ResolvedTheme = 'daylight' | 'lamplight';
+export type FontScale = 1 | 1.125 | 1.25;
+export type ReducedMotionPref = 'system' | 'on' | 'off';
 
 export interface Prefs {
   readonly theme: ThemePref;
   readonly density: Density;
+  /** Up to 125% without loss of content (13.19). */
+  readonly fontScale: FontScale;
+  /** `system` follows prefers-reduced-motion. */
+  readonly reducedMotion: ReducedMotionPref;
+  /** Accessibility line patterns on chips, heat maps and stacked bars (13.2 texture mode). */
+  readonly texture: boolean;
   /** Decorative header grain (13.20); separate from the accessibility "texture" patterns (D-13.60). */
   readonly headerGrain: boolean;
+  /** The pre-advance sheet (13.9; P1). */
+  readonly confirmAdvanceSheet: boolean;
+  /** Smaller dashboard KPI tiles (P1). */
+  readonly compactTiles: boolean;
 }
 
 export const THEME_PREFS: readonly ThemePref[] = ['system', 'daylight', 'lamplight'];
 export const DENSITIES: readonly Density[] = ['comfortable', 'compact'];
+export const FONT_SCALES: readonly FontScale[] = [1, 1.125, 1.25];
+export const REDUCED_MOTION_PREFS: readonly ReducedMotionPref[] = ['system', 'on', 'off'];
 
 /** The localStorage key; the version suffix lets a later shape change start clean instead of misreading old data. */
 export const PREFS_STORAGE_KEY = 'gmt.prefs.v1';
@@ -23,24 +37,35 @@ export const PREFS_STORAGE_KEY = 'gmt.prefs.v1';
 export const DEFAULT_PREFS: Prefs = {
   theme: uiConfig['ui.theme.default'],
   density: 'comfortable',
+  fontScale: 1,
+  reducedMotion: 'system',
+  texture: false,
   headerGrain: true,
+  confirmAdvanceSheet: true,
+  compactTiles: false,
 };
 
-function isThemePref(v: unknown): v is ThemePref {
-  return typeof v === 'string' && (THEME_PREFS as readonly string[]).includes(v);
+function oneOf<T>(values: readonly T[], v: unknown): v is T {
+  return (values as readonly unknown[]).includes(v);
 }
 
-function isDensity(v: unknown): v is Density {
-  return typeof v === 'string' && (DENSITIES as readonly string[]).includes(v);
+function bool(v: unknown, fallback: boolean): boolean {
+  return typeof v === 'boolean' ? v : fallback;
 }
 
 /** Reads each field on its own, so one bad or missing field (e.g. from an older build) keeps the others. */
 export function sanitizePrefs(raw: unknown): Prefs {
   const r = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const d = DEFAULT_PREFS;
   return {
-    theme: isThemePref(r['theme']) ? r['theme'] : DEFAULT_PREFS.theme,
-    density: isDensity(r['density']) ? r['density'] : DEFAULT_PREFS.density,
-    headerGrain: typeof r['headerGrain'] === 'boolean' ? r['headerGrain'] : DEFAULT_PREFS.headerGrain,
+    theme: oneOf(THEME_PREFS, r['theme']) ? r['theme'] : d.theme,
+    density: oneOf(DENSITIES, r['density']) ? r['density'] : d.density,
+    fontScale: oneOf(FONT_SCALES, r['fontScale']) ? r['fontScale'] : d.fontScale,
+    reducedMotion: oneOf(REDUCED_MOTION_PREFS, r['reducedMotion']) ? r['reducedMotion'] : d.reducedMotion,
+    texture: bool(r['texture'], d.texture),
+    headerGrain: bool(r['headerGrain'], d.headerGrain),
+    confirmAdvanceSheet: bool(r['confirmAdvanceSheet'], d.confirmAdvanceSheet),
+    compactTiles: bool(r['compactTiles'], d.compactTiles),
   };
 }
 
@@ -90,8 +115,8 @@ export function resolveTheme(theme: ThemePref, prefersDark: boolean): ResolvedTh
 
 /**
  * Applies prefs to the root element: `data-theme` (absent for `system`, so the prefers-color-scheme rule in
- * tokens.css decides), the matching CSS `color-scheme` so native scrollbars and pickers follow, `data-density` and
- * `data-grain`.
+ * tokens.css decides), the matching CSS `color-scheme` so native scrollbars and pickers follow, and the attributes
+ * base.css keys density, grain, font scale, reduced motion and texture on.
  */
 export function applyPrefs(root: HTMLElement, prefs: Prefs): void {
   if (prefs.theme === 'system') {
@@ -103,4 +128,7 @@ export function applyPrefs(root: HTMLElement, prefs: Prefs): void {
   }
   root.setAttribute('data-density', prefs.density);
   root.setAttribute('data-grain', prefs.headerGrain ? 'on' : 'off');
+  root.setAttribute('data-font-scale', String(prefs.fontScale));
+  root.setAttribute('data-reduced-motion', prefs.reducedMotion);
+  root.setAttribute('data-texture', prefs.texture ? 'on' : 'off');
 }

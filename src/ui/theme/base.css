@@ -7,9 +7,17 @@
   :root {
     /* Table row height by density (13.2): 32 px comfortable, 26 px compact. */
     --row-h: 32px;
+    /* Settings > Accessibility font scale (13.19: up to 125% without loss of content). */
+    --font-scale: 1;
   }
   :root[data-density='compact'] {
     --row-h: 26px;
+  }
+  :root[data-font-scale='1.125'] {
+    --font-scale: 1.125;
+  }
+  :root[data-font-scale='1.25'] {
+    --font-scale: 1.25;
   }
 
   html {
@@ -22,7 +30,7 @@
     margin: 0;
     background-color: var(--surface-0);
     color: var(--ink-1);
-    font-size: 14px;
+    font-size: calc(14px * var(--font-scale));
     line-height: 1.4;
   }
 
@@ -49,15 +57,24 @@
     outline-color: var(--brass-on-chrome);
   }
 
+  /* Reduced motion follows the OS unless Settings > Accessibility says otherwise (Prefs.reducedMotion). */
   @media (prefers-reduced-motion: reduce) {
-    *,
-    ::before,
-    ::after {
+    :root:not([data-reduced-motion='off']) *,
+    :root:not([data-reduced-motion='off']) ::before,
+    :root:not([data-reduced-motion='off']) ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+  :root[data-reduced-motion='on'] *,
+  :root[data-reduced-motion='on'] ::before,
+  :root[data-reduced-motion='on'] ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -87,6 +104,30 @@
     font-size: 16px;
     font-weight: 600;
     line-height: 1.2;
+  }
+
+  /* The display roles scale with Settings > Accessibility font scale; the scale is ≥ 1, so the 16 px floor holds. */
+  :root[data-font-scale] .display-title-screen {
+    font-size: calc(32px * var(--font-scale));
+  }
+  :root[data-font-scale] .display-title {
+    font-size: calc(24px * var(--font-scale));
+  }
+  :root[data-font-scale] .display-section {
+    font-size: calc(20px * var(--font-scale));
+  }
+  :root[data-font-scale] .display-panel {
+    font-size: calc(16px * var(--font-scale));
+  }
+
+  /* Status chips (13.2): filled with the status color, labelled with its fixed -on token and an icon. Texture mode
+     adds 45° line fills so the chip never depends on color (D-13.60's accessibility "texture"). */
+  :root[data-texture='on'] [data-status-chip] {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0 3px,
+      color-mix(in srgb, currentColor 22%, transparent) 3px 4px
+    );
   }
 
   /* Ornament (13.20): a 2 px brass rule under screen titles with a 1 px hairline 3 px below it. */

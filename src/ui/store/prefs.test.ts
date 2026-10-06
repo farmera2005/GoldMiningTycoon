@@ -37,20 +37,37 @@ afterEach(() => {
   const root = document.documentElement;
   root.removeAttribute('data-theme');
   root.removeAttribute('data-density');
-  root.removeAttribute('data-grain');
+  for (const a of ['data-grain', 'data-font-scale', 'data-reduced-motion', 'data-texture']) root.removeAttribute(a);
   root.style.colorScheme = '';
 });
 
 describe('Prefs storage', () => {
   it('defaults to system theme, comfortable density and grain on (ui.theme.default)', () => {
-    expect(DEFAULT_PREFS).toEqual({ theme: 'system', density: 'comfortable', headerGrain: true });
+    expect(DEFAULT_PREFS).toEqual({
+      theme: 'system',
+      density: 'comfortable',
+      fontScale: 1,
+      reducedMotion: 'system',
+      texture: false,
+      headerGrain: true,
+      confirmAdvanceSheet: true,
+      compactTiles: false,
+    });
     expect(loadPrefs(null)).toEqual(DEFAULT_PREFS);
     expect(loadPrefs(memoryStorage())).toEqual(DEFAULT_PREFS);
   });
 
   it('round-trips through localStorage', () => {
     const storage = memoryStorage();
-    const prefs = { theme: 'lamplight', density: 'compact', headerGrain: false } as const;
+    const prefs = {
+      ...DEFAULT_PREFS,
+      theme: 'lamplight',
+      density: 'compact',
+      headerGrain: false,
+      fontScale: 1.25,
+      reducedMotion: 'on',
+      texture: true,
+    } as const;
     expect(savePrefs(storage, prefs)).toBe(true);
     expect(JSON.parse(storage.data[PREFS_STORAGE_KEY] ?? 'null')).toEqual(prefs);
     expect(loadPrefs(storage)).toEqual(prefs);
@@ -69,6 +86,12 @@ describe('Prefs storage', () => {
       theme: 'daylight',
     });
     expect(sanitizePrefs({ headerGrain: false })).toEqual({ ...DEFAULT_PREFS, headerGrain: false });
+    expect(sanitizePrefs({ fontScale: 1.5, reducedMotion: 'sometimes', texture: 1 })).toEqual(DEFAULT_PREFS);
+    expect(sanitizePrefs({ fontScale: 1.125, reducedMotion: 'off' })).toEqual({
+      ...DEFAULT_PREFS,
+      fontScale: 1.125,
+      reducedMotion: 'off',
+    });
   });
 
   it('merges a partial update (ui/setPrefs takes Partial<Prefs>)', () => {
@@ -91,14 +114,27 @@ describe('applying prefs to <html>', () => {
     expect(root.style.colorScheme).toBe('light dark');
   });
 
-  it('sets density and the grain switch', () => {
+  it('sets density, the grain switch and the accessibility attributes', () => {
     const root = document.documentElement;
-    applyPrefs(root, { theme: 'system', density: 'compact', headerGrain: false });
+    applyPrefs(root, {
+      ...DEFAULT_PREFS,
+      density: 'compact',
+      headerGrain: false,
+      fontScale: 1.25,
+      reducedMotion: 'on',
+      texture: true,
+    });
     expect(root.getAttribute('data-density')).toBe('compact');
     expect(root.getAttribute('data-grain')).toBe('off');
+    expect(root.getAttribute('data-font-scale')).toBe('1.25');
+    expect(root.getAttribute('data-reduced-motion')).toBe('on');
+    expect(root.getAttribute('data-texture')).toBe('on');
     applyPrefs(root, DEFAULT_PREFS);
     expect(root.getAttribute('data-density')).toBe('comfortable');
     expect(root.getAttribute('data-grain')).toBe('on');
+    expect(root.getAttribute('data-font-scale')).toBe('1');
+    expect(root.getAttribute('data-reduced-motion')).toBe('system');
+    expect(root.getAttribute('data-texture')).toBe('off');
   });
 
   it('resolves system from the OS preference and lets an explicit choice win', () => {
@@ -112,12 +148,18 @@ describe('applying prefs to <html>', () => {
 describe('UI store prefs', () => {
   it('loads stored prefs and persists ui/setPrefs', () => {
     const storage = memoryStorage({
+      // An older build's three-field prefs: the new fields take their defaults.
       [PREFS_STORAGE_KEY]: JSON.stringify({ theme: 'daylight', density: 'compact', headerGrain: true }),
     });
     const store = createUiStore({ storage });
     expect(store.getState().prefs.theme).toBe('daylight');
     store.getState().setPrefs({ headerGrain: false });
-    expect(store.getState().prefs).toEqual({ theme: 'daylight', density: 'compact', headerGrain: false });
+    expect(store.getState().prefs).toEqual({
+      ...DEFAULT_PREFS,
+      theme: 'daylight',
+      density: 'compact',
+      headerGrain: false,
+    });
     expect(store.getState().prefsPersisted).toBe(true);
     expect(loadPrefs(storage)).toEqual(store.getState().prefs);
   });
