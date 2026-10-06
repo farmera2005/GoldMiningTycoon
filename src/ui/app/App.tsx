@@ -4,15 +4,31 @@
 import { useCallback } from 'react';
 import { assertNever } from '../lib/assertNever';
 import { ExplainLayer } from '../explain/ExplainLayer';
+import { BankScreen } from '../screens/bank/Screen';
+import { CalendarScreen } from '../screens/calendar/Screen';
+import { ClaimDetailScreen, ClaimsScreen } from '../screens/claims/Screen';
+import { CompanyScreen } from '../screens/company/Screen';
 import { DashboardScreen } from '../screens/dashboard/Screen';
+import { EndScreen } from '../screens/end/Screen';
+import { EquipmentScreen } from '../screens/equipment/Screen';
+import { GoldScreen } from '../screens/gold/Screen';
+import { HelpScreen } from '../screens/help/Screen';
+import { InboxScreen } from '../screens/inbox/Screen';
+import { MapScreen } from '../screens/map/Screen';
+import { OpsScreen } from '../screens/ops/Screen';
+import { ProspectingScreen } from '../screens/prospecting/Screen';
+import { ReportsScreen } from '../screens/reports/Screen';
 import { SavesScreen } from '../screens/saves/Screen';
 import { SettingsScreen } from '../screens/settings/Screen';
 import { NewGameScreen } from '../screens/setup/Screen';
+import { StaffScreen } from '../screens/staff/Screen';
 import { UiStoreProvider, useUi, type UiStore } from '../store/store';
+import { CommandPalette } from './CommandPalette';
 import { DevTruthBanner } from './DevTruth';
 import { LeftNav } from './LeftNav';
 import { navigate, routeHref, useRoute, type Route } from './router';
 import { ServicesProvider, useServices, type AppServices } from './services';
+import { ShortcutSheet } from './ShortcutSheet';
 import { useGlobalShortcuts } from './shortcuts';
 import { ThemeRoot } from './ThemeRoot';
 import { LiveRegion, Toasts } from './Toasts';
@@ -74,16 +90,49 @@ function AppShell() {
         </main>
       </div>
       <ExplainLayer />
+      <CommandPalette />
+      <ShortcutSheet />
       <Toasts />
       <LiveRegion />
     </div>
   );
 }
 
+/** One screen per route (13.1); each P1 screen folder's Screen.tsx is a placeholder until its package lands. */
 function RoutedScreen({ route }: { route: Route }) {
   switch (route.name) {
     case 'dashboard':
       return <DashboardScreen />;
+    case 'inbox':
+      return <InboxScreen route={route} />;
+    case 'calendar':
+      return <CalendarScreen route={route} />;
+    case 'claims':
+      return <ClaimsScreen route={route} />;
+    case 'claim':
+      return <ClaimDetailScreen route={route} />;
+    case 'map':
+      return <MapScreen route={route} />;
+    case 'prospecting':
+      return <ProspectingScreen route={route} />;
+    case 'ops':
+      return <OpsScreen route={route} />;
+    case 'equipment':
+      return <EquipmentScreen route={route} />;
+    case 'staff':
+      return <StaffScreen route={route} />;
+    case 'bank':
+      return <BankScreen route={route} />;
+    case 'gold':
+      return <GoldScreen route={route} />;
+    case 'reports':
+      return <ReportsScreen route={route} />;
+    case 'company':
+      return <CompanyScreen route={route} />;
+    case 'help':
+      return <HelpScreen route={route} />;
+    case 'end':
+      return <EndScreen route={route} />;
     case 'saves':
       return <SavesScreen />;
     case 'settings':
