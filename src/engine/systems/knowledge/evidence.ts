@@ -34,7 +34,8 @@ export function itemHash(x: object): string {
 /** The items' content hashes in the given order, comma-joined (a memo key part). */
 export function hashList(items: readonly object[]): string {
   let out = '';
-  for (let i = 0; i < items.length; i++) out += i === 0 ? itemHash(items[i] as object) : `,${itemHash(items[i] as object)}`;
+  for (let i = 0; i < items.length; i++)
+    out += i === 0 ? itemHash(items[i] as object) : `,${itemHash(items[i] as object)}`;
   return out;
 }
 

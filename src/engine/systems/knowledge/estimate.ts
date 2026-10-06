@@ -72,7 +72,6 @@ export interface StatisticalEstimate {
   readonly anchor: AnchorSolve;
 }
 
-
 /**
  * The statistical layer of the evidence anchored at `anchor` (§4.5.2): the anchor solve over the evidence up to the
  * anchor turn at the anchor's block state, the production rows after it appended, and the state layer at the current
@@ -109,8 +108,7 @@ export function anchoredStatisticalEstimate(
     }),
   );
   let prepared: PreparedProduction[] | null = null;
-  const appended = (): PreparedProduction[] =>
-    (prepared ??= prepareProduction(an.model.indexOf, appendedRecs, params));
+  const appended = (): PreparedProduction[] => (prepared ??= prepareProduction(an.model.indexOf, appendedRecs, params));
   const pKey = appendedRecs.length === 0 ? aKey : `${aKey}|P${hashList(appendedRecs)}`;
   const ap: AppendedSolve =
     appendedRecs.length === 0
