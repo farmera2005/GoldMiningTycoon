@@ -119,8 +119,13 @@ describe(`estimator calibration on §3's engine generator (${CLAIMS} claims per 
 
   it('holds coverage, median bias and block z sd in band at every evidence mix', () => {
     const failed: string[] = [];
+    const lines: string[] = [];
     for (const c of CELLS) {
-      for (const s of cellResult(accs[c] as CellAcc, STAGES).stages) {
+      const rs = cellResult(accs[c] as CellAcc, STAGES).stages;
+      lines.push(
+        `${c}: ${rs.map((s) => `${s.stage} ${s.coverage.toFixed(2)}/${s.medianBias >= 0 ? '+' : ''}${s.medianBias.toFixed(2)}/${s.zSd.toFixed(2)}`).join('  ')}`,
+      );
+      for (const s of rs) {
         const ok =
           s.coverage >= BANDS.coverLo &&
           s.coverage <= BANDS.coverHi &&
@@ -133,6 +138,7 @@ describe(`estimator calibration on §3's engine generator (${CLAIMS} claims per 
           );
       }
     }
+    console.info(`fast calibration (coverage/bias/z sd):\n${lines.join('\n')}`);
     expect(failed).toEqual([]);
   });
 
@@ -145,17 +151,25 @@ describe(`estimator calibration on §3's engine generator (${CLAIMS} claims per 
     const spread = (s: Stage): number => median(at(s).map((x) => x.p90 / x.p10));
     const share = (s: Stage, cls: string, xs: readonly StageScore[] = at(s)): number =>
       xs.filter((x) => x.confidence === cls).length / xs.length;
+    const reached = at('pitFences').filter((x) => x.bedrockSamples >= FENCES_AT_BEDROCK);
+    const late = progression.filter((p) => p.bulk !== undefined);
+    const lateAt = (s: Stage): StageScore[] => late.map((p) => p[s] as StageScore);
+    console.info(
+      `§4.9 progression on ${progression.length} north valley-bottom claims: median P90/P10 ` +
+        `${(['prior', 'records', 'pans', 'pitFences', 'pitGrid'] as const).map((s) => spread(s).toFixed(2)).join(' → ')}; ` +
+        `speculative after pans ${share('pans', 'speculative').toFixed(2)}, after fences ${share('pitFences', 'speculative').toFixed(2)} ` +
+        `(${share('pitFences', 'speculative', reached).toFixed(2)} on the ${reached.length} claims whose fences reached bedrock); ` +
+        `indicated at grid ${share('pitGrid', 'indicated', lateAt('pitGrid')).toFixed(2)}, + bulk ${share('bulk', 'indicated', lateAt('bulk')).toFixed(2)}, ` +
+        `sonic inferred ${share('sonic', 'inferred', lateAt('sonic')).toFixed(2)}, sonic + bulk indicated ${share('sonicBulk', 'indicated', lateAt('sonicBulk')).toFixed(2)}`,
+    );
     expect(share('prior', 'speculative')).toBe(1);
     expect(spread('records')).toBeLessThan(spread('prior'));
     expect(spread('pans')).toBeLessThan(spread('records'));
     expect(spread('pitFences')).toBeLessThan(spread('pans'));
     expect(spread('pitGrid')).toBeLessThan(spread('pitFences'));
     expect(share('pitFences', 'speculative')).toBeLessThan(share('pans', 'speculative') - 0.15);
-    const reached = at('pitFences').filter((x) => x.bedrockSamples >= FENCES_AT_BEDROCK);
     expect(reached.length).toBeGreaterThanOrEqual(20);
     expect(share('pitFences', 'speculative', reached)).toBeLessThan(0.25);
-    const late = progression.filter((p) => p.bulk !== undefined);
-    const lateAt = (s: Stage): StageScore[] => late.map((p) => p[s] as StageScore);
     expect(share('bulk', 'indicated', lateAt('bulk'))).toBeGreaterThan(
       share('pitGrid', 'indicated', lateAt('pitGrid')),
     );

@@ -379,11 +379,11 @@ export const geologyTuning = {
   // =================================================================================================================
 
   // ---- Estimator: prior and paystreak hypotheses (§4.5.1)
-  // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration
-  // (1,000 claims per cell, seed base 1000): arid 0 → −0.02 centres the visible cells. North was +0.05 on the
-  // pre-review world; on the reviewed world the north visible cells sat +0.075 high on average (precision-weighted
-  // by their world-cluster standard errors) at +0.05, so north is back to 0.
-  'geology.estPriorMedianAdj': { northernFederal: 0, aridFederal: -0.02 },
+  // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration on
+  // the reviewed world (1,000 claims per cell, seed base 1000): the visible cells' prior biases, averaged with weights
+  // 1/SE² (SE from a bootstrap over worlds), sat +0.075 (north, valve +0.05) and +0.043 (arid, valve −0.02) high, so
+  // north +0.05 → 0 and arid −0.02 → −0.05.
+  'geology.estPriorMedianAdj': { northernFederal: 0, aridFederal: -0.05 },
   'geology.estStreakResidLogSd': 0.35,
   'geology.estStreakNodes': 9,
   'geology.estStreakHwNodes': 3,
