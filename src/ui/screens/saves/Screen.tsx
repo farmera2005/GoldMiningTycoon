@@ -1,12 +1,14 @@
 // Saves screen (DESIGN §13.16; 13.21 `ui/save`, `ui/load`, `ui/deleteSlot`, `ui/export`, `ui/import`). Slots come
-// from the persistence store; nothing here reads game state beyond the save summary. A failed import or load shows
-// its error and changes nothing.
+// from the persistence store with the engine's codec; the slot table reads only `SaveFile.summary`. A failed import or
+// load shows its typed error and changes nothing.
 import { useCallback, useEffect, useId, useState, type DragEvent, type FormEvent } from 'react';
 import type { Result, SlotMeta } from '../../../persistence';
-import { downloadFile, readFileBytes } from '../../app/files';
-import { placeholderFormat as fmt } from '../../app/placeholderFormat';
-import type { SavesController } from '../../app/shellModel';
+import { readFileBytes } from '../../app/files';
+import { useServices } from '../../app/services';
 import { Button, MessageArea, Panel, ScreenTitle } from '../../components/primitives';
+import { Num } from '../../explain/Num';
+import { kilobytes, wallClock, yearWeek } from '../../format';
+import { useUi } from '../../store/store';
 import { errorText, noticeText } from './messages';
 
 interface Feedback {
@@ -16,8 +18,11 @@ interface Feedback {
 
 const NO_FEEDBACK: Feedback = { errors: [], notices: [] };
 
-export function SavesScreen({ controller }: { controller: SavesController }) {
-  const { store } = controller;
+export function SavesScreen() {
+  const { client, saves: store, download } = useServices();
+  const hasGame = useUi((s) => s.game.state !== null);
+  const ironman = useUi((s) => s.persisted.ironman);
+  const companyName = useUi((s) => s.game.state?.company.name ?? '');
   const [slots, setSlots] = useState<readonly SlotMeta[] | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(NO_FEEDBACK);
   const [busy, setBusy] = useState(false);
@@ -55,33 +60,30 @@ export function SavesScreen({ controller }: { controller: SavesController }) {
     [refresh],
   );
 
-  const current = controller.currentSave();
-  const saveDisabledReason =
-    current === null
-      ? 'Start or load a game first.'
-      : controller.ironman
-        ? 'Ironman games have no manual slots.'
-        : null;
+  const saveDisabledReason = !hasGame
+    ? 'Start or load a game first.'
+    : ironman
+      ? 'Ironman games have no manual slots.'
+      : null;
 
-  const download = controller.download ?? downloadFile;
   const actions: SlotActions = {
     busy,
     saveDisabledReason,
     load: (slot) =>
       run(
-        () => store.load(slot.slotId),
-        (loaded) => {
-          controller.onLoaded(loaded);
-          return [`Loaded “${slot.slotName}”.`, ...loaded.notices.map(noticeText)];
+        async (): Promise<Result<readonly string[]>> => {
+          const loaded = await client.loadSlot(slot);
+          return loaded.ok
+            ? { ok: true, value: loaded.notices.map(noticeText) }
+            : { ok: false, error: { code: 'SAVE_CORRUPT', message: loaded.message } };
         },
+        (notices) => [`Loaded “${slot.slotName}”.`, ...notices],
       ),
-    saveHere: (slot) => {
-      if (!current) return Promise.resolve();
-      return run(
-        () => store.save(current, { slotId: slot.slotId, ironman: controller.ironman }),
+    saveHere: (slot) =>
+      run(
+        () => client.saveToSlot({ slotId: slot.slotId }),
         (meta) => [`Saved to “${meta.slotName}”.`],
-      );
-    },
+      ),
     rename: (slot, name) =>
       run(
         () => store.rename(slot.slotId, name),
@@ -137,11 +139,10 @@ export function SavesScreen({ controller }: { controller: SavesController }) {
         <SaveCurrentForm
           disabledReason={saveDisabledReason}
           busy={busy}
-          defaultName={current?.summary.company ?? ''}
+          defaultName={companyName}
           onSave={(slotName) => {
-            if (!current) return;
             void run(
-              () => store.save(current, { slotName, ironman: controller.ironman }),
+              () => client.saveToSlot({ slotName }),
               (meta) => [`Saved to “${meta.slotName}”.`],
             );
           }}
@@ -280,24 +281,18 @@ function SlotRow({ slot, actions, manual }: { slot: SlotMeta; actions: SlotActio
         {manual ? slot.slotName : `${kindLabel(slot)} · ${slot.slotName}`}
       </th>
       <td className="px-2 py-1 text-ink-1">{slot.summary.company}</td>
-      <td className="px-2 py-1 text-ink-1" data-num="">
-        {fmt.gameWeek(slot.summary.year, slot.summary.week)}
+      <td className="px-2 py-1 text-ink-1">{yearWeek(slot.summary.year, slot.summary.week)}</td>
+      <td className="px-2 py-1 text-right text-ink-1">
+        <Num value={slot.summary.cash} unit="cents" explain={null} exempt="saveSummary" />
       </td>
-      <td className="px-2 py-1 text-right text-ink-1" data-num="">
-        {fmt.usdFromCents(slot.summary.cash)}
+      <td className="px-2 py-1 text-right text-ink-1">
+        <Num value={slot.summary.netWorth} unit="cents" explain={null} exempt="saveSummary" />
       </td>
-      <td className="px-2 py-1 text-right text-ink-1" data-num="">
-        {fmt.usdFromCents(slot.summary.netWorth)}
-      </td>
-      <td className="px-2 py-1 text-ink-2" data-num="">
-        {fmt.wallClock(slot.savedAt)}
-      </td>
+      <td className="px-2 py-1 text-ink-2">{wallClock(slot.savedAt)}</td>
       <td className="px-2 py-1 text-ink-2" data-code="">
         {slot.rulesVersion}
       </td>
-      <td className="px-2 py-1 text-right text-ink-2" data-num="">
-        {fmt.kilobytes(slot.sizeBytes)}
-      </td>
+      <td className="px-2 py-1 text-right text-ink-2">{kilobytes(slot.sizeBytes)}</td>
       <td className="px-2 py-1 text-ink-2">{ended ? 'Ended (read-only)' : 'Active'}</td>
       <td className="px-2 py-1">
         {mode.kind === 'renaming' ? (

@@ -33,7 +33,7 @@ import {
 } from '../../persistence';
 import { EMPTY_GAME, pushNewest, pushUndo, type GameSlice } from '../store/gameSlice';
 import { defaultUiPersisted, persistedForSave, readUiPersisted, type UiPersisted } from '../store/persisted';
-import type { UiStore } from '../store/store';
+import type { RunSlice, UiStore } from '../store/store';
 import { summarizeWeek, weekAnnouncement } from './summarize';
 
 /** `ui/advanceWeek` refusals (13.21) plus the client's own "nothing loaded". */
@@ -72,6 +72,8 @@ export interface EngineClient {
   currentSave(options?: { readonly slotName?: string; readonly includeLog?: boolean }): SaveFile | null;
   /** `ui/save` to a new slot or (`slotId`) over a manual slot. */
   saveToSlot(target?: { readonly slotId?: string; readonly slotName?: string }): Promise<Result<SlotMeta>>;
+  /** Ctrl+S (13.15): saves over the current manual slot; false when there is none (or in Ironman). */
+  quickSave(): Promise<boolean>;
   /** Reads a slot and loads it (`ui/load`). */
   loadSlot(slot: Pick<SlotMeta, 'slotId' | 'kind'>): Promise<LoadOutcome>;
   /** The current game as an export file (the critical toast's `Export now`). */
@@ -99,6 +101,13 @@ export function scheduleWhenIdle(task: () => void): void {
 }
 
 const NO_GAME_ERROR = { code: 'NO_GAME', message: 'No game is loaded.' } as const;
+
+/** `ui/advanceWeek` validation (13.21) as a pure function of the store, so the top bar can render the reason. */
+export function advanceBlockOf(state: GameState | null, runStatus: RunSlice['status']): AdvanceBlock | null {
+  if (state === null) return 'NO_GAME';
+  if (runStatus !== 'idle') return 'RUN_IN_PROGRESS';
+  return select.canAdvance(state);
+}
 
 export function createEngineClient(options: EngineClientOptions): EngineClient {
   const { store, saves } = options;
@@ -173,10 +182,7 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
   }
 
   function advanceBlock(): AdvanceBlock | null {
-    const g = game();
-    if (g.state === null) return 'NO_GAME';
-    if (store.getState().run.status !== 'idle') return 'RUN_IN_PROGRESS';
-    return select.canAdvance(g.state);
+    return advanceBlockOf(game().state, store.getState().run.status);
   }
 
   const client: EngineClient = {
@@ -283,6 +289,12 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
       });
       if (result.ok) markSaved(g.epoch, state, result.value.slotId);
       return result;
+    },
+
+    async quickSave() {
+      const slotId = game().slotId;
+      if (slotId === null || game().state === null || persisted().ironman) return false;
+      return (await client.saveToSlot({ slotId })).ok;
     },
 
     async loadSlot(slot) {

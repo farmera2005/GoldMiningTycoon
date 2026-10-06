@@ -150,6 +150,18 @@
     box-shadow: inset 3px 0 0 var(--brass-on-chrome);
   }
 
+  /* Dev reveal (development builds only, D-13.41): a striped band so raw truth is never mistaken for play. */
+  .dev-truth-band {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--status-warning) 0 10px,
+      var(--surface-2) 10px 20px
+    );
+  }
+  .dev-truth-row {
+    box-shadow: inset 3px 0 0 var(--status-warning);
+  }
+
   .narrow-banner {
     display: none;
   }

@@ -82,7 +82,8 @@ export function historyMetricInfo(metric: HistoryMetric): { readonly label: stri
   return HISTORY_METRICS[metric];
 }
 
-function historyValue(state: GameState, metric: HistoryMetric, turn: number): number | null {
+/** A metric's value in the weekly history snapshot of `turn`, or null outside the kept ring. */
+export function historyValue(state: GameState, metric: HistoryMetric, turn: number): number | null {
   const snap = select.weeklyHistory(state).find((s) => s.turn === turn);
   if (snap === undefined) return null;
   if (metric in snap.market) return snap.market[metric as keyof typeof snap.market];
@@ -140,6 +141,8 @@ function ledgerView(state: GameState, filter: LedgerFilter, query: LedgerQuery):
 
 export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
   const { state } = ctx;
+  // A player input explains itself (its editor) whether or not a game is loaded.
+  if (ref.kind === 'input') return { kind: 'input', route: ref.route, root: message(ref.label, 'Set by you') };
   if (state === null) return { kind: 'unavailable', reason: 'NO_GAME', root: message('Explanation', 'No game is loaded.') };
   switch (ref.kind) {
     case 'live':
@@ -185,8 +188,6 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
       const base = (baseTuning as Readonly<Record<TuningKey, TuningValue>>)[ref.key];
       return { kind: 'tuning', key: ref.key, resolved, base, root: tuningView(ref.key, resolved) };
     }
-    case 'input':
-      return { kind: 'input', route: ref.route, root: message(ref.label, 'Set by you') };
     default:
       return assertNever(ref);
   }

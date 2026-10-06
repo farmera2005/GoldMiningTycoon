@@ -55,12 +55,12 @@ export function ExplainDrawer() {
   const ctx = useExplainContext();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
-  const [copied, setCopied] = useState<string>('');
+  // The copy confirmation belongs to the explanation it was given for; following a link clears it.
+  const [copied, setCopied] = useState<{ readonly key: string; readonly text: string } | null>(null);
   const top = stack[stack.length - 1];
 
   useEffect(() => {
     if (top !== undefined) headingRef.current?.focus();
-    setCopied('');
   }, [top]);
 
   if (top === undefined) return null;
@@ -131,7 +131,10 @@ export function ExplainDrawer() {
         <Button
           onClick={() =>
             void copyText(treeAsText(root, ctx.format)).then((ok) =>
-              setCopied(ok ? 'Copied to the clipboard.' : 'This browser blocked the clipboard.'),
+              setCopied({
+                key: refKey(top),
+                text: ok ? 'Copied to the clipboard.' : 'This browser blocked the clipboard.',
+              }),
             )
           }
         >
@@ -139,7 +142,7 @@ export function ExplainDrawer() {
         </Button>
         {ledger === null ? null : <Button onClick={() => store.getState().pushExplain(ledger)}>Open ledger</Button>}
         <span role="status" className="text-12 text-ink-2">
-          {copied}
+          {copied !== null && copied.key === refKey(top) ? copied.text : ''}
         </span>
       </div>
     </div>
