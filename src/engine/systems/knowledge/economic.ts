@@ -110,7 +110,8 @@ export function economicLayer(stat: StatLayer, planning: PlanningAssumptions, ct
   for (let b = 0; b < n; b++) {
     const D50 = exp(geo.D.mean[b] as number);
     const T50 = stat.T50[b] as number;
-    const ob = Math.max(0, D50 - T50 + geo.bHat);
+    // Overburden stripped since the anchor lowers the surface; the sd is unchanged (stripping is known, s04 #1).
+    const ob = Math.max(0, D50 - T50 + geo.bHat - (stat.obShiftFt[b] as number));
     const sdOb = sqrt(D50 * D50 * (geo.D.varDiag[b] as number) + T50 * T50 * (geo.T.varDiag[b] as number));
     ob50[b] = ob;
     obP10[b] = Math.max(0, ob - 1.2816 * sdOb);

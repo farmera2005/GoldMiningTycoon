@@ -1,18 +1,36 @@
-// estimateFromEvidence (DESIGN §4.18): pure, never receives truth. Two memo layers (§4.1, D-4.24, D-4.41): the
-// statistical layer keyed by (parameters, prior, evidence hash), and the economic layer by that key plus the planning
-// case and the quantized planning price. Identical keys return the identical object; a cold cache never changes a
+// estimateFromEvidence (DESIGN §4.18): pure, never receives truth. Memo layers (§4.1, D-4.24, D-4.41, §4.5.2): the
+// anchor solve keyed by (parameters, prior, the anchor's evidence and quantized block state); the appended production
+// rows on it; the solve summary; the state layer (continuous block state, assays); and the economic layer (planning
+// case, quantized planning price, recovery). Identical keys return the identical object; a cold cache never changes a
 // result (§2.3 item 6).
 import { exp, sqrt } from '../../core/dmath';
 import { hashValue } from '../../core/hash';
+import { compareIds } from '../../core/ids';
 import { createMemo } from '../../core/memo';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { ClaimPriors } from '../world/types';
 import { confidence } from './confidence';
 import { economicLayer, planningPrice } from './economic';
-import { evidenceHash, priorsHash } from './evidence';
+import { canonicalEvidence, evidenceHash, itemHash, priorsHash } from './evidence';
+import {
+  appendProduction,
+  fullSolveAnchor,
+  splitAtAnchor,
+  type AppendedSolve,
+  type EstimateAnchor,
+} from './incremental';
 import type { EstimatorParams } from './params';
 import { priorModel } from './prior';
-import { statisticalLayer, type StatLayer } from './statistical';
+import { prepareProduction } from './production';
+import {
+  anchorSolve,
+  continuousState,
+  solveSummary,
+  stateLayer,
+  type AnchorSolve,
+  type SolveSummary,
+  type StatLayer,
+} from './statistical';
 import type {
   BlockEstimate,
   ClaimEstimate,
@@ -26,35 +44,110 @@ export interface EstimateContext extends PlanningContext {
   readonly params: EstimatorParams;
 }
 
+const anchorMemo = createMemo<string, AnchorSolve>('knowledge.anchorSolve', 128);
+const appendMemo = createMemo<string, AppendedSolve>('knowledge.appendedSolve', 128);
+const summaryMemo = createMemo<string, SolveSummary>('knowledge.solveSummary', 256);
 const statMemo = createMemo<string, StatLayer>('knowledge.statLayer', 256);
 const estimateMemo = createMemo<string, EstimateResult>('knowledge.estimate', 512);
 
-/** The statistical layer, memoized by content (no prices or planning in it). */
+export interface StatisticalEstimate {
+  readonly key: string;
+  readonly evidenceHash: string;
+  readonly stat: StatLayer;
+  /** The anchor solve behind it (incremental path, explain). */
+  readonly anchor: AnchorSolve;
+}
+
+function hashesById(items: readonly { readonly id: string }[]): string[] {
+  return items
+    .slice()
+    .sort((a, b) => compareIds(a.id, b.id))
+    .map((x) => itemHash(x));
+}
+
+/**
+ * The statistical layer of the evidence anchored at `anchor` (§4.5.2): the anchor solve over the evidence up to the
+ * anchor turn at the anchor's block state, the production rows after it appended, and the state layer at the current
+ * block state. With `fullSolveAnchor(evidence)` this is the full solve.
+ */
+export function anchoredStatisticalEstimate(
+  priors: ClaimPriors,
+  evidence: EvidenceSet,
+  anchor: EstimateAnchor,
+  params: EstimatorParams,
+): StatisticalEstimate {
+  if (evidence.claimId !== priors.claimId) {
+    throw new RangeError(`estimator: evidence for ${evidence.claimId}, priors for ${priors.claimId}`);
+  }
+  const canon = canonicalEvidence(evidence);
+  const split = splitAtAnchor(canon.samples, anchor.turn);
+  const base = `${priors.claimId}|${params.key}|${priorsHash(priors)}`;
+  const aKey = `${base}|A${hashValue({
+    samples: hashesById(split.anchored),
+    records: canon.records.map((r) => itemHash(r)),
+    mined: anchor.minedBlockIds.slice().sort(compareIds),
+    stripped: anchor.strippedFt,
+  })}`;
+  const an = anchorMemo.getOrCompute(aKey, () =>
+    anchorSolve(priorModel(priors, params), {
+      samples: split.anchored,
+      records: canon.records,
+      state: anchor,
+    }),
+  );
+  const appended = prepareProduction(an.model.indexOf, split.appended, params);
+  const pKey = appended.length === 0 ? aKey : `${aKey}|P${hashValue(appended.map((p) => itemHash(p.rec)))}`;
+  const ap: AppendedSolve =
+    appended.length === 0
+      ? { rows: an.rows, sol: an.sol, CG: an.CG }
+      : appendMemo.getOrCompute(pKey, () => appendProduction(an, appended));
+  const sum = summaryMemo.getOrCompute(pKey, () => solveSummary(an, ap.sol, ap.CG));
+  const sKey = `${pKey}|S${hashValue({ blockState: canon.blockState, assays: canon.assays })}`;
+  const stat = statMemo.getOrCompute(sKey, () =>
+    stateLayer(
+      an,
+      ap.sol,
+      ap.CG,
+      sum,
+      continuousState(an.model, canon.blockState),
+      canon.assays,
+      appended.length === 0 ? an.production : [...an.production, ...appended],
+    ),
+  );
+  return { key: sKey, evidenceHash: evidenceHash(evidence), stat, anchor: an };
+}
+
+/** The statistical layer of a full solve (no incremental path), memoized by content (no prices or planning in it). */
 export function statisticalEstimate(
   priors: ClaimPriors,
   evidence: EvidenceSet,
   params: EstimatorParams,
-): {
-  key: string;
-  evidenceHash: string;
-  stat: StatLayer;
-} {
-  const eh = evidenceHash(evidence);
-  const key = `${priors.claimId}|${params.key}|${priorsHash(priors)}|${eh}`;
-  const stat = statMemo.getOrCompute(key, () => statisticalLayer(priorModel(priors, params), evidence));
-  return { key, evidenceHash: eh, stat };
+): StatisticalEstimate {
+  return anchoredStatisticalEstimate(priors, evidence, fullSolveAnchor(evidence), params);
 }
 
+/** The estimate of a full solve: every production row in the anchor, the current block state (P0's entry point). */
 export function estimateFromEvidence(
   priors: ClaimPriors,
   evidence: EvidenceSet,
   planning: PlanningAssumptions,
   ctx: EstimateContext,
 ): EstimateResult {
-  if (evidence.claimId !== priors.claimId) {
-    throw new RangeError(`estimateFromEvidence: evidence for ${evidence.claimId}, priors for ${priors.claimId}`);
-  }
-  const { key, evidenceHash: eh, stat } = statisticalEstimate(priors, evidence, ctx.params);
+  return estimateAnchored(priors, evidence, fullSolveAnchor(evidence), planning, ctx);
+}
+
+/**
+ * The estimate on the incremental production path (§4.5.2): the anchor from `knowledge.anchors` (see
+ * `refreshAnchor`), production after it appended, the economic layer on top. This is what `knownEstimate` reads.
+ */
+export function estimateAnchored(
+  priors: ClaimPriors,
+  evidence: EvidenceSet,
+  anchor: EstimateAnchor,
+  planning: PlanningAssumptions,
+  ctx: EstimateContext,
+): EstimateResult {
+  const { key, evidenceHash: eh, stat } = anchoredStatisticalEstimate(priors, evidence, anchor, ctx.params);
   const price = planningPrice(planning, ctx, ctx.params.repriceStep);
   const ekey = `${key}|${hashValue(planning)}|${price}|${hashValue(ctx.recoveryBySize)}`;
   return estimateMemo.getOrCompute(ekey, () => buildEstimate(stat, eh, planning, ctx));
@@ -93,7 +186,7 @@ function buildEstimate(
       sampledVolumeBcy: stat.stats.volumeBcy[b] as number,
       bedrockSamples: stat.stats.bedrock[b] as number,
       pStreak: stat.pStreak[b] as number,
-      depthToBedrockFtP50: exp(geo.D.mean[b] as number),
+      depthToBedrockFtP50: Math.max(0, exp(geo.D.mean[b] as number) - (stat.obShiftFt[b] as number)),
       payColumnFtP10: exp(lnT - 1.2816 * sdT),
       payColumnFtP50: exp(lnT),
       payColumnFtP90: exp(lnT + 1.2816 * sdT),

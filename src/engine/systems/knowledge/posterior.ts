@@ -5,7 +5,7 @@
 import { exp, log, sqrt } from '../../core/dmath';
 import { backSolveInPlace, cholesky, forwardSolveInPlace } from './linalg';
 import type { PriorModel } from './prior';
-import type { Rows } from './rows';
+import { GROUP_NONE, isSampleRow, type Rows } from './rows';
 import { smallCount } from './smallCount';
 
 export interface Hyps {
@@ -84,7 +84,7 @@ export interface Solve {
 }
 
 /** Signal covariance between rows j and k (HΣ₀Hᵀ). */
-function signal(model: PriorModel, rows: Rows, Vm: number, vr: number, j: number, k: number): number {
+export function signal(model: PriorModel, rows: Rows, Vm: number, vr: number, j: number, k: number): number {
   const bj = rows.blk[j] as number;
   const bk = rows.blk[k] as number;
   let s = Vm + (rows.pr[j] as number) * (rows.pr[k] as number) * vr;
@@ -92,18 +92,39 @@ function signal(model: PriorModel, rows: Rows, Vm: number, vr: number, j: number
   return s;
 }
 
-/** Shared-group covariance between rows (exposure group, upper-pay profile group, the claim-level sample error). */
-function groupCov(rows: Rows, j: number, k: number): number {
+/**
+ * Shared-group covariance between rows: the exposure group, the upper-pay profile group and the production recovery
+ * group (§4.4.2, §4.4.6), plus the claim-level sample error between sample rows (§4.4.3).
+ */
+export function groupCov(rows: Rows, j: number, k: number): number {
   const g = rows.group[j] as number;
-  const grp = g !== 0 && rows.group[k] === g ? sqrt((rows.gv[j] as number) * (rows.gv[k] as number)) : 0;
-  return grp + ((rows.blk[j] as number) >= 0 && (rows.blk[k] as number) >= 0 ? rows.common : 0);
+  const grp = g !== GROUP_NONE && rows.group[k] === g ? sqrt((rows.gv[j] as number) * (rows.gv[k] as number)) : 0;
+  return grp + (isSampleRow(rows, j) && isSampleRow(rows, k) ? rows.common : 0);
 }
 
 /** Noise covariance: the row's own variance plus its shared group. */
-function noise(rows: Rows, j: number, k: number): number {
+export function noise(rows: Rows, j: number, k: number): number {
   return (j === k ? (rows.v[j] as number) : 0) + groupCov(rows, j, k);
 }
 
+/** K = HΣ₀Hᵀ + R for the rows (R × R, symmetric). */
+export function rowCovariance(model: PriorModel, rows: Rows, Vm: number, vr: number): Float64Array {
+  const R = rows.R;
+  const K = new Float64Array(R * R);
+  for (let j = 0; j < R; j++) {
+    for (let k = 0; k <= j; k++) {
+      const v = signal(model, rows, Vm, vr, j, k) + noise(rows, j, k);
+      K[j * R + k] = v;
+      K[k * R + j] = v;
+    }
+  }
+  return K;
+}
+
+/**
+ * The posterior for every hypothesis (§4.5.2). `Lgiven`, when passed, is the Cholesky factor of K for these rows (the
+ * incremental path builds it by block append, §4.5.2 "Incremental production path"); otherwise K is factorized here.
+ */
 export function solvePosterior(
   model: PriorModel,
   rows: Rows,
@@ -111,6 +132,7 @@ export function solvePosterior(
   Vm: number,
   vr: number,
   hyps: Hyps,
+  Lgiven?: Float64Array,
 ): Solve {
   const n = model.n;
   const R = rows.R;
@@ -128,15 +150,7 @@ export function solvePosterior(
     }
     return { hyps, weights: normalize(logw), meanLnG, meanR, R, L: new Float64Array(0), alpha };
   }
-  const K = new Float64Array(R * R);
-  for (let j = 0; j < R; j++) {
-    for (let k = 0; k <= j; k++) {
-      const v = signal(model, rows, Vm, vr, j, k) + noise(rows, j, k);
-      K[j * R + k] = v;
-      K[k * R + j] = v;
-    }
-  }
-  const L = cholesky(K, R);
+  const L = Lgiven ?? cholesky(rowCovariance(model, rows, Vm, vr), R);
   const k1 = new Float64Array(R).fill(1);
   forwardSolveInPlace(L, R, k1);
   backSolveInPlace(L, R, k1);
@@ -235,11 +249,24 @@ function normalize(logw: Float64Array): Float64Array {
  * C₀[a][b] = V_m + Σ_e[a][b].
  */
 export function blockCovariance(model: PriorModel, rows: Rows, Vm: number, sol: Solve): Float64Array {
+  return blockCovarianceFactored(model, rows, Vm, sol).CG;
+}
+
+/**
+ * blockCovariance with its data term's factor W = L⁻¹ Qᵀ (stored block-major: W[b·R + j]), so that CG = C₀ − WᵀW.
+ * The incremental path extends W by the appended rows instead of rebuilding it (a rank-k downdate of CG).
+ */
+export function blockCovarianceFactored(
+  model: PriorModel,
+  rows: Rows,
+  Vm: number,
+  sol: Solve,
+): { readonly CG: Float64Array; readonly W: Float64Array } {
   const n = model.n;
   const R = sol.R;
   const C = new Float64Array(n * n);
   for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) C[a * n + b] = Vm + (model.Se[a * n + b] as number);
-  if (R === 0) return C;
+  if (R === 0) return { CG: C, W: new Float64Array(0) };
   const W = new Float64Array(n * R);
   const w = new Float64Array(R);
   for (let b = 0; b < n; b++) {
@@ -259,7 +286,7 @@ export function blockCovariance(model: PriorModel, rows: Rows, Vm: number, sol: 
       C[b * n + a] = v;
     }
   }
-  return C;
+  return { CG: C, W };
 }
 
 /**

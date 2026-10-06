@@ -1,9 +1,19 @@
 // The statistical layer of the estimate (DESIGN §4.4–4.7): everything that depends on the prior and the evidence but
-// not on prices or planning. Two fixed passes (D-4.18): pass 1 evaluates N_eff and the coarse factor at the prior
-// working grade, pass 2 at the pass-1 posterior; each pass ends with the site-refinement sweeps; hypotheses below
-// the prune weight after pass 1 are dropped.
+// not on prices or planning, built in three parts so the incremental production path (§4.5.2, D-4.41) can reuse the
+// expensive one:
+//  1. the ANCHOR solve: two fixed passes (D-4.18; pass 1 at the prior working grade, pass 2 at the pass-1 posterior),
+//     each ending with the site-refinement sweeps, hypotheses below the prune weight dropped after pass 1. It reads
+//     the evidence up to the anchor and the block state as of the anchor, quantized (s04 #1): the fully mined blocks
+//     (old-timer neutrality) and the stripped feet (the recent-operator rule and the depth frame of the geometry);
+//  2. the solve SUMMARY: block grade mixtures, paystreak probabilities and exp(C) for one solve (anchor or appended);
+//  3. the STATE layer: the current continuous block state (remaining pay f_rem from mined and sampled fractions, the
+//     overburden stripped since the anchor), the aggregation, fineness and production gates. Cheap; reruns weekly
+//     on an operating claim without touching parts 1–2.
+// A full solve is the anchor solve over all evidence with the current block state; it reproduces P0's single-layer
+// estimate bit for bit.
 import { exp, log, normCdf, sqrt } from '../../core/dmath';
 import type { BlockId } from '../../core/ids';
+import { sortedKeys } from '../../core/iter';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { SizeRecord } from '../world/types';
 import { blockMeans, summarizeSet, type AggregateInputs, type SetSummary } from './aggregate';
@@ -18,11 +28,21 @@ import {
   streakMeans,
   type DepletionModel,
 } from './depletion';
+import { finenessPosterior } from './fineness';
 import { geometryPosterior, type GeometryPosterior } from './geometry';
 import { mixtureQuantile, type Mixture } from './mixture';
-import { allHypotheses, blockCovariance, pruneHypotheses, refineSites, solvePosterior, type Hyps } from './posterior';
+import {
+  allHypotheses,
+  blockCovarianceFactored,
+  pruneHypotheses,
+  refineSites,
+  solvePosterior,
+  type Hyps,
+  type Solve,
+} from './posterior';
 import { withBlockFieldScale, type PriorModel } from './prior';
-import { buildRows, pocketHits, positionOf, type Position } from './rows';
+import { prepareProduction, type PreparedProduction } from './production';
+import { buildRows, pocketHits, positionOf, withProductionRows, type Position, type Rows } from './rows';
 import {
   bedrockPosterior,
   classMasses,
@@ -32,7 +52,7 @@ import {
   type Mass4,
   type PreparedSample,
 } from './samples';
-import type { EvidenceSet } from './types';
+import type { EvidenceSet, FinenessAssay, KnownBlockState, RecordFinding, SampleRecord } from './types';
 
 export interface BlockGround {
   readonly clay: Float64Array;
@@ -47,6 +67,72 @@ export interface BlockSampleStats {
   readonly bedrock: Int32Array;
   readonly maxPaySampleBcy: Float64Array;
   readonly bulk: Uint8Array;
+}
+
+/** Production behind the estimate (§4.8 support gates): every production row, anchored or appended. */
+export interface ProductionStats {
+  /** Σ in-situ pay bcy of the production rows on each block. */
+  readonly bcyByBlock: Float64Array;
+  /** 1 where an own-fleet bulk-sample cleanup was attributed to the block. */
+  readonly bulkByBlock: Uint8Array;
+  readonly totalBcy: number;
+  readonly rows: number;
+}
+
+/** The block state an anchor solve reads (s04 #1): as of the anchor, quantized. */
+export interface AnchorBlockState {
+  /** Blocks fully mined out (Block.state minedFrac ≥ 1). */
+  readonly minedBlockIds: readonly BlockId[];
+  /** Overburden stripped from each block, ft (> 0 only): the recent-operator rule and the geometry's depth frame. */
+  readonly strippedFt: Readonly<Partial<Record<BlockId, number>>>;
+}
+
+/** What one anchor solve reads: samples and production rows up to the anchor, records, the anchor's block state. */
+export interface AnchorEvidence {
+  readonly samples: readonly SampleRecord[];
+  readonly records: readonly RecordFinding[];
+  readonly state: AnchorBlockState;
+}
+
+/** The anchor solve and every quantity the incremental path keeps frozen (§4.5.2). */
+export interface AnchorSolve {
+  readonly model: PriorModel;
+  readonly samples: readonly PreparedSample[];
+  /** Production rows inside the anchor (cleanupTurn ≤ the anchor turn), ascending SampleId. */
+  readonly production: readonly PreparedProduction[];
+  readonly geo: GeometryPosterior;
+  readonly bed: BedrockPosterior;
+  readonly depl: DepletionModel;
+  /** μ_e per configuration (S × n) and its old-timer removal part (S × n). */
+  readonly muE: Float64Array;
+  readonly removal: Float64Array;
+  readonly Vm: number;
+  readonly coarse: CoarsePosterior;
+  readonly ncShare: Mass4;
+  readonly confirmedOz: Float64Array;
+  /** Final rows (site refinements applied) and the solve on them; sol.L factors their K. */
+  readonly rows: Rows;
+  readonly sol: Solve;
+  readonly CG: Float64Array;
+  /** L⁻¹ Qᵀ, block-major (n × R): CG = C₀ − WᵀW. */
+  readonly W: Float64Array;
+  readonly evaluatedHypotheses: number;
+  readonly ground: BlockGround;
+  readonly stats: BlockSampleStats;
+  /** Stripped feet the geometry was solved with (the anchor's), per block. */
+  readonly strippedFt: Float64Array;
+}
+
+/** Per-solve summaries that do not depend on the current block state. */
+export interface SolveSummary {
+  readonly fPost: Float64Array;
+  readonly pStreak: Float64Array;
+  readonly pBarren: number;
+  readonly gradeQ: { readonly p10: Float64Array; readonly p50: Float64Array; readonly p90: Float64Array };
+  readonly lnGMean: Float64Array;
+  readonly lnGSd: Float64Array;
+  readonly cDiag: Float64Array;
+  readonly expC: Float64Array;
 }
 
 export interface StatLayer {
@@ -72,6 +158,12 @@ export interface StatLayer {
   readonly fineness: { readonly p50: number; readonly sd: number };
   readonly ground: BlockGround;
   readonly stats: BlockSampleStats;
+  readonly production: ProductionStats;
+  /**
+   * Overburden stripped since the anchor, ft, per block: the post-solve shift of the geometry's depth frame (s04 #1).
+   * Overburden and depth to bedrock read D − shift; 0 on a full solve.
+   */
+  readonly obShiftFt: Float64Array;
   readonly agg: AggregateInputs;
   readonly A: Float64Array;
   readonly contained: SetSummary;
@@ -100,20 +192,60 @@ function ncShares(model: PriorModel, pooled: Mass4): Mass4 {
   return out;
 }
 
-function blockStateArrays(
+/**
+ * The geologist flag of §4.6's false-bedrock check, derived from the evidence (s04 #10): a geologist works the claim
+ * when any bedrock-logged sample was logged by the owner-geologist, a staff geologist or a consultant. It changes only
+ * with new samples, so it never forces a re-solve on its own.
+ */
+export function geologistOnClaim(samples: readonly SampleRecord[]): boolean {
+  return samples.some((s) => s.source !== 'production' && s.bedrockLogged && s.loggedBy.kind !== 'none');
+}
+
+/** The anchor block state of the current state: the fully mined blocks and the stripped feet (s04 #1). */
+export function quantizeBlockState(blockState: EvidenceSet['blockState']): AnchorBlockState {
+  const minedBlockIds: BlockId[] = [];
+  const strippedFt: Partial<Record<BlockId, number>> = {};
+  for (const id of sortedKeys(blockState as Readonly<Record<BlockId, KnownBlockState>>)) {
+    const st = blockState[id];
+    if (st === undefined) continue;
+    if (st.minedFrac >= 1) minedBlockIds.push(id);
+    if (st.strippedFt > 0) strippedFt[id] = st.strippedFt;
+  }
+  return { minedBlockIds, strippedFt };
+}
+
+function anchorStateArrays(model: PriorModel, st: AnchorBlockState): { minedFrac: Float64Array; strippedFt: Float64Array } {
+  const n = model.n;
+  const minedFrac = new Float64Array(n);
+  const strippedFt = new Float64Array(n);
+  for (const id of st.minedBlockIds) {
+    const b = model.indexOf[id];
+    if (b !== undefined) minedFrac[b] = 1;
+  }
+  for (let b = 0; b < n; b++) {
+    const s = st.strippedFt[model.blockIds[b] as BlockId];
+    if (s !== undefined) strippedFt[b] = Math.max(0, s);
+  }
+  return { minedFrac, strippedFt };
+}
+
+/** The current continuous block state, per block. */
+export interface ContinuousState {
+  readonly minedFrac: Float64Array;
+  readonly sampledBcy: Float64Array;
+  readonly strippedFt: Float64Array;
+}
+
+export function continuousState(
   model: PriorModel,
-  evidence: EvidenceSet,
-): {
-  minedFrac: Float64Array;
-  sampledBcy: Float64Array;
-  strippedFt: Float64Array;
-} {
+  blockState: Readonly<Partial<Record<BlockId, KnownBlockState>>>,
+): ContinuousState {
   const n = model.n;
   const minedFrac = new Float64Array(n);
   const sampledBcy = new Float64Array(n);
   const strippedFt = new Float64Array(n);
   for (let b = 0; b < n; b++) {
-    const st = evidence.blockState[model.blockIds[b] as BlockId];
+    const st = blockState[model.blockIds[b] as BlockId];
     if (st === undefined) continue;
     minedFrac[b] = Math.min(1, Math.max(0, st.minedFrac));
     sampledBcy[b] = Math.max(0, st.sampledBcy);
@@ -192,26 +324,27 @@ function groundAndStats(
   return { ground: { clay, boulders, frozen, cement }, stats: { count, volumeBcy, bedrock, maxPaySampleBcy, bulk } };
 }
 
-function fineness(model: PriorModel, evidence: EvidenceSet): { p50: number; sd: number } {
-  const f = model.priors.fineness;
-  let prec = 1 / (f.districtSd * f.districtSd + f.claimSd * f.claimSd);
-  let num = f.mean * prec;
-  for (const a of evidence.assays) {
-    if (!(a.sd > 0)) continue;
-    const p = 1 / (a.sd * a.sd);
-    prec += p;
-    num += a.value * p;
+/** Pooled capture-corrected masses with production's in-situ non-coarse masses added (size mix only, §4.4.6). */
+function pooledForSizeMix(pooled: Mass4, production: readonly PreparedProduction[]): Mass4 {
+  if (production.length === 0) return pooled;
+  const out: Mass4 = [pooled[0], pooled[1], pooled[2], pooled[3]];
+  for (const p of production) {
+    out[1] = (out[1] as number) + p.ncInSituMg[0];
+    out[2] = (out[2] as number) + p.ncInSituMg[1];
+    out[3] = (out[3] as number) + p.ncInSituMg[2];
   }
-  return { p50: num / prec, sd: sqrt(1 / prec) };
+  return out;
 }
 
-export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): StatLayer {
+/** The anchor solve (§4.5.2): the full two-pass solve over the anchor's evidence and block state. */
+export function anchorSolve(model0: PriorModel, ev: AnchorEvidence): AnchorSolve {
   const P = model0.params;
   const n = model0.n;
-  const samples = prepareSamples(model0, evidence.samples, evidence.geologistOnClaim, P);
-  const bs = blockStateArrays(model0, evidence);
+  const samples = prepareSamples(model0, ev.samples, geologistOnClaim(ev.samples), P);
+  const production = prepareProduction(model0.indexOf, ev.samples, P);
+  const bs = anchorStateArrays(model0, ev.state);
   const bed = bedrockPosterior(samples, model0);
-  const depl = depletionModel(model0, evidence, samples, bs.minedFrac, bs.strippedFt);
+  const depl = depletionModel(model0, ev, samples, bs.minedFrac, bs.strippedFt);
   const handCut: number[] = [];
   for (let b = 0; b < n; b++) if (depl.state[b] === DEPL_WORKED && depl.workedKind[b] === 'handCut') handCut.push(b);
   const streak = footprintStreakMoments(model0, depl);
@@ -237,10 +370,12 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
 
   const positions: (Position | null)[] = samples.map((s) => positionOf(model, geo, depl, bed.sbHat, s));
   const pooled = pooledMasses(samples);
-  const ncShare = ncShares(model, pooled.massByClass);
+  const ncShare = ncShares(model, pooledForSizeMix(pooled.massByClass, production));
   const coarseMg = coarseMeanMass(model, pooled);
   const masses = samples.map((s) => classMasses(s, coarseMg, ncShare, P.phys.particleMeanMg));
   const pockets = pocketHits(model, samples, muE, Vm, coarseMg, ncShare);
+  const prodRows = production.map((p) => p.row);
+  const prodCoarse = production.map((p) => p.coarse);
 
   // Working grades for pass 1: the prior non-coarse grade exp(M + E[μ_e] − E[w]) at R0 (gold-bearing hypotheses).
   const thin = P.coarseStreakThin;
@@ -265,17 +400,17 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
     positions,
     masses,
     excluded: pockets.excluded,
-    records: evidence.records,
+    records: ev.records,
     ncShare,
   };
-  let co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded);
-  let sol = null as ReturnType<typeof solvePosterior> | null;
-  let rows = null as ReturnType<typeof buildRows> | null;
+  let co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded, prodCoarse);
+  let sol = null as Solve | null;
+  let rows = null as Rows | null;
   const passes = Math.max(1, P.varIterations);
   for (let pass = 0; pass < passes; pass++) {
-    co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded);
+    co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded, prodCoarse);
     const ct = coarseTerms(a, co.mr, co.vr);
-    rows = buildRows(rowInputs, gt, ct);
+    rows = withProductionRows(buildRows(rowInputs, gt, ct), prodRows);
     sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps);
     for (let sweep = 0; sweep < P.siteRefineSweeps; sweep++) {
       if (!refineSites(model, rows, Vm, co.vr, sol)) break;
@@ -301,10 +436,38 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
     if (pass === 0) hyps = pruneHypotheses(sol.hyps, sol.weights, model.pruneWeight);
   }
   if (sol === null || rows === null) throw new Error('estimator: no pass ran');
-  const CG = blockCovariance(model, rows, Vm, sol);
-  const H = sol.hyps.count;
+  const { CG, W } = blockCovarianceFactored(model, rows, Vm, sol);
+  const gs = groundAndStats(model, samples);
+  return {
+    model,
+    samples,
+    production,
+    geo,
+    bed,
+    depl,
+    muE,
+    removal,
+    Vm,
+    coarse: co,
+    ncShare,
+    confirmedOz: pockets.confirmedOz,
+    rows,
+    sol,
+    CG,
+    W,
+    evaluatedHypotheses,
+    ground: gs.ground,
+    stats: gs.stats,
+    strippedFt: bs.strippedFt,
+  };
+}
 
-  // Posterior summaries per block.
+/** Block grade mixtures and paystreak summaries of one solve (§4.5.5): independent of the current block state. */
+export function solveSummary(an: AnchorSolve, sol: Solve, CG: Float64Array): SolveSummary {
+  const model = an.model;
+  const P = model.params;
+  const n = model.n;
+  const H = sol.hyps.count;
   const fPost = new Float64Array(n);
   const pStreak = new Float64Array(n);
   let pBarren = 0;
@@ -318,45 +481,7 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
       if (f >= P.streakMinF) pStreak[b] = (pStreak[b] as number) + w;
     }
   }
-  const T50 = new Float64Array(n);
-  const fRem = new Float64Array(n);
-  const alive = new Uint8Array(n);
-  for (let b = 0; b < n; b++) {
-    T50[b] = exp(geo.T.mean[b] as number);
-    const payBcy = (T50[b] as number) * BCY_PER_ACRE_FT * (model.acres[b] as number);
-    fRem[b] = Math.max(0, 1 - (bs.minedFrac[b] as number) - (bs.sampledBcy[b] as number) / payBcy);
-    alive[b] = (fRem[b] as number) > 1e-9 ? 1 : 0;
-  }
-
-  // Pockets: P(no sample hit an existing pocket) per block, and the per-hypothesis rate and grade.
-  const missP = new Float64Array(n).fill(1);
-  for (const s of samples) {
-    if (!s.reachedPay || s.interval === 'exposure') continue;
-    const Vb = (T50[s.b] as number) * BCY_PER_ACRE_FT * (model.acres[s.b] as number);
-    missP[s.b] = (missP[s.b] as number) * Math.max(0, 1 - (P.pocketBcyMean + s.V) / Vb);
-  }
-  const muX = new Float64Array(H * n);
-  const pocketLambda = new Float64Array(H * n);
-  const pocketGrade = new Float64Array(H * n);
-  const pps = model.priors.pocket.pPerStreakBlock;
-  for (let h = 0; h < H; h++) {
-    const s = sol.hyps.streak[h] as number;
-    for (let b = 0; b < n; b++) {
-      if (alive[b] !== 1) continue;
-      const lg = sol.meanLnG[h * n + b] as number;
-      muX[h * n + b] =
-        lg +
-        (geo.TbyStreak[s * n + b] as number) +
-        log(BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number));
-      const f = model.streakF[s * n + b] as number;
-      // A mined-out share holds no pocket either (f_rem; DESIGN §4.7 counts the whole block).
-      pocketLambda[h * n + b] = f >= P.streakMinF ? pps * (missP[b] as number) * (fRem[b] as number) : 0;
-      // §3's pocket law clamps the VIRGIN pocket grade to ≥ gradeMin; old-timer removal then scales it (§3.6 deplete).
-      const rm = removal[s * n + b] as number;
-      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg - rm)) * exp(rm);
-    }
-  }
-  const CT = geo.T.cov;
+  const CT = an.geo.T.cov;
   const cDiag = new Float64Array(n);
   const expC = new Float64Array(n * n);
   for (let x = 0; x < n; x++) {
@@ -366,25 +491,6 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
       if (x === y) cDiag[x] = c;
     }
   }
-  const agg: AggregateInputs = {
-    n,
-    H,
-    weights: sol.weights,
-    muX,
-    cDiag,
-    expC,
-    alive,
-    pocketLambda,
-    pocketGrade,
-    confirmedOz: pockets.confirmedOz,
-    pocketBcyMean: P.pocketBcyMean,
-    pocketBcy2Mean: P.pocketBcy2Mean,
-    pocketGradeCv2: P.pocketGradeCv2,
-  };
-  const A = blockMeans(agg);
-  const contained = summarizeSet(agg, A, new Uint8Array(n).fill(1), 1);
-
-  // Block grade mixtures (§4.5.5).
   const p10 = new Float64Array(n);
   const p50 = new Float64Array(n);
   const p90 = new Float64Array(n);
@@ -413,44 +519,158 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
     p50[b] = exp(mixtureQuantile(mix, 0.5));
     p90[b] = exp(mixtureQuantile(mix, 0.9));
   }
+  return { fPost, pStreak, pBarren, gradeQ: { p10, p50, p90 }, lnGMean, lnGSd, cDiag, expC };
+}
 
-  // Size mix (§4.7): paystreak-centre coarse share from R50, non-coarse split from pooled masses.
-  const R50 = exp(co.mr);
+/** Production gates' inputs over every production row (§4.8). */
+export function productionStats(n: number, production: readonly PreparedProduction[]): ProductionStats {
+  const bcyByBlock = new Float64Array(n);
+  const bulkByBlock = new Uint8Array(n);
+  let totalBcy = 0;
+  for (const p of production) {
+    bcyByBlock[p.b] = (bcyByBlock[p.b] as number) + p.p.inSituBcy;
+    totalBcy += p.p.inSituBcy;
+    if (p.p.bulkSampleProgramId !== undefined) bulkByBlock[p.b] = 1;
+  }
+  return { bcyByBlock, bulkByBlock, totalBcy, rows: production.length };
+}
+
+/**
+ * The state layer: f_rem and the aggregation at the current block state, the overburden shift since the anchor, the
+ * size mix and fineness, and the production gates. `production` lists every production row (anchored and appended).
+ */
+export function stateLayer(
+  an: AnchorSolve,
+  sol: Solve,
+  CG: Float64Array,
+  sum: SolveSummary,
+  state: ContinuousState,
+  assays: readonly FinenessAssay[],
+  production: readonly PreparedProduction[],
+): StatLayer {
+  const model = an.model;
+  const P = model.params;
+  const n = model.n;
+  const H = sol.hyps.count;
+  const geo = an.geo;
+  const T50 = new Float64Array(n);
+  const fRem = new Float64Array(n);
+  const alive = new Uint8Array(n);
+  const obShiftFt = new Float64Array(n);
+  for (let b = 0; b < n; b++) {
+    T50[b] = exp(geo.T.mean[b] as number);
+    const payBcy = (T50[b] as number) * BCY_PER_ACRE_FT * (model.acres[b] as number);
+    fRem[b] = Math.max(0, 1 - (state.minedFrac[b] as number) - (state.sampledBcy[b] as number) / payBcy);
+    alive[b] = (fRem[b] as number) > 1e-9 ? 1 : 0;
+    obShiftFt[b] = (state.strippedFt[b] as number) - (an.strippedFt[b] as number);
+  }
+
+  // Pockets: P(no sample hit an existing pocket) per block, and the per-hypothesis rate and grade. Mined production
+  // ground is in f_rem, not here: a pocket in the mined share would have shown in the cleanup.
+  const missP = new Float64Array(n).fill(1);
+  for (const s of an.samples) {
+    if (!s.reachedPay || s.interval === 'exposure') continue;
+    const Vb = (T50[s.b] as number) * BCY_PER_ACRE_FT * (model.acres[s.b] as number);
+    missP[s.b] = (missP[s.b] as number) * Math.max(0, 1 - (P.pocketBcyMean + s.V) / Vb);
+  }
+  const muX = new Float64Array(H * n);
+  const pocketLambda = new Float64Array(H * n);
+  const pocketGrade = new Float64Array(H * n);
+  const pps = model.priors.pocket.pPerStreakBlock;
+  for (let h = 0; h < H; h++) {
+    const s = sol.hyps.streak[h] as number;
+    for (let b = 0; b < n; b++) {
+      if (alive[b] !== 1) continue;
+      const lg = sol.meanLnG[h * n + b] as number;
+      muX[h * n + b] =
+        lg +
+        (geo.TbyStreak[s * n + b] as number) +
+        log(BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number));
+      const f = model.streakF[s * n + b] as number;
+      // A mined-out share holds no pocket either (f_rem; DESIGN §4.7 counts the whole block).
+      pocketLambda[h * n + b] = f >= P.streakMinF ? pps * (missP[b] as number) * (fRem[b] as number) : 0;
+      // §3's pocket law clamps the VIRGIN pocket grade to ≥ gradeMin; old-timer removal then scales it (§3.6 deplete).
+      const rm = an.removal[s * n + b] as number;
+      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg - rm)) * exp(rm);
+    }
+  }
+  const agg: AggregateInputs = {
+    n,
+    H,
+    weights: sol.weights,
+    muX,
+    cDiag: sum.cDiag,
+    expC: sum.expC,
+    alive,
+    pocketLambda,
+    pocketGrade,
+    confirmedOz: an.confirmedOz,
+    pocketBcyMean: P.pocketBcyMean,
+    pocketBcy2Mean: P.pocketBcy2Mean,
+    pocketGradeCv2: P.pocketGradeCv2,
+  };
+  const A = blockMeans(agg);
+  const contained = summarizeSet(agg, A, new Uint8Array(n).fill(1), 1);
+
+  // Size mix (§4.7): paystreak-centre coarse share from R50, non-coarse split from pooled masses (frozen at the
+  // anchor: an appended cleanup's sieved masses wait for the next anchor, §4.5.2).
+  const R50 = exp(an.coarse.mr);
   const pc = R50 / (1 + R50);
+  const ncShare = an.ncShare;
   const sizeMixP50: SizeRecord = {
     coarse: pc,
     medium: (1 - pc) * (ncShare[1] as number),
     fine: (1 - pc) * (ncShare[2] as number),
     ultrafine: (1 - pc) * (ncShare[3] as number),
   };
-  const gs = groundAndStats(model, samples);
   return {
     model,
-    samples,
+    samples: an.samples,
     hyps: sol.hyps,
-    evaluatedHypotheses,
+    evaluatedHypotheses: an.evaluatedHypotheses,
     weights: sol.weights,
     meanLnG: sol.meanLnG,
     CG,
     geo,
-    bed,
-    depl,
-    coarse: co,
-    fPost,
-    pStreak,
-    pBarren,
+    bed: an.bed,
+    depl: an.depl,
+    coarse: an.coarse,
+    fPost: sum.fPost,
+    pStreak: sum.pStreak,
+    pBarren: sum.pBarren,
     fRem,
     T50,
-    confirmedOz: pockets.confirmedOz,
+    confirmedOz: an.confirmedOz,
     sizeMixP50,
-    fineness: fineness(model, evidence),
-    ground: gs.ground,
-    stats: gs.stats,
+    fineness: finenessPosterior(model.priors.fineness, assays),
+    ground: an.ground,
+    stats: an.stats,
+    production: productionStats(n, production),
+    obShiftFt,
     agg,
     A,
     contained,
-    gradeQ: { p10, p50, p90 },
-    lnGMean,
-    lnGSd,
+    gradeQ: sum.gradeQ,
+    lnGMean: sum.lnGMean,
+    lnGSd: sum.lnGSd,
   };
+}
+
+/** The full solve of an evidence set at its current block state (P0's statistical layer; no incremental path). */
+export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): StatLayer {
+  const an = anchorSolve(model0, {
+    samples: evidence.samples,
+    records: evidence.records,
+    state: quantizeBlockState(evidence.blockState),
+  });
+  const sum = solveSummary(an, an.sol, an.CG);
+  return stateLayer(
+    an,
+    an.sol,
+    an.CG,
+    sum,
+    continuousState(an.model, evidence.blockState),
+    evidence.assays,
+    an.production,
+  );
 }

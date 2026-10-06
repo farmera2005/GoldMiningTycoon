@@ -26,7 +26,8 @@ export function canonicalEvidence(e: EvidenceSet): EvidenceSet {
 // hash. The small parts (block states, assays) are hashed as they are.
 const itemHashMemo = createWeakMemo<object, { readonly hash: string }>('knowledge.evidenceItemHash');
 
-function itemHash(x: object): string {
+/** Content hash of one immutable evidence item (sample or record finding), computed once per object. */
+export function itemHash(x: object): string {
   return itemHashMemo.getOrCompute(x, () => ({ hash: hashValue(x) })).hash;
 }
 

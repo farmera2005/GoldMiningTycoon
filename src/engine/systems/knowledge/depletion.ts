@@ -175,7 +175,7 @@ export function coarseDepletionMult(
 
 export function depletionModel(
   model: PriorModel,
-  evidence: EvidenceSet,
+  evidence: Pick<EvidenceSet, 'records'>,
   samples: readonly PreparedSample[],
   minedFrac: Float64Array,
   strippedFt: Float64Array,

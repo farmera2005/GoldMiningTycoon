@@ -3,7 +3,50 @@
 export type * from './types';
 export { CONFIDENCE_CLASSES, emptyKnowledgeSlice } from './types';
 export { estimatorParams, type EstimatorParams } from './params';
-export { estimateFromEvidence, statisticalEstimate, type EstimateContext } from './estimate';
+export {
+  anchoredStatisticalEstimate,
+  estimateAnchored,
+  estimateFromEvidence,
+  statisticalEstimate,
+  type EstimateContext,
+  type StatisticalEstimate,
+} from './estimate';
+export {
+  anchorTurn,
+  appendProduction,
+  FULL_SOLVE_ANCHOR_TURN,
+  frozenFullSolve,
+  fullSolveAnchor,
+  refreshAnchor,
+  splitAtAnchor,
+  takeAnchor,
+  type AppendedSolve,
+  type EstimateAnchor,
+} from './incremental';
+export {
+  auditChainRatio,
+  MIN_ATTRIBUTED_OZ,
+  prepareProduction,
+  productionEvidenceOf,
+  productionObservation,
+  productionRecords,
+  type CleanupResult,
+  type ModeledChain,
+  type PreparedProduction,
+  type ProductionEvidence,
+  type ProductionRecordDraft,
+  type RecordProductionInput,
+} from './production';
+export {
+  assayNEff,
+  cleanupAssay,
+  drawSampleAssay,
+  finenessPosterior,
+  sampleAssayDue,
+  sampleAssaySd,
+  type FinenessParams,
+} from './fineness';
+export { geologistOnClaim, quantizeBlockState, type AnchorBlockState } from './statistical';
 export { defaultPlanning, planningPrice } from './economic';
 export { classifyConfidence, type GateValues } from './confidence';
 export { canonicalEvidence, emptyEvidence, evidenceHash } from './evidence';

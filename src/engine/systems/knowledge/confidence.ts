@@ -121,10 +121,13 @@ export function confidence(stat: StatLayer, econ: EconLayer): ConfidenceResult {
   let c0 = 0;
   let c2 = 0;
   let bulkBlocks = 0;
+  let productionBcy = 0;
   for (const b of F) {
     if ((d[b] as number) === 0) c0++;
     if ((d[b] as number) <= c.inferredMaxRowGap) c2++;
-    if (stat.stats.bulk[b] === 1) bulkBlocks++;
+    // A contractor bulk sample or an own-fleet bulk-sample cleanup on the block (§4.8, §4.4.6).
+    if (stat.stats.bulk[b] === 1 || stat.production.bulkByBlock[b] === 1) bulkBlocks++;
+    productionBcy += stat.production.bcyByBlock[b] as number;
   }
   let processedBcy = 0;
   let bedrockSamples = 0;
@@ -139,6 +142,8 @@ export function confidence(stat: StatLayer, econ: EconLayer): ConfidenceResult {
       processedBcy += s.V;
     }
   }
+  // Production is pay run through a plant too (§4.8 processedBcy: "production included").
+  processedBcy += stat.production.totalBcy;
   const R50 = exp(stat.coarse.mr);
   const p50 = R50 / (1 + R50);
   const anyMinable = econ.blocks.minable.some((x) => x === 1);
@@ -152,14 +157,17 @@ export function confidence(stat: StatLayer, econ: EconLayer): ConfidenceResult {
     coarseSd: p50 * sqrt(stat.coarse.vr),
     processedBcy,
     bedrockSamples,
-    productionBcy: 0,
+    productionBcy,
     bulkBlocks,
   };
   const { cls, failing } = classifyConfidence(values, c);
   const blockClass: ConfidenceClass[] = [];
   for (let b = 0; b < n; b++) {
     const sd = stat.lnGSd[b] as number;
-    const big = (stat.stats.maxPaySampleBcy[b] as number) >= c.blockMeasuredMinSampleBcy;
+    // §4.8 block class: "a production or ≥ 100-bcy sample".
+    const big =
+      (stat.stats.maxPaySampleBcy[b] as number) >= c.blockMeasuredMinSampleBcy ||
+      (stat.production.bcyByBlock[b] as number) > 0;
     if (big && sd <= c.blockMaxLogSd.measured) blockClass.push('measured');
     else if ((stat.stats.bedrock[b] as number) > 0 && sd <= c.blockMaxLogSd.indicated) blockClass.push('indicated');
     else if ((d[b] as number) <= c.inferredMaxRowGap && sd <= c.blockMaxLogSd.inferred) blockClass.push('inferred');

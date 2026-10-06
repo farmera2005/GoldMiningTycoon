@@ -159,6 +159,16 @@ export interface EstimatorParams {
   readonly finenessAssaySd: number;
   readonly finenessParticleSd: number;
   readonly finenessProdSd: number;
+  /** Sample gold is assayed each time this much new sample gold has accumulated on a claim (§4.7 Fineness). */
+  readonly finenessAssayMinMg: number;
+  // Production reconciliation (§4.4.6) and the incremental path (§4.5.2).
+  readonly prodRecoveryLogSd: number;
+  readonly prodAttribLogSdOne: number;
+  readonly prodAttribLogSdSeveral: number;
+  readonly fullSolveEveryProdRows: number;
+  /** Old tailings piles (§4.7): prior median grade by era, oz/bcy, and §3's pile size mix. */
+  readonly tailingsPriorMedian: Readonly<Record<'handEra' | 'dozer' | 'dredge', number>>;
+  readonly pileMix: SizeRecord;
   readonly sellerVerifiedExtraLogSd: number;
   readonly workedLogOffset: Readonly<Record<DepletionKind, readonly [number, number]>>;
   readonly workedShare: Readonly<Record<DepletionKind, number>>;
@@ -291,6 +301,9 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
   const g = table(t, 'geology.planGroundMult');
   const terc = table(t, 'geology.planTercileValues');
   const blockSd = table(t, 'geology.confBlockMaxLogSd');
+  const attrib = table(t, 'geology.estProdAttribLogSd');
+  const pileMed = table(t, 'geology.recordsTailingsPriorMedian');
+  const pileMix = gp.oldTimer.pileMix;
   const recent = gp.oldTimer.kinds.recentCat.top;
   const body: Omit<EstimatorParams, 'key'> = {
     phys: gp.sample,
@@ -379,6 +392,17 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     finenessAssaySd: num(t, 'geology.estFinenessAssaySd'),
     finenessParticleSd: num(t, 'geology.estFinenessParticleSd'),
     finenessProdSd: num(t, 'geology.estFinenessProdSd'),
+    finenessAssayMinMg: num(t, 'geology.finenessAssayMinMg'),
+    prodRecoveryLogSd: num(t, 'geology.estProdRecoveryLogSd'),
+    prodAttribLogSdOne: field(attrib, 'oneBlock', 'geology.estProdAttribLogSd'),
+    prodAttribLogSdSeveral: field(attrib, 'severalBlocks', 'geology.estProdAttribLogSd'),
+    fullSolveEveryProdRows: num(t, 'geology.estFullSolveEveryProdRows'),
+    tailingsPriorMedian: {
+      handEra: field(pileMed, 'handEra', 'geology.recordsTailingsPriorMedian'),
+      dozer: field(pileMed, 'dozer', 'geology.recordsTailingsPriorMedian'),
+      dredge: field(pileMed, 'dredge', 'geology.recordsTailingsPriorMedian'),
+    },
+    pileMix: { coarse: pileMix[0], medium: pileMix[1], fine: pileMix[2], ultrafine: pileMix[3] },
     sellerVerifiedExtraLogSd: num(t, 'geology.estSellerVerifiedExtraLogSd'),
     workedLogOffset: {
       drift: pairField(off, 'drift', 'geology.recordsWorkedLogOffset'),

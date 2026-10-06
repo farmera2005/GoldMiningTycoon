@@ -147,6 +147,13 @@ export interface RowInfo {
   readonly vOther: number;
 }
 
+/** Shared error groups of the rows (§4.4.2, §4.4.6): each is one claim-level error its rows share. */
+export const GROUP_NONE = 0;
+export const GROUP_EXPOSURE = 1;
+export const GROUP_UPPER_PAY = 2;
+/** The claim's production recovery error, `prodRecovery:claimId` (estProdRecoveryLogSd², §4.4.6). */
+export const GROUP_PROD_RECOVERY = 3;
+
 export interface Rows {
   readonly R: number;
   /** Block of a grade row; −1 for the records row (claim mean only). */
@@ -155,12 +162,63 @@ export interface Rows {
   readonly pr: Float64Array;
   readonly y: Float64Array;
   readonly v: Float64Array;
-  /** Shared error group: 0 none, 1 the claim's exposure group, 2 the claim's upper-pay profile group. */
+  /** Shared error group (GROUP_*). */
   readonly group: Int8Array;
   readonly gv: Float64Array;
-  /** Variance of the claim-level error every sample row shares (estClaimSharedLogSd²). */
+  /**
+   * Variance of the claim-level error every SAMPLE row shares (estClaimSharedLogSd², §4.4.3): block and exposure
+   * composites, not the creek-history row and not production rows, which carry their own recovery error instead
+   * (capture, profile and lab errors of sampling do not touch a plant's cleanup).
+   */
   readonly common: number;
   readonly info: readonly (RowInfo | null)[];
+}
+
+/** Does row j carry the claim-shared sample error? */
+export function isSampleRow(rows: Rows, j: number): boolean {
+  return (rows.blk[j] as number) >= 0 && rows.group[j] !== GROUP_PROD_RECOVERY;
+}
+
+/** One production row of the posterior (§4.4.6): m + e_b with no coarse term. */
+export interface ProductionRowInput {
+  readonly blk: number;
+  readonly y: number;
+  readonly v: number;
+  /** estProdRecoveryLogSd²: the claim's shared recovery error. */
+  readonly shared: number;
+}
+
+/** `rows` with production rows appended, in the given order (each pass appends the same rows). */
+export function withProductionRows(rows: Rows, prod: readonly ProductionRowInput[]): Rows {
+  if (prod.length === 0) return rows;
+  const R = rows.R + prod.length;
+  const out = {
+    R,
+    blk: new Int32Array(R),
+    pr: new Float64Array(R),
+    y: new Float64Array(R),
+    v: new Float64Array(R),
+    group: new Int8Array(R),
+    gv: new Float64Array(R),
+    common: rows.common,
+    info: [...rows.info, ...prod.map(() => null)],
+  };
+  out.blk.set(rows.blk);
+  out.pr.set(rows.pr);
+  out.y.set(rows.y);
+  out.v.set(rows.v);
+  out.group.set(rows.group);
+  out.gv.set(rows.gv);
+  prod.forEach((p, i) => {
+    const j = rows.R + i;
+    out.blk[j] = p.blk;
+    out.pr[j] = 0;
+    out.y[j] = p.y;
+    out.v[j] = p.v;
+    out.group[j] = GROUP_PROD_RECOVERY;
+    out.gv[j] = p.shared;
+  });
+  return out;
 }
 
 interface RowDraft {
@@ -301,7 +359,15 @@ function composite(
     coarseBlockLogSd: P.coarseBlockLogSd,
   });
   if (o === null) return null;
-  return { blk: b, pr: ct.p[b] as number, y: o.y, v: o.v, group: o.shared > 0 ? 2 : 0, gv: o.shared, info: o.info };
+  return {
+    blk: b,
+    pr: ct.p[b] as number,
+    y: o.y,
+    v: o.v,
+    group: o.shared > 0 ? GROUP_UPPER_PAY : GROUP_NONE,
+    gv: o.shared,
+    info: o.info,
+  };
 }
 
 export interface PocketHits {
@@ -364,7 +430,7 @@ function recordsRow(model: PriorModel, records: readonly RecordFinding[]): RowDr
     log(P.historicGradeRatio) +
     (model.priors.logGradeMedian - log(model.tpl.gMed));
   const v = P.creekProdLogSd * P.creekProdLogSd + s.claim * s.claim;
-  return { blk: -1, pr: 0, y, v, group: 0, gv: 0, info: null };
+  return { blk: -1, pr: 0, y, v, group: GROUP_NONE, gv: 0, info: null };
 }
 
 export interface RowInputs {
@@ -407,7 +473,7 @@ export function buildRows(inp: RowInputs, gt: Float64Array, ct: CoarseTerms): Ro
     const list = exp_[b] as (typeof nonExp)[number];
     if (list.length > 0) {
       const r = composite(inp.model, inp.geo, list, b, gt[b] as number, ct, inp.ncShare);
-      if (r !== null) drafts.push({ ...r, group: 1 });
+      if (r !== null) drafts.push({ ...r, group: GROUP_EXPOSURE });
     }
   }
   const rec = recordsRow(inp.model, inp.records);
