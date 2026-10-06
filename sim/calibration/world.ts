@@ -1,9 +1,10 @@
-// `npm run calibrate:world -- [--worlds N] [--seed-base S] [--json path]` (DESIGN §3.7, §3.18; BALANCE T-01, T-02).
+// `npm run calibrate:world -- [--worlds N] [--seed-base S] [--tuning overrides.json] [--json path]` (DESIGN §3.7, §3.18;
+// BALANCE T-01, T-02). `--tuning` replaces base tuning values by key (one lever at a time, CLAUDE.md balance workflow).
 // Generates N two-district worlds (N northern and N arid districts; default 40 as in §3.7) with the full generator and
 // prints the class shares, grade, strip, pocket and coarse-gold statistics against the bands. Exits non-zero when a
 // gating band fails.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { baseTuning } from '../../src/data/tuning';
+import { baseTuning, type TuningResolved } from '../../src/data/tuning';
 import { snapshotGenParams } from '../../src/engine/systems/world';
 import { bandChecks, runCalibration, type ClassShares, type Percentiles, type TemplateStats } from './world-stats';
 
@@ -87,13 +88,24 @@ function report(s: TemplateStats): string[] {
   return lines;
 }
 
+/** Base tuning with the overrides file applied; unknown keys are an error (a typo would silently tune nothing). */
+function tuningFrom(file: string | undefined): TuningResolved {
+  if (file === undefined) return baseTuning;
+  const overrides = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  for (const key of Object.keys(overrides)) {
+    if (!Object.prototype.hasOwnProperty.call(baseTuning, key)) throw new Error(`--tuning: unknown tuning key ${key}`);
+  }
+  return { ...baseTuning, ...overrides } as TuningResolved;
+}
+
 function main(): void {
   const worlds = Number(arg('worlds') ?? 40);
   const seedBase = Number(arg('seed-base') ?? defaultSeedBase());
   const t0 = performance.now();
-  const result = runCalibration({ worlds, seedBase });
-  const gp = snapshotGenParams(baseTuning, []);
-  const checks = bandChecks(result, gp.prior.statusMult.listed);
+  const tuning = tuningFrom(arg('tuning'));
+  const result = runCalibration({ worlds, seedBase, tuning });
+  const gp = snapshotGenParams(tuning, []);
+  const checks = bandChecks(result, gp.prior.statusMult.listed, 0, gp.seller.honestyMix);
   const out: string[] = [
     `World calibration: ${worlds} two-district worlds (seed base ${seedBase}); mean generateWorld ${result.meanGenMs.toFixed(1)} ms, mean world slice ${result.meanWorldKb.toFixed(0)} kB; total ${((performance.now() - t0) / 1000).toFixed(1)} s`,
   ];
