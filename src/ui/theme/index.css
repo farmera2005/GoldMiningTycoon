@@ -84,19 +84,19 @@
 
   /* Type scale 12/13/14/16/20/24/32 px; line height 1.4 for text, 1.2 for headings. */
   --text-*: initial;
-  --text-12: 12px;
+  --text-12: calc(12px * var(--font-scale, 1));
   --text-12--line-height: 1.4;
-  --text-13: 13px;
+  --text-13: calc(13px * var(--font-scale, 1));
   --text-13--line-height: 1.4;
-  --text-14: 14px;
+  --text-14: calc(14px * var(--font-scale, 1));
   --text-14--line-height: 1.4;
-  --text-16: 16px;
+  --text-16: calc(16px * var(--font-scale, 1));
   --text-16--line-height: 1.2;
-  --text-20: 20px;
+  --text-20: calc(20px * var(--font-scale, 1));
   --text-20--line-height: 1.2;
-  --text-24: 24px;
+  --text-24: calc(24px * var(--font-scale, 1));
   --text-24--line-height: 1.2;
-  --text-32: 32px;
+  --text-32: calc(32px * var(--font-scale, 1));
   --text-32--line-height: 1.2;
 
   /* Radius 6 px for cards, 4 px for controls; one elevation shadow (popovers and the drawer). */

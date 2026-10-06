@@ -1,11 +1,15 @@
 // The top bar (DESIGN §13.1): chrome, 56 px. Grain covers only the brand block; the status cluster (date through
 // Advance) sits on flat chrome because it carries numbers (13.20, T28). P0 shows date, cash, save state and Advance;
 // season chips, liquidity, gold, the alert bell and Run arrive with their systems.
+import { useMemo } from 'react';
 import { uiConfig } from '../../data/tuning/ui';
 import { MenuIcon, Wordmark } from '../components/icons';
-import { routeHref } from './router';
-import type { ShellStatus } from './shellModel';
+import { Num } from '../explain/Num';
+import { advanceBlockOf } from '../engine/engineClient';
 import { useUi } from '../store/store';
+import { routeHref } from './router';
+import { useServices } from './services';
+import { shellStatus } from './shellModel';
 
 const COMPANY_MAX_CHARS = 28;
 
@@ -13,15 +17,13 @@ function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-export interface TopBarProps {
-  readonly status: ShellStatus | null;
-  readonly onAdvanceWeek: () => void;
-}
-
-export function TopBar({ status, onAdvanceWeek }: TopBarProps) {
+export function TopBar() {
+  const { client } = useServices();
   const navCollapsed = useUi((s) => s.navCollapsed);
   const setNavCollapsed = useUi((s) => s.setNavCollapsed);
-  const devReveal = useUi((s) => s.devReveal);
+  const game = useUi((s) => s.game);
+  const runStatus = useUi((s) => s.run.status);
+  const status = useMemo(() => shellStatus(game, advanceBlockOf(game.state, runStatus)), [game, runStatus]);
   const companyName = status?.company.name ?? 'Gold Mining Tycoon';
 
   return (
@@ -47,32 +49,39 @@ export function TopBar({ status, onAdvanceWeek }: TopBarProps) {
           {truncate(companyName, COMPANY_MAX_CHARS)}
         </span>
       </div>
-      {status?.company.entityBadge ? (
+      {status === null ? null : (
         <span className="my-auto rounded-control border border-chrome-ink-2 px-1.5 text-12 font-semibold text-chrome-ink-2">
           {status.company.entityBadge}
         </span>
-      ) : null}
+      )}
 
       <div className="ml-auto flex items-center gap-6 px-4 text-13" data-status-cluster="">
-        {import.meta.env.DEV && devReveal ? (
-          <span className="rounded-control border border-brass-on-chrome px-1.5 text-12 text-chrome-ink">
-            Reveal on
-          </span>
-        ) : null}
-        {status ? (
+        {status === null ? (
+          <a href={routeHref({ name: 'newGame' })} className="text-chrome-ink hover:underline">
+            New game
+          </a>
+        ) : (
           <>
-            <span className="text-chrome-ink" data-num="">
-              {status.date.label}
+            <span className="tabular-nums lining-nums text-chrome-ink" data-game-date="">
+              {status.date}
             </span>
             <span className="flex items-baseline gap-1.5">
               <span className="text-chrome-ink-2">Cash</span>
-              <span className="font-semibold text-chrome-ink" data-num="">
-                {status.cash.label}
-              </span>
+              <Num
+                value={status.cash.cents}
+                unit="cents"
+                explain={status.cash.explain}
+                label="Cash on hand"
+                className="font-semibold text-chrome-ink"
+              />
             </span>
-            <a href={routeHref({ name: 'saves' })} className="text-chrome-ink-2 hover:text-chrome-ink">
+            <a
+              href={routeHref({ name: 'saves' })}
+              className="text-chrome-ink-2 hover:text-chrome-ink"
+              data-save-state={status.save.kind}
+            >
               {status.save.kind === 'saved' ? (
-                <span data-num="">{status.save.label}</span>
+                <span className="tabular-nums lining-nums">{status.save.label}</span>
               ) : status.save.kind === 'unsaved' ? (
                 <span>
                   <span aria-hidden="true">{'● '}</span>Unsaved changes
@@ -84,17 +93,14 @@ export function TopBar({ status, onAdvanceWeek }: TopBarProps) {
             <button
               type="button"
               className="inline-flex h-8 items-center gap-2 rounded-control border border-chrome-ink-2 bg-accent px-3 font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-              title={status.advance.enabled ? status.advance.tooltip : status.advance.disabledReason}
+              title={status.advance.tooltip}
+              aria-keyshortcuts="Control+Enter"
               disabled={!status.advance.enabled}
-              onClick={onAdvanceWeek}
+              onClick={() => client.advance()}
             >
-              Advance <span aria-hidden="true">{'›'}</span>
+              {status.advance.label} {status.advance.enabled ? <span aria-hidden="true">{'›'}</span> : null}
             </button>
           </>
-        ) : (
-          <a href={routeHref({ name: 'newGame' })} className="text-chrome-ink hover:underline">
-            New game
-          </a>
         )}
       </div>
     </header>

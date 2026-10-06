@@ -1,57 +1,64 @@
-// Validation for the P0 new-game wizard stub (DESIGN §13.14; the full eight-step wizard and §1's NewGameSetup
-// validation codes arrive in P1). Pure, so it is tested without rendering.
-import type { NewGameInput } from '../../app/shellModel';
-import { assertNever } from '../../lib/assertNever';
+// The P0 new-game wizard stub (DESIGN §13.24 P0: company name + seed; §13.14's eight steps arrive in P1). The name is
+// validated by the engine's own `validateSetup` on the setup the stub will start (§1 1.6 codes, D-13.42); the seed is
+// a UI string the engine receives as is (D-13.28). Pure, so it is tested without rendering.
+import { NAME_MAX_LENGTH, defaultNewGameSetup, validateSetup, type SetupErrorCode } from '../../../engine';
+import type { NewGameInput } from '../../engine/engineClient';
+import { t } from '../../text';
 
-export type NewGameFieldError = 'NAME_REQUIRED' | 'NAME_TOO_LONG' | 'SEED_INVALID';
+export type SeedErrorCode = 'SEED_EMPTY' | 'SEED_TOO_LONG';
 
-export const COMPANY_NAME_MAX = 60;
+/** Seeds are free text the player may type or paste; this bound only keeps RNG keys and save summaries tidy. */
+export const SEED_MAX_LENGTH = 64;
+/** D-13.28: a 26-character base32 seed (130 bits). */
+export const SEED_LENGTH = 26;
+/** Crockford's base32 alphabet: no I, L, O or U, so a seed read aloud or retyped survives. */
+export const SEED_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 export interface NewGameDraft {
   readonly companyName: string;
   readonly seed: string;
 }
 
-export type NewGameValidation =
-  | { readonly ok: true; readonly input: NewGameInput }
-  | { readonly ok: false; readonly errors: Partial<Record<keyof NewGameDraft, NewGameFieldError>> };
+export interface NewGameErrors {
+  readonly companyName?: SetupErrorCode;
+  readonly seed?: SeedErrorCode;
+}
 
-/** Seeds are non-negative safe integers: RNG key parts must be strings or safe integers (§2.3). */
-export function parseSeed(text: string): number | null {
-  const t = text.trim();
-  if (!/^\d{1,16}$/.test(t)) return null;
-  const n = Number(t);
-  return Number.isSafeInteger(n) ? n : null;
+export type NewGameValidation =
+  { readonly ok: true; readonly input: NewGameInput } | { readonly ok: false; readonly errors: NewGameErrors };
+
+export function seedIssue(seed: string): SeedErrorCode | null {
+  const s = seed.trim();
+  if (s === '') return 'SEED_EMPTY';
+  if (s.length > SEED_MAX_LENGTH) return 'SEED_TOO_LONG';
+  return null;
 }
 
 export function validateNewGame(draft: NewGameDraft): NewGameValidation {
-  const name = draft.companyName.trim();
-  const seed = parseSeed(draft.seed);
-  const errors: Partial<Record<keyof NewGameDraft, NewGameFieldError>> = {};
-  if (name === '') errors.companyName = 'NAME_REQUIRED';
-  else if (name.length > COMPANY_NAME_MAX) errors.companyName = 'NAME_TOO_LONG';
-  if (seed === null) errors.seed = 'SEED_INVALID';
-  if (errors.companyName !== undefined || errors.seed !== undefined || seed === null) return { ok: false, errors };
-  return { ok: true, input: { companyName: name, seed } };
+  const companyName = draft.companyName.trim();
+  const issue = validateSetup(defaultNewGameSetup({ companyName })).find((i) => i.field === 'companyName');
+  const seed = seedIssue(draft.seed);
+  const errors: { companyName?: SetupErrorCode; seed?: SeedErrorCode } = {};
+  if (issue !== undefined) errors.companyName = issue.code;
+  if (seed !== null) errors.seed = seed;
+  if (errors.companyName !== undefined || errors.seed !== undefined) return { ok: false, errors };
+  return { ok: true, input: { companyName, seed: draft.seed.trim() } };
 }
 
-export function fieldErrorText(code: NewGameFieldError): string {
-  switch (code) {
-    case 'NAME_REQUIRED':
-      return 'Enter a company name.';
-    case 'NAME_TOO_LONG':
-      return `Keep the name to ${COMPANY_NAME_MAX} characters or fewer.`;
-    case 'SEED_INVALID':
-      return 'The seed must be a whole number from 0 to 9,007,199,254,740,991.';
-    default:
-      return assertNever(code);
-  }
+export function fieldErrorText(code: SetupErrorCode | SeedErrorCode): string {
+  if (code === 'NAME_TOO_LONG') return t('setup.NAME_TOO_LONG', { max: NAME_MAX_LENGTH });
+  if (code === 'SEED_TOO_LONG') return t('setup.SEED_TOO_LONG', { max: SEED_MAX_LENGTH });
+  return t(`setup.${code}`);
 }
 
-/** A fresh seed for the form's default; the UI may use browser randomness (the engine never does). */
-export function randomSeed(): number {
-  const words = new Uint32Array(1);
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') crypto.getRandomValues(words);
-  else words[0] = Math.floor(Math.random() * 0x1_0000_0000);
-  return words[0] ?? 0;
+/** Random bytes from the browser's CSPRNG; the UI may use ambient entropy, the engine never does (§2.3). */
+export type RandomBytes = (n: number) => Uint8Array;
+
+export const cryptoBytes: RandomBytes = (n) => crypto.getRandomValues(new Uint8Array(n));
+
+/** A fresh 26-character base32 seed. 256 is a multiple of 32, so the low five bits of each byte are uniform. */
+export function randomSeed(bytes: RandomBytes = cryptoBytes): string {
+  let out = '';
+  for (const b of bytes(SEED_LENGTH)) out += SEED_ALPHABET[b & 31];
+  return out;
 }

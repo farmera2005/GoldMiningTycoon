@@ -1,34 +1,35 @@
-// The application shell (DESIGN §13.1, §13.18 AppShell): top bar, left nav and the routed content area. Game data
-// and game actions come in through props (a typed placeholder model until the engine client is wired in), so the
-// shell holds no game logic.
-import type { SlotMeta } from '../../persistence';
+// The application shell (DESIGN §13.1, §13.18 AppShell): top bar, left nav, the routed content area, the explain
+// drawer and popover, toasts and the live region. Game state lives in the store and changes only through the engine
+// client, so the shell itself holds no game logic.
+import { useCallback } from 'react';
 import { assertNever } from '../lib/assertNever';
+import { ExplainLayer } from '../explain/ExplainLayer';
 import { DashboardScreen } from '../screens/dashboard/Screen';
 import { SavesScreen } from '../screens/saves/Screen';
 import { SettingsScreen } from '../screens/settings/Screen';
 import { NewGameScreen } from '../screens/setup/Screen';
-import { UiStoreProvider, type UiStore } from '../store/store';
+import { UiStoreProvider, useUi, type UiStore } from '../store/store';
+import { DevTruthBanner } from './DevTruth';
 import { LeftNav } from './LeftNav';
 import { navigate, routeHref, useRoute, type Route } from './router';
-import type { NewGameInput, SavesController, ShellStatus } from './shellModel';
+import { ServicesProvider, useServices, type AppServices } from './services';
+import { useGlobalShortcuts } from './shortcuts';
 import { ThemeRoot } from './ThemeRoot';
+import { LiveRegion, Toasts } from './Toasts';
 import { TopBar } from './TopBar';
 
 export interface AppProps {
   readonly store: UiStore;
-  /** The game as the shell shows it, or null when no game is loaded (the title screen). */
-  readonly status: ShellStatus | null;
-  /** `ui/advanceWeek` (13.21). */
-  readonly onAdvanceWeek: () => void;
-  readonly onNewGame: (input: NewGameInput) => void;
-  readonly saves: SavesController;
+  readonly services: AppServices;
 }
 
-export function App(props: AppProps) {
+export function App({ store, services }: AppProps) {
   return (
-    <UiStoreProvider store={props.store}>
-      <ThemeRoot />
-      <AppShell {...props} />
+    <UiStoreProvider store={store}>
+      <ServicesProvider services={services}>
+        <ThemeRoot />
+        <AppShell />
+      </ServicesProvider>
     </UiStoreProvider>
   );
 }
@@ -37,15 +38,13 @@ function focusMain(): void {
   document.getElementById('main')?.focus();
 }
 
-function AppShell({ status, onAdvanceWeek, onNewGame, saves }: AppProps) {
+function AppShell() {
   const route = useRoute();
-
-  const onContinue = (slot: SlotMeta): void => {
-    void saves.store.load(slot.slotId).then((result) => {
-      if (result.ok) saves.onLoaded(result.value);
-      else navigate({ name: 'saves' });
-    });
-  };
+  const { client } = useServices();
+  const drawerOpen = useUi((s) => s.explain.stack.length > 0);
+  const devReveal = useUi((s) => s.devReveal);
+  const toSaves = useCallback(() => navigate({ name: 'saves' }), []);
+  useGlobalShortcuts({ client, onQuickSaveWithoutSlot: toSaves });
 
   return (
     <div className="flex h-screen min-h-[720px] flex-col bg-surface-0 text-ink-1">
@@ -59,50 +58,38 @@ function AppShell({ status, onAdvanceWeek, onNewGame, saves }: AppProps) {
       <div className="narrow-banner border-b border-hairline bg-surface-2 px-4 py-1 text-13 text-ink-2" role="note">
         Best on a screen at least 1280 px wide
       </div>
-      <TopBar status={status} onAdvanceWeek={onAdvanceWeek} />
+      <TopBar />
+      {import.meta.env.DEV && devReveal ? <DevTruthBanner what="Dev reveal is on: hidden truth may show" /> : null}
       <div className="flex min-h-0 flex-1">
         <LeftNav route={route} />
-        <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none">
+        {/* 13.1: the drawer pushes the content at ≥ 1440 px and overlays it below. */}
+        <main
+          id="main"
+          tabIndex={-1}
+          className={`min-w-0 flex-1 overflow-auto outline-none ${drawerOpen ? 'min-[1440px]:mr-[440px]' : ''}`}
+        >
           <div className="mx-auto max-w-[1680px] p-6">
-            <RoutedScreen
-              route={route}
-              status={status}
-              saves={saves}
-              onContinue={onContinue}
-              onNewGame={(input) => {
-                onNewGame(input);
-                navigate({ name: 'dashboard' });
-              }}
-            />
+            <RoutedScreen route={route} />
           </div>
         </main>
       </div>
+      <ExplainLayer />
+      <Toasts />
+      <LiveRegion />
     </div>
   );
 }
 
-function RoutedScreen({
-  route,
-  status,
-  saves,
-  onContinue,
-  onNewGame,
-}: {
-  route: Route;
-  status: ShellStatus | null;
-  saves: SavesController;
-  onContinue: (slot: SlotMeta) => void;
-  onNewGame: (input: NewGameInput) => void;
-}) {
+function RoutedScreen({ route }: { route: Route }) {
   switch (route.name) {
     case 'dashboard':
-      return <DashboardScreen status={status} saveStore={saves.store} onContinue={onContinue} />;
+      return <DashboardScreen />;
     case 'saves':
-      return <SavesScreen controller={saves} />;
+      return <SavesScreen />;
     case 'settings':
       return <SettingsScreen />;
     case 'newGame':
-      return <NewGameScreen onNewGame={onNewGame} />;
+      return <NewGameScreen />;
     case 'notFound':
       return (
         <section className="rounded-card border border-hairline bg-surface-1 p-6">
