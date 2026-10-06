@@ -9,7 +9,17 @@ type Rec = Record<string, unknown>;
 
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-const ID_KEYED = ['tenures', 'listings', 'negotiations', 'auctions', 'interests', 'closings', 'diligence', 'stakings', 'jvs'];
+const ID_KEYED = [
+  'tenures',
+  'listings',
+  'negotiations',
+  'auctions',
+  'interests',
+  'closings',
+  'diligence',
+  'stakings',
+  'jvs',
+];
 
 export function landSliceProblem(slice: Readonly<Rec>): string | null {
   for (const store of ID_KEYED) {

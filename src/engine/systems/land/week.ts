@@ -12,7 +12,11 @@ import type { GameState, InitCtx } from '../../state/types';
 import type { StepContext } from '../../turn/types';
 import type { ListingCandidate } from '../world/types';
 
-export function createListings(_draft: GameState, _candidates: readonly ListingCandidate[], _opts: { initial: boolean }): void {
+export function createListings(
+  _draft: GameState,
+  _candidates: readonly ListingCandidate[],
+  _opts: { initial: boolean },
+): void {
   // CONTRACT-STUB(§5) land.createListings
 }
 

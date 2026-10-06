@@ -13,6 +13,11 @@ export function createLoan(_draft: GameState, _spec: LoanSpec): LoanId {
   throw new ContractStubError('finance.createLoan');
 }
 
-export function drawdownDeferredRevenue(_draft: GameState, _claimId: ClaimId, _settlement: Settlement, _turn: number): void {
+export function drawdownDeferredRevenue(
+  _draft: GameState,
+  _claimId: ClaimId,
+  _settlement: Settlement,
+  _turn: number,
+): void {
   // CONTRACT-STUB(§11) finance.drawdownDeferredRevenue
 }

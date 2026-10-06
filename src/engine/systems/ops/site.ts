@@ -43,7 +43,12 @@ export function pondFreeboardFrac(_state: GameState, _claimId: ClaimId): number 
 
 export function disturbance(_state: GameState, _claimId: ClaimId): DisturbanceLedger {
   // CONTRACT-STUB(§7) ops.disturbance
-  return { disturbedAcres: 0, reclaimedAcres: 0, openAcres: 0, byFeature: { block: 0, dump: 0, tailings: 0, pond: 0, site: 0, road: 0 } };
+  return {
+    disturbedAcres: 0,
+    reclaimedAcres: 0,
+    openAcres: 0,
+    byFeature: { block: 0, dump: 0, tailings: 0, pond: 0, site: 0, road: 0 },
+  };
 }
 
 /** §6's water-use reading (P2 consumer). */

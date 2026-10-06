@@ -224,15 +224,7 @@ export type {
 export type { Assignment, Candidate, Employee, ForemanInfo, Role, SupervisorKind } from './systems/staff/types';
 export type { CandidateView, EmployeeView, RosterRow } from './systems/staff/select';
 export type { PayOffer } from './systems/staff/actions';
-export type {
-  BrandId,
-  ClassId,
-  EquipmentListing,
-  Grade,
-  Machine,
-  MachineOption,
-  ModelId,
-} from './systems/fleet/types';
+export type { BrandId, ClassId, EquipmentListing, Grade, Machine, MachineOption, ModelId } from './systems/fleet/types';
 export type { EquipmentListingView, MachineView } from './systems/fleet/select';
 export type { ChannelQuote, GoldLot, LocalBuyer, StandingSaleOrder } from './systems/gold/types';
 export type { GoldLotView, LocalBuyerView } from './systems/gold/select';

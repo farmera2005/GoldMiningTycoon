@@ -51,7 +51,13 @@ export function rippleTwoSided(
 }
 
 /** base + ptsPerUnit × (goldIdx(t − lag) − 1), capped. */
-export function rippleAdd(_state: GameState, base: number, _ptsPerUnit: number, _lag: number, _cap: number): Calc<number> {
+export function rippleAdd(
+  _state: GameState,
+  base: number,
+  _ptsPerUnit: number,
+  _lag: number,
+  _cap: number,
+): Calc<number> {
   // CONTRACT-STUB(§10) gold.rippleAdd
   return calcResult(base, undefined);
 }

@@ -10,7 +10,10 @@ import type { ListingCandidate, ListingCloseOutcome } from './listingTypes';
 import type { SellerSituation, WorldSlice } from './types';
 
 /** The initial market's candidates (s03 #1 strata); the family run is excluded. */
-export function createInitialListings(world: WorldSlice, _r: Rng): { world: WorldSlice; candidates: ListingCandidate[] } {
+export function createInitialListings(
+  world: WorldSlice,
+  _r: Rng,
+): { world: WorldSlice; candidates: ListingCandidate[] } {
   // CONTRACT-STUB(§3) world.createInitialListings
   return { world, candidates: [] };
 }

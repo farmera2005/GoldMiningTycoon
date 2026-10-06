@@ -64,7 +64,11 @@ export function claimWater(state: GameState, claimId: ClaimId): ClaimWaterView {
 }
 
 /** §3.3.3 access cost factors of a claim, state form (cpiIndex is §10's: 1 until P5). */
-export function claimAccessFactors(state: GameState, claimId: ClaimId, ex: ExplainCtx = EXPLAIN_OFF): Calc<AccessFactors> {
+export function claimAccessFactors(
+  state: GameState,
+  claimId: ClaimId,
+  ex: ExplainCtx = EXPLAIN_OFF,
+): Calc<AccessFactors> {
   return accessFactors(state.world, claimId, 1, ex);
 }
 
@@ -79,7 +83,12 @@ export function districtMap(state: GameState, districtId: DistrictId): DistrictM
     outlet: { ...d.outletMi },
     creeks: [],
     routes: [],
-    town: { name: d.town.name, tier: d.town.tier, services: { ...d.town.services }, positionMi: { ...d.town.positionMi } },
+    town: {
+      name: d.town.name,
+      tier: d.town.tier,
+      services: { ...d.town.services },
+      positionMi: { ...d.town.positionMi },
+    },
     airstrips: [],
     overlays: [],
     claims: [],

@@ -286,7 +286,9 @@ export class GameObserver {
     // P1 rules write year Y's rollup in week 1 of year Y + 1 (s02 #9), after this week-52 close: until then the year
     // is read from §11's period net income through this turn (D-2.57).
     if (!carried) {
-      return yearNetIncomeCents(state, year) ?? netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn);
+      return (
+        yearNetIncomeCents(state, year) ?? netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn)
+      );
     }
     if (year !== endedYear) return null;
     return netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn);

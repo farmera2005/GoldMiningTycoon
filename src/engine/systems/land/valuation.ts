@@ -40,7 +40,11 @@ export function presentedAuthority(info: Pick<ListingInfo, 'permits'>): 'none' |
   }
 }
 
-export function valueClaimForPlayer(_state: GameState, _claimId: ClaimId, _terms?: SaleTerms | LeaseTerms): ClaimValuation {
+export function valueClaimForPlayer(
+  _state: GameState,
+  _claimId: ClaimId,
+  _terms?: SaleTerms | LeaseTerms,
+): ClaimValuation {
   // CONTRACT-STUB(§5) land.valueClaimForPlayer
   return { ...ZERO_VALUATION, breakdown: { ...ZERO_VALUATION.breakdown } };
 }
@@ -67,13 +71,20 @@ export function breakevenOz(_state: GameState, _claimId: ClaimId, _priceCents?: 
 }
 
 /** Sensitivity of the valuation to price, grade and cost (§13 tornado). */
-export function valueSensitivity(_state: GameState, _claimId: ClaimId): { key: string; lowCents: Cents; highCents: Cents }[] {
+export function valueSensitivity(
+  _state: GameState,
+  _claimId: ClaimId,
+): { key: string; lowCents: Cents; highCents: Cents }[] {
   // CONTRACT-STUB(§5) land.valueSensitivity
   return [];
 }
 
 /** A buyer's view of a held claim (s05 #12). */
-export function buyerClaimView(_state: GameState, _tenureId: TenureId, _disclosure: 'none' | 'summary' | 'full'): BuyerClaimView {
+export function buyerClaimView(
+  _state: GameState,
+  _tenureId: TenureId,
+  _disclosure: 'none' | 'summary' | 'full',
+): BuyerClaimView {
   // CONTRACT-STUB(§5) land.buyerClaimView
   return { minableOzP50: 0, valueCents: ZERO_CENTS };
 }
@@ -85,7 +96,11 @@ export function quickSaleQuote(_state: GameState, _tenureId: TenureId): Cents {
 }
 
 /** The preview of accepting a listing's ask (S13-9). */
-export function previewOffer(_state: GameState, _listingId: ClaimListingId, _structure: 'sale' | 'lease'): OfferPreview {
+export function previewOffer(
+  _state: GameState,
+  _listingId: ClaimListingId,
+  _structure: 'sale' | 'lease',
+): OfferPreview {
   // CONTRACT-STUB(§5) land.previewOffer
   return {
     cashAtCloseCents: ZERO_CENTS,

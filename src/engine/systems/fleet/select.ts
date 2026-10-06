@@ -56,7 +56,11 @@ function machine(state: GameState, machineId: MachineId): MachineView | null {
 
 function equipmentListings(state: GameState, districtId?: DistrictId): EquipmentListingView[] {
   return sortedValues(state.fleet.listings)
-    .filter((l) => districtId === undefined || (l.location.kind !== 'claim' && l.location.kind !== 'transit' && l.location.id === districtId))
+    .filter(
+      (l) =>
+        districtId === undefined ||
+        (l.location.kind !== 'claim' && l.location.kind !== 'transit' && l.location.id === districtId),
+    )
     .map(equipmentListingView);
 }
 

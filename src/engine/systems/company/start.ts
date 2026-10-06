@@ -13,6 +13,7 @@ import { resolveTuning, tuningNumber, type TuningOverrides } from '../../state/t
 import type { GameState, InitCtx, RulesPhase } from '../../state/types';
 import type { WeekCalendar } from '../../turn/types';
 import { postInto } from '../finance/ledger';
+import { openingFinance } from '../finance/opening';
 import { addFamilyRecords } from '../knowledge/family';
 import { genInheritedGroup } from '../world/inheritor';
 import type { CompanySlice, InheritorStreams, OwnerItem, StartPreview } from './types';
@@ -150,7 +151,10 @@ function setStartValues(draft: GameState): void {
 export function startSetup(draft: GameState, _init: InitCtx): void {
   // CONTRACT-STUB(§1) company.startSetup (Backed, Inheritor and the Banker stub loan)
   postBootstrapperCapital(draft);
-  if (rulesAtLeast(draft, 1)) setStartValues(draft);
+  if (rulesAtLeast(draft, 1)) {
+    setStartValues(draft);
+    openingFinance(draft);
+  }
 }
 
 /**

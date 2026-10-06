@@ -7,7 +7,11 @@ import type { GameState } from '../../state/types';
 import type { CleanupResult } from '../ops/types';
 import type { StepContext } from '../../turn/types';
 
-export function onBlockStripped(_draft: GameState, _ctx: StepContext, _at: { claimId: ClaimId; blockId: BlockId }): void {
+export function onBlockStripped(
+  _draft: GameState,
+  _ctx: StepContext,
+  _at: { claimId: ClaimId; blockId: BlockId },
+): void {
   // P1: no in-step events.
 }
 

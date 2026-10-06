@@ -89,6 +89,7 @@ export function qEmployee(state: GameState, employeeId: EmployeeId): EffectQuery
   const claimId = assignmentClaim(state, e.assignment);
   if (claimId !== null) return { districtId: districtOfClaim(state, claimId), claimId, employeeId };
   const a = e.assignment;
-  const districtId = a.kind === 'district' || (a.kind === 'shop' && a.mode === 'pool') ? a.districtId : e.homeDistrictId;
+  const districtId =
+    a.kind === 'district' || (a.kind === 'shop' && a.mode === 'pool') ? a.districtId : e.homeDistrictId;
   return { districtId, employeeId };
 }

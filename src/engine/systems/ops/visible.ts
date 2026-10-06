@@ -7,7 +7,11 @@ import type { GameState } from '../../state/types';
 import type { SizeRecord } from '../world/enums';
 import type { MinePlan, OpsProjection, PlantLine, ProductionForecast, WhatIfHint } from './types';
 
-export function projectOpsVisible(_state: GameState, _claimId: ClaimId, _planOverride?: MinePlan): OpsProjection | null {
+export function projectOpsVisible(
+  _state: GameState,
+  _claimId: ClaimId,
+  _planOverride?: MinePlan,
+): OpsProjection | null {
   // CONTRACT-STUB(§7) ops.projectOpsVisible
   return null;
 }

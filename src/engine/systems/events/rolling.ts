@@ -20,7 +20,10 @@ export function windowBase(_annualProb: number, _frequencyMult: number, _windowW
 }
 
 /** w'_k = w_k · s^k / Σ_j w_j · s^j (12.2). */
-export function tiltSeverity(weights: readonly [number, number, number, number], _s: number): [number, number, number, number] {
+export function tiltSeverity(
+  weights: readonly [number, number, number, number],
+  _s: number,
+): [number, number, number, number] {
   // CONTRACT-STUB(§12) events.tiltSeverity
   return [weights[0], weights[1], weights[2], weights[3]];
 }

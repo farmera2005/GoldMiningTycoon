@@ -59,7 +59,9 @@ function checkAgainstRegistry(m: EffectModifier): void {
   }
   const bounds = m.op === 'mul' ? hook.mulBounds : m.op === 'add' ? hook.addBounds : hook.setBounds;
   if (bounds !== undefined && (m.value < bounds[0] || m.value > bounds[1])) {
-    throw new ModifierError(`modifier ${m.id}: ${m.op} ${m.value} outside ${m.target}'s bounds [${bounds[0]}, ${bounds[1]}]`);
+    throw new ModifierError(
+      `modifier ${m.id}: ${m.op} ${m.value} outside ${m.target}'s bounds [${bounds[0]}, ${bounds[1]}]`,
+    );
   }
 }
 

@@ -22,7 +22,11 @@ export function periodNetIncome(state: GameState, fromTurn: number, toTurn: numb
   return periodTotals(state.finance, fromTurn, toTurn).netIncomeCents;
 }
 
-export function queryLedger(_state: GameState, _filter: LedgerFilter, _page: { offset: number; limit: number }): LedgerPage {
+export function queryLedger(
+  _state: GameState,
+  _filter: LedgerFilter,
+  _page: { offset: number; limit: number },
+): LedgerPage {
   // CONTRACT-STUB(§11) finance.queryLedger
   return { rows: [], summaries: [], total: 0, netCents: ZERO_CENTS };
 }

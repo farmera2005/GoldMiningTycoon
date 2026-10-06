@@ -62,7 +62,10 @@ export interface SellerClaimSummary {
 
 /** §3.9 a listing's water as shown. */
 export type ListingWater = (
-  | { readonly kind: 'creek'; readonly flowGpm: { readonly early: number; readonly mid: number; readonly late: number } }
+  | {
+      readonly kind: 'creek';
+      readonly flowGpm: { readonly early: number; readonly mid: number; readonly late: number };
+    }
   | {
       readonly kind: 'arid';
       readonly springGpm: number | null;
@@ -185,12 +188,7 @@ export interface ClaimAccess {
 
 /** §3.11 why a listing closed (`onListingClosed`). */
 export type ListingCloseOutcome =
-  | 'expired'
-  | 'withdrawn'
-  | 'soldOffscreen'
-  | 'soldToPlayer'
-  | 'leasedToPlayer'
-  | 'soldToCompetitor';
+  'expired' | 'withdrawn' | 'soldOffscreen' | 'soldToPlayer' | 'leasedToPlayer' | 'soldToCompetitor';
 
 /**
  * §3.6.1 the Inheritor's family records, from §3 to §4 (contract): the run's claims, the optimistic family ledger, the

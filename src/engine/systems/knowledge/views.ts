@@ -3,7 +3,14 @@
 // Until §4's view package wires the estimator to state, every claim reads as having no estimate.
 import type { ClaimId, ClaimListingId } from '../../core/ids';
 import type { GameState } from '../../state/types';
-import type { BlockEstimate, ClaimEstimate, DecisionContext, EstimateVerdict, SellerCheckStatus, SellerFlag } from './types';
+import type {
+  BlockEstimate,
+  ClaimEstimate,
+  DecisionContext,
+  EstimateVerdict,
+  SellerCheckStatus,
+  SellerFlag,
+} from './types';
 
 /** The player's estimate of a claim (memoized by evidence hash), or null with no evidence model yet. */
 export function knownEstimate(_state: GameState, _claimId: ClaimId): ClaimEstimate | null {
@@ -17,7 +24,12 @@ export function blockEstimates(_state: GameState, _claimId: ClaimId): BlockEstim
 }
 
 /** The q-quantile of contained or minable ounces. */
-export function percentileOz(_state: GameState, _claimId: ClaimId, _q: number, _which: 'contained' | 'minable'): number {
+export function percentileOz(
+  _state: GameState,
+  _claimId: ClaimId,
+  _q: number,
+  _which: 'contained' | 'minable',
+): number {
   // CONTRACT-STUB(§4) knowledge.percentileOz
   return 0;
 }

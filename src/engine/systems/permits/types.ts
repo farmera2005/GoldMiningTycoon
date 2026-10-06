@@ -53,7 +53,8 @@ export type ObligationConsequenceKind =
   | 'gateCloses'
   | 'default';
 
-export type ObligationStatus = 'upcoming' | 'due' | 'satisfied' | 'missed' | 'waived' | 'cancelled' | 'cured' | 'inPlan';
+export type ObligationStatus =
+  'upcoming' | 'due' | 'satisfied' | 'missed' | 'waived' | 'cancelled' | 'cured' | 'inPlan';
 
 export type ObligationSatisfiedVia = 'payment' | 'filing' | 'work' | 'autoPay' | 'autoFile';
 
@@ -96,7 +97,10 @@ export interface Obligation {
   satisfiedTurn?: number;
   satisfiedVia?: ObligationSatisfiedVia;
   ledgerTxnIds?: TxnId[];
-  recurrence?: { kind: 'annualWeek'; week: number } | { kind: 'everyWeeks'; weeks: number } | { kind: 'anniversary'; baseTurn: number };
+  recurrence?:
+    | { kind: 'annualWeek'; week: number }
+    | { kind: 'everyWeeks'; weeks: number }
+    | { kind: 'anniversary'; baseTurn: number };
 }
 
 /** What a creator passes to `createObligation`: the store assigns the id and the lifecycle fields. */
@@ -122,23 +126,8 @@ export function emptyPermitSlice(): PermitSlice {
 
 /** §6.7 disturbance types §7 reports and §6 bonds (6.7 RCE). */
 export type DisturbanceType =
-  | 'explorationPit'
-  | 'stripped'
-  | 'minedPit'
-  | 'pond'
-  | 'road'
-  | 'campPad'
-  | 'wasteDump'
-  | 'tailings';
+  'explorationPit' | 'stripped' | 'minedPit' | 'pond' | 'road' | 'campPad' | 'wasteDump' | 'tailings';
 
 /** §6.18 P1 activity kinds `activityAllowed` answers for (every one allowed in P1). */
 export type ActivityKind =
-  | 'handSample'
-  | 'handSluice'
-  | 'mechSample'
-  | 'bulkSample'
-  | 'drill'
-  | 'strip'
-  | 'mine'
-  | 'process'
-  | 'reclaim';
+  'handSample' | 'handSluice' | 'mechSample' | 'bulkSample' | 'drill' | 'strip' | 'mine' | 'process' | 'reclaim';

@@ -8,7 +8,10 @@ import { compareIds, nextId, type ObligationId, type TxnId } from '../../core/id
 import { insertSortedId, sortedValues } from '../../core/iter';
 import type { GameState } from '../../state/types';
 import { cloneJson } from '../../state/immutability';
-import { onObligationCancelled as financeOnCancelled, onObligationSatisfied as financeOnSatisfied } from '../finance/obligations';
+import {
+  onObligationCancelled as financeOnCancelled,
+  onObligationSatisfied as financeOnSatisfied,
+} from '../finance/obligations';
 import { onObligationSatisfied as landOnSatisfied } from '../land/tenure';
 import type { Obligation, ObligationFilter, ObligationSatisfiedVia, ObligationSpec } from './types';
 

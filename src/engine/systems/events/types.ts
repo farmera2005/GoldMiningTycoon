@@ -28,7 +28,8 @@ export type EventCategory =
   | 'finance'
   | 'market'
   | 'opportunity';
-export type ScopeKind = 'world' | 'regime' | 'district' | 'claim' | 'machine' | 'employee' | 'lender' | 'location' | 'company';
+export type ScopeKind =
+  'world' | 'regime' | 'district' | 'claim' | 'machine' | 'employee' | 'lender' | 'location' | 'company';
 
 /** A catalog event id (data/events/catalog.ts). */
 export type EventId = string;

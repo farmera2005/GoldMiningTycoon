@@ -39,7 +39,15 @@ export function availableFraction(_state: GameState, _who: EmployeeId | 'owner',
 /** §8.12 the supervisor of a claim's line (L1 = the claim's senior supervisor), from step 7's supervision records. */
 export function foremanFor(_state: GameState, _claimId: ClaimId, _lineId: LineId = 'L1'): ForemanInfo {
   // CONTRACT-STUB(§8) staff.foremanFor
-  return { kind: 'none', empId: null, skill: 0, shownSkill: { lo: 0, hi: 0 }, safety: 0, leadHandWeeks: 0, lineIds: [] };
+  return {
+    kind: 'none',
+    empId: null,
+    skill: 0,
+    shownSkill: { lo: 0, hi: 0 },
+    safety: 0,
+    leadHandWeeks: 0,
+    lineIds: [],
+  };
 }
 
 /** The supervisor kind a plan would get (s07 #4: pending assignments and the small-crew test), for §7's validators. */

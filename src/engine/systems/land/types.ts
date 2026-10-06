@@ -38,14 +38,7 @@ export type TenureKind = 'ownedUnpatented' | 'staked' | 'ownedPatented' | 'owned
 
 /** The one enum §5 and §6 share (onTenureEnded, 5.14). */
 export type TenureEndReason =
-  | 'sold'
-  | 'relinquished'
-  | 'forfeited'
-  | 'terminated'
-  | 'foreclosed'
-  | 'void'
-  | 'voidedByExam'
-  | 'converted';
+  'sold' | 'relinquished' | 'forfeited' | 'terminated' | 'foreclosed' | 'void' | 'voidedByExam' | 'converted';
 
 /** A §6 obligation attached to a tenure. */
 export type ObligationRef = ObligationId;
@@ -235,14 +228,7 @@ export interface Listing {
   /** What the seller will entertain. */
   structures: { sale?: SaleTerms; lease?: LeaseTerms; jv?: JvTerms };
   statedReason:
-    | 'testingMarket'
-    | 'retiring'
-    | 'movingOn'
-    | 'needsCash'
-    | 'health'
-    | 'estate'
-    | 'trusteeSale'
-    | 'refocusing';
+    'testingMarket' | 'retiring' | 'movingOn' | 'needsCash' | 'health' | 'estate' | 'trusteeSale' | 'refocusing';
   disclosedIssues: TitleDefectPublic[];
   weeksOnMarket: number;
   priceReducedCount: number;
@@ -383,7 +369,13 @@ export interface Negotiation {
     | 'expired'
     | 'lostToRival'
     | 'withdrawn';
-  history: { turn: number; by: 'player' | 'counterparty'; terms: Terms; outcome?: NegotiationOutcome; tone?: NegotiationTone }[];
+  history: {
+    turn: number;
+    by: 'player' | 'counterparty';
+    terms: Terms;
+    outcome?: NegotiationOutcome;
+    tone?: NegotiationTone;
+  }[];
 }
 
 /** §5.12 production interests (D-5.27): royalties, JV splits, streams, the Backed royalty, government royalties. */
@@ -463,7 +455,10 @@ export interface LandSlice {
   stakingIds: StakingJobId[];
   jvs: Record<JvId, JvAgreement>;
   jvIds: JvId[];
-  sellerMemory: Record<SellerKey, { walkedTurn?: number; lowballWalks: number; lapsedListings: Record<ClaimId, number> }>;
+  sellerMemory: Record<
+    SellerKey,
+    { walkedTurn?: number; lowballWalks: number; lapsedListings: Record<ClaimId, number> }
+  >;
   pendingTrueUps: CashAccrual[];
 }
 

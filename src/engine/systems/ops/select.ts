@@ -11,7 +11,17 @@ import type { ClaimOps, MinePlan, TailingsAuditReport, WeekOpsResult, Well } fro
 /** The visible view of a claim's operations. */
 export type ClaimOpsView = Pick<
   ClaimOps,
-  'claimId' | 'plan' | 'site' | 'siteTask' | 'rehandleBcy' | 'workOrders' | 'disturbance' | 'auditReports' | 'payDugLast4' | 'status' | 'leftTurn'
+  | 'claimId'
+  | 'plan'
+  | 'site'
+  | 'siteTask'
+  | 'rehandleBcy'
+  | 'workOrders'
+  | 'disturbance'
+  | 'auditReports'
+  | 'payDugLast4'
+  | 'status'
+  | 'leftTurn'
 > & {
   season: Omit<ClaimOps['season'], never>;
   wells: Well[];

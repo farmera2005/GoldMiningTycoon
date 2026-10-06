@@ -184,7 +184,13 @@ export interface Employee {
   rotationOffset: 0 | 1 | 2 | 3;
   returnTurn: number | null;
   bonus: { accruedCents: Cents; vestTurn: number | null };
-  last8: { paidHours: number; straightEqHours: number; baseCents: Cents; goldShareCents: Cents; bonusAccrualCents: Cents }[];
+  last8: {
+    paidHours: number;
+    straightEqHours: number;
+    baseCents: Cents;
+    goldShareCents: Cents;
+    bonusAccrualCents: Cents;
+  }[];
   consecutiveNoDayOffWeeks: number;
   weeksOnSite: number;
   recall: { laidOffTurn: number; moraleAtLayoff: number; lastBonusPaidInFull: boolean } | null;

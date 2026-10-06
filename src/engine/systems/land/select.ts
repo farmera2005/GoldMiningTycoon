@@ -71,7 +71,9 @@ function tenureOfView(state: GameState, claimId: ClaimId): TenureView | null {
 function productionInterests(state: GameState, claimId?: ClaimId): ProductionInterest[] {
   const all = sortedValues(state.land.interests);
   if (claimId === undefined) return all;
-  return all.filter((pi) => pi.claimId === claimId || (pi.claimId === undefined && !pi.excludedClaimIds.includes(claimId)));
+  return all.filter(
+    (pi) => pi.claimId === claimId || (pi.claimId === undefined && !pi.excludedClaimIds.includes(claimId)),
+  );
 }
 
 export const landSelectors = {

@@ -23,7 +23,9 @@ function upcomingObligations(state: GameState, weeks: number): Obligation[] {
 
 /** Open obligations of every age (missed ones included), for the compliance calendar's overdue list. */
 function openObligations(state: GameState): Obligation[] {
-  return sortedValues(state.permits.obligations).filter((o) => o.status === 'upcoming' || o.status === 'due' || o.status === 'missed');
+  return sortedValues(state.permits.obligations).filter(
+    (o) => o.status === 'upcoming' || o.status === 'due' || o.status === 'missed',
+  );
 }
 
 export const permitsSelectors = {

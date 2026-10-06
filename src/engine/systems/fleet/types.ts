@@ -78,9 +78,11 @@ export type LocationRef =
   | { kind: 'town'; id: DistrictId }
   | { kind: 'transit'; id: TransportJobId };
 
-export type Channel = 'dealerNew' | 'dealerCertified' | 'private' | 'auction' | 'inherited' | 'rental' | 'rentToOwn' | 'lease';
+export type Channel =
+  'dealerNew' | 'dealerCertified' | 'private' | 'auction' | 'inherited' | 'rental' | 'rentToOwn' | 'lease';
 
-export type MachineStatus = 'working' | 'idle' | 'down' | 'inShop' | 'inTransit' | 'rentedOut' | 'assembling' | 'destroyed';
+export type MachineStatus =
+  'working' | 'idle' | 'down' | 'inShop' | 'inTransit' | 'rentedOut' | 'assembling' | 'destroyed';
 export type DownReason = 'failure' | 'waitingParts' | 'damage' | 'lenderLockout' | 'grounded' | 'stolen' | 'fire';
 export type Acquisition = 'owned' | 'financed' | 'operatingLease' | 'financeLease' | 'rental' | 'rentToOwn';
 

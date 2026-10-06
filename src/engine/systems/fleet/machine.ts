@@ -25,7 +25,12 @@ export function machineEffectiveRate(
 }
 
 /** 9.7.6 gal/hr at a load factor, brand fuel and cold multipliers, `fleet.fuelBurnMult`. */
-export function fuelBurnGalHr(_m: Machine, _loadFactor: number, _ctx: { tempBand: TempBand }, _ex: ExplainCtx): Calc<number> {
+export function fuelBurnGalHr(
+  _m: Machine,
+  _loadFactor: number,
+  _ctx: { tempBand: TempBand },
+  _ex: ExplainCtx,
+): Calc<number> {
   // CONTRACT-STUB(§9) fleet.fuelBurnGalHr
   return calcResult(0, undefined);
 }

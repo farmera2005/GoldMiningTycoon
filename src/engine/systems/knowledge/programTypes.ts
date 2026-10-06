@@ -26,7 +26,8 @@ import type { ConfidenceClass, MethodId, PlanningAssumptions, ReviewerRef } from
 /** A text template key (§13's catalogs render it). */
 export type TemplateKey = string;
 
-export type SellerCheckStatus = 'unchecked' | 'consistent' | 'questionable' | 'implausible' | 'verified' | 'contradicted';
+export type SellerCheckStatus =
+  'unchecked' | 'consistent' | 'questionable' | 'implausible' | 'verified' | 'contradicted';
 
 export type SellerFlag =
   | 'gradeImplausible'
@@ -69,9 +70,7 @@ export type SampleTarget =
   | { kind: 'line'; fromBlockId: BlockId; toBlockId: BlockId };
 
 export type GeologistRef =
-  | { kind: 'owner' }
-  | { kind: 'staff'; employeeId: EmployeeId }
-  | { kind: 'consultant'; engagementId: EngagementId };
+  { kind: 'owner' } | { kind: 'staff'; employeeId: EmployeeId } | { kind: 'consultant'; engagementId: EngagementId };
 
 /** §4.11 a value-of-information hint. */
 export interface VoiHint {
@@ -108,13 +107,7 @@ export interface EstimateVerdict {
   contextKind?: 'buy' | 'develop';
   contextSource?: 'default' | 'player';
   biggestUnknown:
-    | 'creekBarren'
-    | 'records'
-    | 'unsampledGround'
-    | 'paystreakEdges'
-    | 'coarseGold'
-    | 'depthToBedrock'
-    | 'none';
+    'creekBarren' | 'records' | 'unsampledGround' | 'paystreakEdges' | 'coarseGold' | 'depthToBedrock' | 'none';
   text: TemplateKey;
 }
 

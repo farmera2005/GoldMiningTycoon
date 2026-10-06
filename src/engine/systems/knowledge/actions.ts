@@ -7,20 +7,18 @@
 // (BLOCK_BEING_MINED, s07 #26); open ground allows records reviews only (s04 #7).
 import { stubActionDef } from '../../actions/stub';
 import type { ActionDef } from '../../actions/types';
-import type {
-  ClaimId,
-  ClaimListingId,
-  ContractorId,
-  CreekId,
-  EmployeeId,
-  MachineId,
-  ProgramId,
-} from '../../core/ids';
+import type { ClaimId, ClaimListingId, ContractorId, CreekId, EmployeeId, MachineId, ProgramId } from '../../core/ids';
 import type { Cents } from '../../core/money';
 import type { GeologistRef, MethodId, PlanningAssumptions, ReviewerRef, SampleTarget } from './types';
 
 export type ProspectAction =
-  | { type: 'prospect/panSurvey'; claimId: ClaimId; people: (EmployeeId | 'owner')[]; stations: number; ownerTime?: 'queue' | 'now' }
+  | {
+      type: 'prospect/panSurvey';
+      claimId: ClaimId;
+      people: (EmployeeId | 'owner')[];
+      stations: number;
+      ownerTime?: 'queue' | 'now';
+    }
   | {
       type: 'prospect/createProgram';
       claimId: ClaimId;
@@ -102,4 +100,8 @@ export const KNOWLEDGE_ERROR_CODES = [
 ] as const satisfies readonly string[];
 
 /** `NOT_IN_SEASON` and `PERMIT_REQUIRED` are warnings on createProgram (the program waits). */
-export const KNOWLEDGE_WARNING_CODES = ['DESK_DAYS_QUEUED', 'NOT_IN_SEASON', 'PERMIT_REQUIRED'] as const satisfies readonly string[];
+export const KNOWLEDGE_WARNING_CODES = [
+  'DESK_DAYS_QUEUED',
+  'NOT_IN_SEASON',
+  'PERMIT_REQUIRED',
+] as const satisfies readonly string[];

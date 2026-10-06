@@ -44,7 +44,12 @@ function scaleDebits(lines: readonly PostingLine[], paid: Cents): PostingLine[] 
   const out: PostingLine[] = [];
   lines.forEach((l, i) => {
     const amount = parts[i] as Cents;
-    if (amount > 0) out.push(l.dims === undefined ? { account: l.account, debit: amount } : { account: l.account, debit: amount, dims: l.dims });
+    if (amount > 0)
+      out.push(
+        l.dims === undefined
+          ? { account: l.account, debit: amount }
+          : { account: l.account, debit: amount, dims: l.dims },
+      );
   });
   return out;
 }

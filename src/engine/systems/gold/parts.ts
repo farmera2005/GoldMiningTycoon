@@ -14,4 +14,6 @@ export const GOLD_PARTS: readonly PipelinePart[] = [
   mutatorPart({ id: 'gold.wrapUp', step: 16, order: 11, section: 10, fromPhase: 1 }, wrapUp),
 ];
 
-export const GOLD_INIT_PARTS: readonly InitPart[] = [initPart({ id: 'gold.init', order: 7, section: 10, fromPhase: 1 }, init)];
+export const GOLD_INIT_PARTS: readonly InitPart[] = [
+  initPart({ id: 'gold.init', order: 7, section: 10, fromPhase: 1 }, init),
+];

@@ -187,7 +187,12 @@ export interface Bill {
   feesCents: Cents;
 }
 
-export type PayResult = { status: 'paid' | 'partial' | 'failed'; paidCents: Cents; shortfallCents: Cents; txnIds: TxnId[] };
+export type PayResult = {
+  status: 'paid' | 'partial' | 'failed';
+  paidCents: Cents;
+  shortfallCents: Cents;
+  txnIds: TxnId[];
+};
 
 export interface PaymentRequest {
   payee: PayeeRef;
@@ -320,13 +325,7 @@ export type ProductId =
 export type Tier = 'A' | 'B' | 'C' | 'D';
 
 export type PaymentScheduleKind =
-  | 'level'
-  | 'skip'
-  | 'seasonal'
-  | 'interestOnlyOffSeason'
-  | 'interestOnly'
-  | 'weeklyDebit'
-  | 'revolving';
+  'level' | 'skip' | 'seasonal' | 'interestOnlyOffSeason' | 'interestOnly' | 'weeklyDebit' | 'revolving';
 
 export type LoanStatus =
   | 'current'
@@ -865,7 +864,13 @@ export interface PendingWeekCosts {
 export interface DistressStatusP1 {
   stage: 0 | 1 | 2 | 3;
   stageKey: 'none' | 'lateVendors' | 'missedLoan' | 'missedPayroll';
-  p1Counter: { open: boolean; openSinceTurn: number | null; weeksOpen: number; graceWeeks: number; netCashCents: Cents };
+  p1Counter: {
+    open: boolean;
+    openSinceTurn: number | null;
+    weeksOpen: number;
+    graceWeeks: number;
+    netCashCents: Cents;
+  };
   counterMoves: {
     kind: 'sellGold' | 'quickSellClaim' | 'sellIron' | 'injectEquity' | 'injectLoan';
     valueCents: Cents;

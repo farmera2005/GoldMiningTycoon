@@ -14,7 +14,8 @@ export function operatingAuthority(state: GameState, claimId: ClaimId): Operatin
   return tenureOf(state, claimId) === null ? 'none' : 'plan';
 }
 
-export type ActivityCheck = { ok: true } | { ok: false; code: 'PERMIT_REQUIRED' | 'DISTURBANCE_CAP' | 'BULK_SAMPLE_LIMIT' };
+export type ActivityCheck =
+  { ok: true } | { ok: false; code: 'PERMIT_REQUIRED' | 'DISTURBANCE_CAP' | 'BULK_SAMPLE_LIMIT' };
 
 /** P1: every activity is allowed (permits arrive in P2). */
 export function activityAllowed(

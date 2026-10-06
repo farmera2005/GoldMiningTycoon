@@ -14,7 +14,12 @@ export function payrollForWeek(_state: GameState): PayrollLine[] {
   return [];
 }
 
-export function recordPayrollOutcome(_draft: GameState, _empId: EmployeeId, _paidCents: Cents, _shortCents: Cents): void {
+export function recordPayrollOutcome(
+  _draft: GameState,
+  _empId: EmployeeId,
+  _paidCents: Cents,
+  _shortCents: Cents,
+): void {
   // CONTRACT-STUB(§8) staff.recordPayrollOutcome
 }
 
@@ -25,7 +30,10 @@ export function drainStaffingCharges(_draft: GameState): StaffingCharge[] {
 }
 
 /** Gross payroll and burden for the next weeks (§11 forecast, bots). */
-export function payrollProjection(_state: GameState, _weeks: number): { turn: number; grossCents: Cents; burdenCents: Cents }[] {
+export function payrollProjection(
+  _state: GameState,
+  _weeks: number,
+): { turn: number; grossCents: Cents; burdenCents: Cents }[] {
   // CONTRACT-STUB(§8) staff.payrollProjection
   return [];
 }

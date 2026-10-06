@@ -31,7 +31,11 @@ export interface MonthDepreciationLine {
   cents: Cents;
 }
 
-export function transportLegs(_state: GameState, _from: LocationRef, _to: LocationRef): Omit<TransportLeg, 'doneMiles'>[] {
+export function transportLegs(
+  _state: GameState,
+  _from: LocationRef,
+  _to: LocationRef,
+): Omit<TransportLeg, 'doneMiles'>[] {
   // CONTRACT-STUB(§9) fleet.transportLegs
   return [];
 }

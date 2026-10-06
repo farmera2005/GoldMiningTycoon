@@ -33,18 +33,7 @@ export type OpsRole = 'strip' | 'dig' | 'haul' | 'feed' | 'plant' | 'water' | 'p
 export type CutSource = 'inSitu' | 'oldTailings' | 'ownTailings' | 'pileThenInSitu';
 export type FeedMode = 'padLoader' | 'truckDirect' | 'excavatorDirect' | 'none';
 export type Stage =
-  | 'strip'
-  | 'pay'
-  | 'thaw'
-  | 'dig'
-  | 'haul'
-  | 'feed'
-  | 'plant'
-  | 'water'
-  | 'power'
-  | 'fuel'
-  | 'tailings'
-  | 'crew';
+  'strip' | 'pay' | 'thaw' | 'dig' | 'haul' | 'feed' | 'plant' | 'water' | 'power' | 'fuel' | 'tailings' | 'crew';
 export type IdleCause =
   | 'unstaffed'
   | 'operatorAbsent'
@@ -115,7 +104,8 @@ export interface SeasonTotals {
 /** §7.6.8 site works: P1 uses 'plantMove' and 'clear'. */
 export interface SiteWorkOrder {
   id: SiteWorkOrderId;
-  kind: 'plantMove' | 'pondBuild' | 'pondCleanout' | 'clear' | 'reclaim' | 'finalReclaim' | 'reseed' | 'abatement' | 'prep';
+  kind:
+    'plantMove' | 'pondBuild' | 'pondCleanout' | 'clear' | 'reclaim' | 'finalReclaim' | 'reseed' | 'abatement' | 'prep';
   blockId?: BlockId;
   bcyLeft?: number;
   machineHoursLeft?: number;
