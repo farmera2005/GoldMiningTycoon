@@ -64,3 +64,14 @@ export { effectiveDrawParams, methodSpec, noiseMult } from './methods';
 export { coarseRatioPrior, overlapShare, priorModel, type PriorModel } from './prior';
 export { lognormalLimit, smallCount } from './smallCount';
 export { digamma, invTrigamma, trigamma } from './special';
+export {
+  pileMinable,
+  pilePrior,
+  pileRawOzEst,
+  TAILINGS_GRADE_LOG_SD,
+  TAILINGS_VOLUME_CV,
+  tailingsEraOf,
+  type PileEstimate,
+  type PilePriorParams,
+  type TailingsEra,
+} from './tailings';
