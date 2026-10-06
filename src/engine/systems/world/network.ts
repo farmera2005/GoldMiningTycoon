@@ -1,6 +1,6 @@
 // Districts, creek networks and land overlays (DESIGN §3.3.1, §3.3.2). Every draw count is fixed (stream rule e): the
-// polyline jitters are drawn for the longest possible creek and every tributary slot is drawn even when unused, so a
-// retuned probability or length never shifts a later draw.
+// polyline jitters are drawn for the longest possible creek, and every tributary and branch slot takes its geometry,
+// attribute and name draws even when unused, so a retuned probability, count or length never shifts a later draw.
 import { cos, sin } from '../../core/dmath';
 import type { CreekId, DistrictId } from '../../core/ids';
 import type { Rng } from '../../core/rng';
@@ -175,13 +175,19 @@ export function pointAlong(
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// genCreekNetwork (§3.3.1). Stream: rng(seed,'world','creeks',D.id). Draw order:
+// genCreekNetwork (§3.3.1). Stream: rng(seed,'world','creeks',D.id). Draw order (fixed; nothing below depends on the
+// realized tributary count, lengths or branch rolls):
 //   main: heading offset, length, maxMainSteps jitters;
 //   tributaries: count, nTribMax position fractions, first side u, then per slot (nTribMax slots): angle, length,
 //     maxTribSteps jitters, branch u, branch position, branch angle, branch side u, branch length, maxBranchSteps jitters;
-//   per creek in id order: half-width, gold u, grade factor LN, no-trail u, fish u, anadromous u;
+//   attributes, per fixed slot (1 + 2·nTribMax slots: the main stem, tributary slots 0…nTribMax−1, then branch slots
+//     0…nTribMax−1, used or not): half-width (the slot order's range), gold u, grade factor LN, no-trail u, fish u,
+//     anadromous u;
 //   overlays: withdrawn u, fraction, start u; special u, tributary index, fraction, start u;
-//   names, one per creek in id order.
+//   names: one per fixed slot in the same slot order, unique across all slots (a pick probes forward with no further
+//     draw).
+// A realized creek takes its slot's attributes and name: the main stem slot 0, the tributary drawn in slot i the
+// tributary slot i (tributaries are renumbered by junction position afterwards), its branch the branch slot i.
 // ---------------------------------------------------------------------------------------------------------------------
 
 interface CreekGeom {
@@ -190,6 +196,46 @@ interface CreekGeom {
   readonly posOnParentMi: number;
   readonly lengthMi: number;
   readonly poly: Polyline;
+  /** The fixed draw slot whose attributes and name the creek takes (see the draw order above). */
+  readonly slot: number;
+}
+
+/** The stream order of each fixed slot: the main stem, nSlots tributary slots, then nSlots branch slots. */
+function slotOrderList(nSlots: number): (1 | 2 | 3)[] {
+  const out: (1 | 2 | 3)[] = [1];
+  for (let i = 0; i < nSlots; i++) out.push(2);
+  for (let i = 0; i < nSlots; i++) out.push(3);
+  return out;
+}
+
+interface CreekAttr {
+  readonly halfWidthFt: number;
+  readonly goldBearing: boolean;
+  readonly gradeFactor: number;
+  readonly noTrail: boolean;
+  readonly fishBearing: boolean;
+  readonly anadromous: boolean;
+}
+
+/** One slot's attribute draws (§3.3.1), all six taken whatever they decide: 12 u32. */
+function drawCreekAttr(r: Rng, order: 1 | 2 | 3, tpl: RegionTemplate, gp: GeoGenParams): CreekAttr {
+  const W = gp.world;
+  const halfWidthFt = uniformIn(r, W.valleyHalfWidthFt[order - 1] as readonly [number, number]);
+  const goldU = r.next();
+  const gf = lnMedian(r, 1, tpl.sigma.creek);
+  const noTrailU = r.next();
+  const fishU = r.next();
+  const anadU = r.next();
+  const goldBearing = goldU >= W.barrenCreekP;
+  const fishBearing = fishU < (tpl.env.fishByOrder[order - 1] as number);
+  return {
+    halfWidthFt: round(halfWidthFt, 1),
+    goldBearing,
+    gradeFactor: goldBearing ? gf : W.barrenCreekFactor,
+    noTrail: order >= 2 && noTrailU < W.noTrailCreekP,
+    fishBearing,
+    anadromous: order === 1 && fishBearing && anadU < tpl.env.anadromousP,
+  };
 }
 
 export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCreekId: () => CreekId): GenNetwork {
@@ -237,7 +283,7 @@ export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCr
 
   // Junction positions: the first nTrib slots, sorted along the main stem, then spaced ≥ tribMinSpacingMi apart inside
   // [lo, hi] of the main length (a forward then a backward pass; always feasible at the template lengths).
-  const used = slots.slice(0, nTrib).map((s, i) => ({ s, pos: (posFrac[i] as number) * mainLen }));
+  const used = slots.slice(0, nTrib).map((s, i) => ({ s, slot: i, pos: (posFrac[i] as number) * mainLen }));
   used.sort((a, b) => a.pos - b.pos);
   const lo = W.tribPosFrac[0] * mainLen;
   const hi = W.tribPosFrac[1] * mainLen;
@@ -253,14 +299,18 @@ export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCr
     if (cur.pos < lo) cur.pos = lo;
   }
 
-  const geoms: CreekGeom[] = [{ order: 1, parentGeom: null, posOnParentMi: 0, lengthMi: mainLen, poly: mainPoly }];
+  // Fixed slot numbering for the attribute and name draws: 0 the main stem, 1 + i tributary slot i, 1 + nSlots + i the
+  // branch of tributary slot i.
+  const geoms: CreekGeom[] = [
+    { order: 1, parentGeom: null, posOnParentMi: 0, lengthMi: mainLen, poly: mainPoly, slot: 0 },
+  ];
   const tribGeomIdx: number[] = [];
   used.forEach((u, k) => {
     const side = k % 2 === 0 ? firstSide : -firstSide;
     const at = pointAlong(mainPoly.points, mainPoly.segHeadings, mainLen, step, u.pos);
     const poly = buildPolyline(at.point, at.headingDeg + side * u.s.angle, u.s.len, u.s.jit, gp);
     tribGeomIdx.push(geoms.length);
-    geoms.push({ order: 2, parentGeom: 0, posOnParentMi: u.pos, lengthMi: u.s.len, poly });
+    geoms.push({ order: 2, parentGeom: 0, posOnParentMi: u.pos, lengthMi: u.s.len, poly, slot: 1 + u.slot });
   });
   used.forEach((u, k) => {
     if (!(u.s.branchU < W.branchP)) return;
@@ -275,37 +325,21 @@ export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCr
       u.s.branchJit,
       gp,
     );
-    geoms.push({ order: 3, parentGeom: parent, posOnParentMi: pos, lengthMi: u.s.branchLen, poly });
+    geoms.push({
+      order: 3,
+      parentGeom: parent,
+      posOnParentMi: pos,
+      lengthMi: u.s.branchLen,
+      poly,
+      slot: 1 + nSlots + u.slot,
+    });
   });
 
-  // ---- per-creek attributes (id order = geoms order)
+  // ---- attributes, drawn for every fixed slot (used or not) and read by slot
   const rowsOf = (lenMi: number): number => Math.ceil((lenMi * FT_PER_MI) / BLOCK_FT - 1e-9);
-  interface Attr {
-    halfWidthFt: number;
-    goldBearing: boolean;
-    gradeFactor: number;
-    noTrail: boolean;
-    fishBearing: boolean;
-    anadromous: boolean;
-  }
-  const attrs: Attr[] = geoms.map((g) => {
-    const halfWidthFt = uniformIn(r, W.valleyHalfWidthFt[g.order - 1] as readonly [number, number]);
-    const goldU = r.next();
-    const gf = lnMedian(r, 1, tpl.sigma.creek);
-    const noTrailU = r.next();
-    const fishU = r.next();
-    const anadU = r.next();
-    const goldBearing = goldU >= W.barrenCreekP;
-    const fishBearing = fishU < (tpl.env.fishByOrder[g.order - 1] as number);
-    return {
-      halfWidthFt: round(halfWidthFt, 1),
-      goldBearing,
-      gradeFactor: goldBearing ? gf : W.barrenCreekFactor,
-      noTrail: g.order >= 2 && noTrailU < W.noTrailCreekP,
-      fishBearing,
-      anadromous: g.order === 1 && fishBearing && anadU < tpl.env.anadromousP,
-    };
-  });
+  const slotOrders = slotOrderList(nSlots);
+  const slotAttrs: CreekAttr[] = slotOrders.map((order) => drawCreekAttr(r, order, tpl, gp));
+  const attrs: CreekAttr[] = geoms.map((g) => slotAttrs[g.slot] as CreekAttr);
 
   const ids = geoms.map(() => nextCreekId());
   const rows = geoms.map((g) => rowsOf(g.lengthMi));
@@ -381,13 +415,11 @@ export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCr
     }
   }
 
-  // ---- names
-  const usedNames: string[] = [];
-  const names = geoms.map((g) => {
-    const base = pickUniqueName(r, tpl.names.creeks, usedNames);
-    usedNames.push(base);
-    return creekDisplayName(base, g.order, tpl);
-  });
+  // ---- names: one per fixed slot, unique across all slots, so a realized creek's name never depends on which other
+  // slots were realized
+  const slotNames: string[] = [];
+  for (let k = 0; k < slotOrders.length; k++) slotNames.push(pickUniqueName(r, tpl.names.creeks, slotNames));
+  const names = geoms.map((g) => creekDisplayName(slotNames[g.slot] as string, g.order, tpl));
 
   // ---- upstream channel miles per row (water, map)
   const subtreeMi: number[] = geoms.map((g) => g.lengthMi);
@@ -406,7 +438,7 @@ export function genCreekNetwork(r: Rng, d: GenDistrict, gp: GeoGenParams, nextCr
       });
       up[row] = round(mi, 3);
     }
-    const a = attrs[i] as Attr;
+    const a = attrs[i] as CreekAttr;
     return {
       idx: i,
       id: ids[i] as CreekId,

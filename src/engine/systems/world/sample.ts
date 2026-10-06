@@ -8,6 +8,8 @@
 //   per size class (coarse → ultrafine): Poisson (2 u32), then N particle masses (N ≤ clt) or one CLT normal;
 //   volume noise, weigh noise; overburden, depth and thickness logging noise; bedrock-id u, bedrock-pick int;
 //   clay N, boulders N.
+// The visible result carries only what the sampler could see (§3.1, §3.8 step 7): the logged geometry and the logged
+// interval (loggedIntervalFt) reuse the step-7 logging draws, so no visible number is truth or an exact function of it.
 import { EngineGuardError } from '../../core/assert';
 import { exp, log, sqrt } from '../../core/dmath';
 import type { Rng } from '../../core/rng';
@@ -148,6 +150,46 @@ export function sampleInterval(
   return { ...base, kind: 'inSitu', h1, h2, stopReason: stop, bottomBelowSurfaceFt: bottom };
 }
 
+/**
+ * The bedrock the sampler dug below the bedrock contact, as aimed (the method's penetration, or the requested
+ * interval's floor for a face or channel sample). Known to the sampler; never the hidden cleanup depth B, which only
+ * clips the gold-bearing part of the interval.
+ */
+function bedrockDugFt(req: SampleRequest, m: SampleMethodParams): number {
+  const aimed =
+    (m.positionMode === 'exposure' || m.positionMode === 'interval') && req.interval !== undefined
+      ? -req.interval.h1
+      : m.bedrockPenFt;
+  return Math.max(0, aimed);
+}
+
+/**
+ * The sampled interval as logged, in ft below the current surface (§3.8 step 7, SampleResult.intervalDepthFt). It is
+ * built from the step-7 logging factors already drawn (no extra draw), never from true geometry:
+ *   top    = OB_now × obNoise + (T − h2) × thickNoise         // the logged gravel top, plus any gravel left above
+ *   bottom = the dug depth, when a pit or hole stopped at a known limit (reach, the frost line, flooding);
+ *            else, bedrock reached: depthToBedrock × depthNoise + the bedrock dug (bedrockDugFt);
+ *            else: top + (h2 − h1) × thickNoise                // the sampled gravel, logged with the thickness factor
+ *   bottom is raised to the top, and to the logged bedrock contact when bedrock was reached.
+ * With geomCv = thickCv = 0 and B ≥ the bedrock dug it reproduces the true interval.
+ */
+export function loggedIntervalFt(
+  iv: SampleInterval,
+  T: number,
+  bedrockDug: number,
+  noise: { readonly ob: number; readonly depth: number; readonly thick: number },
+): [number, number] {
+  const top = iv.obNowFt * noise.ob + (T - iv.h2) * noise.thick;
+  const loggedBedrock = iv.depthToBedrockFt * noise.depth;
+  const reachedBedrock = iv.h1 <= 0;
+  let bottom: number;
+  if (iv.stopReason !== 'none' && iv.bottomBelowSurfaceFt !== null) bottom = iv.bottomBelowSurfaceFt;
+  else if (reachedBedrock) bottom = loggedBedrock + bedrockDug;
+  else bottom = top + (iv.h2 - iv.h1) * noise.thick;
+  if (reachedBedrock) bottom = Math.max(bottom, loggedBedrock);
+  return [top, Math.max(top, bottom)];
+}
+
 function tercile(x: number, cuts: readonly [number, number]): Tercile {
   return x < cuts[0] ? 'low' : x < cuts[1] ? 'med' : 'high';
 }
@@ -281,7 +323,13 @@ export function drawSample(
     methodId: m.id,
     volumeBcy: V,
     volumeMeasuredBcy: Vmeas,
-    intervalDepthFt: inSitu ? [iv.depthToBedrockFt - iv.h2, iv.depthToBedrockFt - iv.h1] : null,
+    intervalDepthFt: inSitu
+      ? loggedIntervalFt(iv, bt.payThicknessFt, bedrockDugFt(req, m), {
+          ob: obNoise,
+          depth: depthNoise,
+          thick: thickNoise,
+        })
+      : null,
     reachedPay,
     reachedBedrock,
     stopReason: iv.stopReason,

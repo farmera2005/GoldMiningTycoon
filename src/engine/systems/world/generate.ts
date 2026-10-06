@@ -20,7 +20,7 @@ import { rng } from '../../core/rng';
 import { claimAccessClass } from './access';
 import { BCY_PER_ACRE_FT, BLOCK_FT } from './constants';
 import { VISIBLE_FEATURES } from './enums';
-import { adjacentClaims, assignStatus, genEnv } from './env';
+import { adjacentClaims, assignStatus, genEnv, historicAcresOf } from './env';
 import type { GenClaim, GenCreek, GenDistrict } from './genTypes';
 import { assignHolders } from './holders';
 import { claimPlacement, layParcels, isProximal, sizeSettingOf } from './layout';
@@ -287,7 +287,7 @@ function buildClaim(
     creek,
     d,
     overlays,
-    ot.kind,
+    historicAcresOf(ot.kind, truth.blocks),
     water.sourceKind,
     states.length > 0,
     gp,
@@ -556,11 +556,15 @@ export function generateWorld(seed: string, opts: WorldGenOptions, tuning: Tunin
   };
 }
 
+/** The id prefixes §3's generator mints (§2.4 registry). */
+export type WorldIdPrefix = Extract<IdPrefix, 'dst' | 'crk' | 'clm' | 'blk' | 'hld'>;
+
 /**
  * The id counters a freshly generated world has used (prefixes dst, crk, clm, blk, hld; ids start at 1 and are
- * contiguous). newGame merges these into state.ids so later ids continue after the world's.
+ * contiguous). Blocks are numbered implicitly (blockIdBase + idx), so only this count, not a scan of the slice's id
+ * strings, covers every block id. newGame merges these into state.ids so later ids continue after the world's (D-2.38).
  */
-export function worldIdCounters(world: WorldSlice): Partial<Record<IdPrefix, number>> {
+export function worldIdCounters(world: WorldSlice): Record<WorldIdPrefix, number> {
   let blocks = 0;
   for (const id of world.claimIds) {
     const c = world.claims[id];

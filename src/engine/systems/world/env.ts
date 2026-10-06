@@ -103,8 +103,22 @@ export function channelColumn(offsetFt: number, nAcross: number): number {
 const DISTURBING_KINDS: readonly OldTimerKind[] = ['dredge', 'handCut', 'hydraulic', 'dryWash'];
 
 /**
+ * historicAcres (§3.6): blocks the old-timers worked at the surface (minedOutFraction > 0 under dredge, handCut,
+ * hydraulic or dryWash; drift leaves only shafts and dumps). Truth-side; generation only.
+ */
+export function historicAcresOf(
+  oldTimerKind: OldTimerKind,
+  blocks: readonly Pick<BlockTruth, 'minedOutFraction'>[],
+): number {
+  if (!DISTURBING_KINDS.includes(oldTimerKind)) return 0;
+  return blocks.filter((b) => b.minedOutFraction > 0).length;
+}
+
+/**
  * genEnv (§3.4.1) without adjacency (added once the district's parcels exist). Stream rng(seed,'world','env',K.id);
  * draws: channel offset, one wetland u per block (blockIdx order), spring block, sensitivity noise.
+ * previouslyDisturbed is physical: pre-game Block.state disturbance or historicAcres > 0. An old-timer kind that worked
+ * no block left the ground undisturbed, so the flag never tells a hidden kind apart from a featureless claim.
  */
 export function genEnv(
   r: Rng,
@@ -112,7 +126,7 @@ export function genEnv(
   c: GenCreek,
   d: GenDistrict,
   overlays: readonly LandOverlay[],
-  oldTimerKind: OldTimerKind,
+  historicAcres: number,
   sourceKind: WaterSourceKind,
   preGameDisturbed: boolean,
   gp: GeoGenParams,
@@ -153,7 +167,7 @@ export function genEnv(
       sensitivityOf({ fishBearing, anadromous: valley && c.anadromous, wetlandShare, specialStatus, noise }, gp),
       4,
     ),
-    previouslyDisturbed: preGameDisturbed || DISTURBING_KINDS.includes(oldTimerKind),
+    previouslyDisturbed: preGameDisturbed || historicAcres > 0,
     // §3.4.1: bench slope facing north 0.65 … south 1.35; valley bottom 1.0.
     thawAspectMult: valley ? 1 : round(1 - gp.env.aspectThawSlope * K.northness, 4),
   };

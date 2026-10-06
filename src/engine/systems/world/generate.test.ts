@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { baseTuning, type TuningResolved } from '../../../data/tuning';
 import { canonicalJson, hashValue } from '../../core/hash';
-import { formatId, parseId, type BlockId, type ClaimId } from '../../core/ids';
+import { formatId, nextId, parseId, type BlockId, type ClaimId } from '../../core/ids';
 import { rng } from '../../core/rng';
 import { generateWorld, worldIdCounters } from './generate';
 import type { GenCreek, GenDistrict } from './genTypes';
@@ -136,6 +136,24 @@ describe('ids and structure (§2.4, §3.1)', () => {
     }
   });
 
+  it('newGame reserves every generated id, including the implicitly numbered blocks (D-2.38)', () => {
+    for (const seed of ['ids-seed-1', 'ids-seed-2', 'ids-seed-3']) {
+      const s = newGame(defaultNewGameSetup({ companyName: 'Id Test' }), seed);
+      const w = s.world;
+      const lastBlock = Math.max(...claims(w).map((c) => c.blockIdBase - 1 + c.nAlong * c.nAcross));
+      expect(s.ids['blk']).toBe(lastBlock);
+      const minted = worldIdCounters(w);
+      for (const p of ['dst', 'crk', 'clm', 'blk', 'hld'] as const) {
+        expect(s.ids[p] ?? 0).toBeGreaterThanOrEqual(minted[p]);
+      }
+      const fresh = parseId(nextId({ ...s.ids }, 'blk'))?.num ?? 0;
+      for (const c of claims(w)) {
+        const inside = fresh >= c.blockIdBase && fresh < c.blockIdBase + c.nAlong * c.nAcross;
+        expect(inside).toBe(false);
+      }
+    }
+  });
+
   it('maps blockCoords back to (claim, i, j) with i along the valley', () => {
     const w = SAMPLE[0] as WorldSlice;
     const c = w.claims[w.claimIds[3] as ClaimId] as Claim;
@@ -238,11 +256,36 @@ describe('status, environment and water (§3.3.4, §3.4, §3.4.1)', () => {
         rights++;
         expect(c.status).toBe('heldNpc');
         expect(c.hidden.oldTimerKind).toBe('recentCat');
-        if (r.source === 'surface') expect(r.gpm).toBeLessThanOrEqual(lowFlowGpm(c.water, w.genParams) + 0.05);
+        if (r.source === 'surface') expect(r.gpm).toBeLessThanOrEqual(lowFlowGpm(c.water, w.genParams));
         if (c.water.sourceKind === 'none') expect(r.source).toBe('groundwater');
       }
     }
     expect(rights).toBeGreaterThan(0);
+  });
+
+  it('marks a claim previously disturbed exactly when its ground was physically disturbed (§3.4.1, §3.6)', () => {
+    const DISTURBING = ['dredge', 'handCut', 'hydraulic', 'dryWash'];
+    let workedNothing = 0;
+    for (const w of SAMPLE) {
+      for (const c of claims(w)) {
+        const preGame = Array.from(
+          { length: c.nAlong * c.nAcross },
+          (_, i) => w.blockStates[formatId('blk', c.blockIdBase + i)],
+        ).some((st) => st !== undefined);
+        const worked = claimTruth(w, c.id).blocks.some((b) => b.minedOutFraction > 0);
+        const historicAcres = DISTURBING.includes(c.hidden.oldTimerKind) && worked;
+        expect(c.env.previouslyDisturbed).toBe(preGame || historicAcres);
+        if (DISTURBING.includes(c.hidden.oldTimerKind) && !worked) workedNothing++;
+      }
+    }
+    // The case the flag used to give away: a disturbing kind that found no block to work.
+    expect(workedNothing).toBeGreaterThan(0);
+  });
+
+  it('never flags a featureless claim as previously disturbed on the P1 templates (no tell of a hidden kind)', () => {
+    for (const w of SAMPLE) {
+      for (const c of claims(w)) if (c.visibleFeatures.length === 0) expect(c.env.previouslyDisturbed).toBe(false);
+    }
   });
 
   it('scales records quality on fly-in claims: north 0.8 × 0.5 = 0.40', () => {
@@ -320,6 +363,37 @@ describe('public records (§3.6)', () => {
     const sd = Math.sqrt(logs.reduce((a, x) => a + (x - mean) * (x - mean), 0) / logs.length);
     expect(Math.abs(mean)).toBeLessThan(0.03);
     expect(Math.abs(sd - 0.5)).toBeLessThan(0.03);
+  });
+});
+
+describe('old-timer workings in generated worlds (§3.6)', () => {
+  it('a dredge strips and thaws only the paystreak blocks it worked, and every worked block shows from the air', () => {
+    let unworked = 0;
+    for (const w of SAMPLE) {
+      const minF = w.genParams.oldTimer.kinds.dredge.minF;
+      const fx = w.genParams.oldTimer.dredgeEffects;
+      for (const c of claims(w)) {
+        if (c.hidden.oldTimerKind !== 'dredge') continue;
+        const bs = claimTruth(w, c.id).blocks;
+        const worked: number[] = [];
+        bs.forEach((b, i) => {
+          if (b.paystreakFraction > minF) {
+            worked.push(i);
+            expect(b.minedOutFraction).toBeGreaterThan(0);
+            expect(b.overburdenFt).toBe(0);
+            expect(b.permafrost).toBe(0);
+            expect(b.verticalDecayFt).toBe(fx.decayFt);
+          } else {
+            unworked++;
+            expect(b.minedOutFraction).toBe(0);
+            expect(b.overburdenFt).toBeGreaterThan(0);
+          }
+          if (b.overburdenFt === 0) expect(b.minedOutFraction).toBeGreaterThan(0);
+        });
+        expect(c.visibleWorkings).toEqual(worked);
+      }
+    }
+    expect(unworked).toBeGreaterThan(100);
   });
 });
 

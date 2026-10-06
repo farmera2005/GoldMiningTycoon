@@ -1,6 +1,7 @@
 // newGame (DESIGN §2.2, §2.6 turn semantics, D-2.13): builds the turn-0 state (year 1, week 1) and runs the owners'
 // week-1 initializations that no pipeline will run for year 1. The first advanceWeek then simulates turn 1.
 import { turnToYearWeek } from '../core/calendar';
+import { sortedKeysByCodeUnit } from '../core/iter';
 import { usdToCents } from '../core/money';
 import { postInto } from '../systems/finance/ledger';
 import { emptyFinanceSlice } from '../systems/finance/types';
@@ -17,7 +18,7 @@ import { emptyLandSlice } from '../systems/land/types';
 import { emptyOpsSlice } from '../systems/ops/types';
 import { emptyPermitSlice } from '../systems/permits/types';
 import { emptyStaffSlice } from '../systems/staff/types';
-import { generateWorld } from '../systems/world/generate';
+import { generateWorld, worldIdCounters } from '../systems/world/generate';
 import type { CompanySlice } from '../systems/company/types';
 import { reserveIdsFrom } from './ids';
 import { cloneJson, freezeIfEnabled } from './immutability';
@@ -113,6 +114,13 @@ export function newGame(
   const world = generateWorld(seed, { districtCount: templates.length, templateIds: [...templates] }, tuning);
   const ids: IdCounters = {};
   reserveIdsFrom(world, ids);
+  // Blocks are numbered implicitly (claim.blockIdBase + idx) and appear as strings only in the sparse blockStates, so a
+  // scan alone can stop short of the last block; the world's own counters cover every id it minted (D-2.38).
+  const minted = worldIdCounters(world);
+  for (const prefix of sortedKeysByCodeUnit(minted)) {
+    const n = minted[prefix] ?? 0;
+    if ((ids[prefix] ?? 0) < n) ids[prefix] = n;
+  }
   const { year, week } = turnToYearWeek(0);
 
   const shell: GameState = {
