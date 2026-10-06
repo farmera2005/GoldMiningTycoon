@@ -6,6 +6,7 @@ import { baseTuning, type TuningKey, type TuningValue } from '../../data/tuning'
 import {
   HISTORY_METRIC_INFO,
   explain,
+  parseReportCalcKey,
   select,
   type CalcNode,
   type ExplainRef,
@@ -51,16 +52,21 @@ function message(label: string, text: string): ViewNode {
   return { label, value: null, valueText: text, unit: 'none', children: [] };
 }
 
-/** The engine explainer for a `live` ref. P0's explainers take only the state (netWorth is always 'scoring'). */
-export function runExplainer(state: GameState, name: ExplainerName): CalcNode {
-  switch (name) {
-    case 'cash':
-      return explain.cash(state);
-    case 'netWorth':
-      return explain.netWorth(state);
-    default:
-      return assertNever(name);
-  }
+type AnyExplainer = (state: GameState, ...args: readonly unknown[]) => CalcNode;
+
+/** True when the engine's composed registry has an explainer of this name (a stale ref after a rename has not). */
+export function isExplainer(name: string): name is ExplainerName {
+  return Object.hasOwn(explain, name);
+}
+
+/**
+ * The engine explainer for a `live` ref, called generically as `explain[name](state, ...args)` over the typed registry
+ * (S13-5): every owner's explainer is reachable without a UI-side table. The args are the ref's, as the screen built
+ * them through the owner's selectors.
+ */
+export function runExplainer(state: GameState, name: ExplainerName, args: readonly unknown[] = []): CalcNode {
+  const fn = explain[name] as AnyExplainer;
+  return fn(state, ...args);
 }
 
 /** Label and unit of a history series: §2's table (S13-8), never a copy of it. */
@@ -79,8 +85,22 @@ export function historyValue(state: GameState, metric: HistoryMetric, turn: numb
   return typeof v === 'number' ? v : null;
 }
 
+/**
+ * The label of an expired report: the child it pointed to, else its metric's history label when §2 keeps that series
+ * (`ops/payWashedBcy/clm_…` → `Pay washed`), else the key itself.
+ */
+function expiredLabel(path: readonly string[]): string {
+  const last = path[path.length - 1] ?? 'Explanation';
+  if (path.length > 1) return last;
+  const parts = parseReportCalcKey(last);
+  if (parts !== null && Object.hasOwn(HISTORY_METRIC_INFO, parts.metric)) {
+    return HISTORY_METRIC_INFO[parts.metric as HistoryMetric].label;
+  }
+  return last;
+}
+
 /** A `report` ref's node: the calc key, then child labels down the tree. */
-function reportNode(report: WeekReport, path: readonly string[]): CalcNode | null {
+export function reportNode(report: WeekReport, path: readonly string[]): CalcNode | null {
   const [key, ...rest] = path;
   let node = key === undefined ? undefined : report.calc?.[key];
   for (const label of rest) node = node?.children?.find((c) => c.label === label);
@@ -135,8 +155,27 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
   if (state === null)
     return { kind: 'unavailable', reason: 'NO_GAME', root: message('Explanation', 'No game is loaded.') };
   switch (ref.kind) {
-    case 'live':
-      return { kind: 'tree', root: redact(runExplainer(state, ref.explainer), { reveal: ctx.reveal }) };
+    case 'live': {
+      if (!isExplainer(ref.explainer)) {
+        return {
+          kind: 'unavailable',
+          reason: 'NOT_FOUND',
+          root: message('Explanation', 'This number has no explanation.'),
+        };
+      }
+      let node: CalcNode;
+      try {
+        node = runExplainer(state, ref.explainer, ref.args);
+      } catch {
+        // An entity the ref names may be gone (a sold machine's old number), or its owner's explainer not built yet.
+        return {
+          kind: 'unavailable',
+          reason: 'NOT_FOUND',
+          root: message('Explanation', 'This number cannot be explained in the current game.'),
+        };
+      }
+      return { kind: 'tree', root: redact(node, { reveal: ctx.reveal }) };
+    }
     case 'report': {
       const report = ctx.calcReports.find((r) => r.turn === ref.turn);
       const node = report === undefined ? null : reportNode(report, ref.path);
@@ -145,7 +184,7 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
           kind: 'unavailable',
           reason: 'EXPLAIN_EXPIRED',
           root: message(
-            ref.path[ref.path.length - 1] ?? 'Explanation',
+            expiredLabel(ref.path),
             `The breakdown for ${gameDate(select.dateView(state, ref.turn))} is no longer kept; the weekly history and the ledger still hold its values.`,
           ),
         };

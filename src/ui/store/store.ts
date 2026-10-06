@@ -7,7 +7,7 @@ import { createStore, useStore, type StoreApi } from 'zustand';
 import { uiConfig } from '../../data/tuning/ui';
 import type { ExplainRef } from '../../engine';
 import { EMPTY_GAME, type GameSlice } from './gameSlice';
-import { defaultUiPersisted, type UiPersisted } from './persisted';
+import { defaultUiPersisted, type TableLayout, type UiPersisted } from './persisted';
 import { loadPrefs, mergePrefs, savePrefs, type Prefs, type PrefsStorage } from './prefs';
 
 /** §13.18 `run`: P0 has no Run to Next Decision, so the slice only ever reads `idle` (13.24). */
@@ -30,6 +30,13 @@ export interface ExplainSlice {
   readonly popover: ExplainPopover | null;
   /** Where focus returns when the drawer closes. */
   readonly drawerReturnFocus: HTMLElement | null;
+}
+
+/** The shell's modal overlays (13.15): the `Ctrl+K` command palette and the `?` shortcut sheet; one at a time. */
+export interface ShellOverlay {
+  readonly kind: 'palette' | 'shortcuts';
+  /** Focus goes back here when the overlay closes (13.19). */
+  readonly returnFocus: HTMLElement | null;
 }
 
 export type ToastAction = 'exportNow';
@@ -58,6 +65,14 @@ export interface UiState {
   setGame(patch: Partial<GameSlice>): void;
   readonly persisted: UiPersisted;
   setPersisted(persisted: UiPersisted): void;
+  /**
+   * `ui/setTableLayout` (13.21): a table's columns, sort and filters, kept per `tableId` in `UiPersisted.tableLayouts`
+   * (13.2). `null` forgets the layout, so the table falls back to its default.
+   */
+  setTableLayout(tableId: string, layout: TableLayout | null): void;
+  readonly overlay: ShellOverlay | null;
+  openOverlay(kind: ShellOverlay['kind'], returnFocus: HTMLElement | null): void;
+  closeOverlay(): void;
   readonly run: RunSlice;
 
   readonly explain: ExplainSlice;
@@ -111,6 +126,20 @@ export function createUiStore({ storage, navCollapsed = false }: UiStoreOptions)
     persisted: defaultUiPersisted(),
     setPersisted(persisted) {
       set({ persisted });
+    },
+    setTableLayout(tableId, layout) {
+      const persisted = get().persisted;
+      const tableLayouts = { ...persisted.tableLayouts };
+      if (layout === null) delete tableLayouts[tableId];
+      else tableLayouts[tableId] = layout;
+      set({ persisted: { ...persisted, tableLayouts } });
+    },
+    overlay: null,
+    openOverlay(kind, returnFocus) {
+      set({ overlay: { kind, returnFocus }, explain: { ...get().explain, popover: null } });
+    },
+    closeOverlay() {
+      set({ overlay: null });
     },
     run: { status: 'idle', maxWeeks: uiConfig['ui.runMaxWeeksDefault'] },
 

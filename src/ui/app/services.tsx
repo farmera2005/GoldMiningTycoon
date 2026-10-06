@@ -24,3 +24,8 @@ export function useServices(): AppServices {
   if (services === null) throw new Error('useServices must be used inside <ServicesProvider>');
   return services;
 }
+
+/** The services, or null outside the app (a component rendered on its own in a test). */
+export function useOptionalServices(): AppServices | null {
+  return useContext(ServicesContext);
+}

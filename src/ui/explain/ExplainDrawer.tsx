@@ -1,14 +1,17 @@
 // The explain drawer (DESIGN §13.13, 13.1): 440 px on the right, the full redacted tree expanded to
 // ui.explainDefaultDepth, source chips that follow links (tuning viewer, ledger view), breadcrumbs over
-// `explain.stack`, and `Copy as text`. Esc closes it and returns focus to the number that opened it.
+// `explain.stack`, `Compare with last week` for report refs, the history and ledger fallbacks of an expired week
+// (EXPLAIN_EXPIRED), and `Copy as text`. Esc closes it and returns focus to the number that opened it.
 import { useEffect, useId, useRef, useState } from 'react';
 import { uiConfig } from '../../data/tuning/ui';
 import { DevTruthBanner } from '../app/DevTruth';
 import { Button } from '../components/primitives';
 import { useUi, useUiStore } from '../store/store';
+import type { ExplainRef } from '../../engine';
+import { CompareView } from './CompareView';
 import { ExplainTree } from './ExplainTree';
 import { LedgerView } from './LedgerView';
-import { relatedLedger, refKey } from './refs';
+import { explainFallbacks, relatedLedger, refKey } from './refs';
 import { resolveExplain, type Resolved } from './resolve';
 import { treeAsText, valueText } from './textTree';
 import { TuningViewer } from './TuningViewer';
@@ -48,6 +51,20 @@ function Body({ resolved, label }: { resolved: Resolved; label: string }) {
   }
 }
 
+/** The fallbacks of an expired report week (13.13, T26): its weekly history value and its ledger postings. */
+export function FallbackLinks({ refs, onOpen }: { refs: readonly ExplainRef[]; onOpen: (ref: ExplainRef) => void }) {
+  if (refs.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2" data-explain-fallbacks="">
+      {refs.map((r) => (
+        <Button key={refKey(r)} onClick={() => onOpen(r)}>
+          {r.kind === 'history' ? 'Weekly history value' : r.kind === 'ledger' ? 'Ledger for that week' : 'Open'}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function ExplainDrawer() {
   const stack = useUi((s) => s.explain.stack);
   const returnFocus = useUi((s) => s.explain.drawerReturnFocus);
@@ -57,6 +74,8 @@ export function ExplainDrawer() {
   const titleId = useId();
   // The copy confirmation belongs to the explanation it was given for; following a link clears it.
   const [copied, setCopied] = useState<{ readonly key: string; readonly text: string } | null>(null);
+  // `Compare with last week` stays on for the ref it was turned on for (13.13).
+  const [compareFor, setCompareFor] = useState<string | null>(null);
   const top = stack[stack.length - 1];
 
   useEffect(() => {
@@ -128,6 +147,12 @@ export function ExplainDrawer() {
         {/* Keyed by the explanation: a new one opens fresh at ui.explainDefaultDepth, while the same one keeps its
             disclosure state when the game moves on (13.13). */}
         <Body key={refKey(top)} resolved={resolved} label={root.label} />
+        {resolved.kind === 'unavailable' && resolved.reason === 'EXPLAIN_EXPIRED' ? (
+          <FallbackLinks refs={explainFallbacks(top)} onOpen={(r) => store.getState().pushExplain(r)} />
+        ) : null}
+        {top.kind === 'report' && resolved.kind === 'tree' && compareFor === refKey(top) ? (
+          <CompareView explainRef={top} />
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-2">
         <Button
@@ -143,6 +168,14 @@ export function ExplainDrawer() {
           Copy as text
         </Button>
         {ledger === null ? null : <Button onClick={() => store.getState().pushExplain(ledger)}>Open ledger</Button>}
+        {top.kind === 'report' && resolved.kind === 'tree' ? (
+          <Button
+            aria-pressed={compareFor === refKey(top)}
+            onClick={() => setCompareFor(compareFor === refKey(top) ? null : refKey(top))}
+          >
+            Compare with last week
+          </Button>
+        ) : null}
         <span role="status" className="text-12 text-ink-2">
           {copied !== null && copied.key === refKey(top) ? copied.text : ''}
         </span>

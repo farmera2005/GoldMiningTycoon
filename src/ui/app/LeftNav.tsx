@@ -1,32 +1,9 @@
 // The left nav (DESIGN §13.1): chrome with header grain, 224 px or a 56 px icon rail, a brass marker on the active
-// item. Nav items for systems not yet built are hidden, not greyed: P0 has the dashboard, Saves and Settings.
-import type { ReactNode } from 'react';
+// item. The groups and items come from nav.tsx; items for systems not yet built in this phase are hidden, not greyed.
 import { uiConfig } from '../../data/tuning/ui';
-import { DashboardIcon, SavesIcon, SettingsIcon } from '../components/icons';
 import { useUi } from '../store/store';
-import { routeHref, type KnownRoute, type Route } from './router';
-
-interface NavItem {
-  readonly route: KnownRoute;
-  readonly label: string;
-  readonly icon: ReactNode;
-}
-
-interface NavGroup {
-  readonly label: string;
-  readonly items: readonly NavItem[];
-}
-
-export const NAV_GROUPS: readonly NavGroup[] = [
-  { label: 'Overview', items: [{ route: { name: 'dashboard' }, label: 'Dashboard', icon: <DashboardIcon /> }] },
-  {
-    label: 'System',
-    items: [
-      { route: { name: 'saves' }, label: 'Saves', icon: <SavesIcon /> },
-      { route: { name: 'settings' }, label: 'Settings', icon: <SettingsIcon /> },
-    ],
-  },
-];
+import { visibleNav } from './nav';
+import { routeHref, type Route } from './router';
 
 export function LeftNav({ route }: { route: Route }) {
   const collapsed = useUi((s) => s.navCollapsed);
@@ -38,12 +15,16 @@ export function LeftNav({ route }: { route: Route }) {
       style={{ width: collapsed ? uiConfig['ui.layout.railPx'] : uiConfig['ui.layout.navPx'] }}
       data-grain-zone="nav"
     >
-      {NAV_GROUPS.map((group) => (
+      {visibleNav().map((group) => (
         <div key={group.label} className="mb-3">
-          {collapsed ? null : <div className="px-4 pb-1 text-12 font-semibold text-chrome-ink-2">{group.label}</div>}
-          <ul>
+          {collapsed ? null : (
+            <div className="px-4 pb-1 text-12 font-semibold tracking-wide text-chrome-ink-2 uppercase">
+              {group.label}
+            </div>
+          )}
+          <ul aria-label={collapsed ? group.label : undefined}>
             {group.items.map((item) => {
-              const active = item.route.name === route.name;
+              const active = item.matches.includes(route.name);
               return (
                 <li key={item.label}>
                   <a

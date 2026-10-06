@@ -22,6 +22,7 @@ import { uiConfig } from '../../src/data/tuning/ui';
 import { defaultNewGameSetup, resolveTuning } from '../../src/engine';
 import { methodMeasurementRowsFromDesign } from './designTables';
 import { EQUIPMENT_COVERAGE } from './schemas/equipment';
+import { TEXT_COVERAGE } from './schemas/text';
 import {
   BEDROCK_TYPES,
   TOWN_TIERS,
@@ -253,6 +254,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'tuning/types.ts': 'types only',
   'tuning/ui.ts': 'uiConfigSchema',
   ...EQUIPMENT_COVERAGE, // §9 catalog (tests/data/schemas/equipment.ts)
+  ...TEXT_COVERAGE, // §13 text catalogs (tests/data/schemas/text.ts)
   ...Object.fromEntries(Object.keys(tuningNamespaces).map((ns) => [`tuning/${ns}.ts`, 'TUNING_KEY_SCHEMAS'])),
 };
 
