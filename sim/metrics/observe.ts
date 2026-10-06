@@ -1,6 +1,6 @@
 // What the harness reads from a game (BALANCE §5 intro: every metric comes from engine selectors, never from bot-side
 // estimates). One adapter, so each read is named once and its source documented. Where §2.11 has no selector yet the
-// read is of a non-hidden state field and marked "no selector" (a DESIGN §2.11 gap reported with this package).
+// read is of a non-hidden state field and marked "no selector".
 // Systems that a phase has not shipped are observed as absent (null); once a later rules phase runs, an input that is
 // not wired to its owner's selector throws instead of silently reading zero.
 import {
@@ -40,9 +40,8 @@ export interface WeekObservation {
 
 export interface RunOutcome {
   readonly runStatus: RunStatus;
-  /** No selector yet (§2.11 gap): state.company.endReason. */
   readonly endReason: EndReason | null;
-  /** No selector yet (§2.11 gap): state.company.liquidationPath, = §11's distress.liquidation.cause. */
+  /** = §11's distress.liquidation.cause. */
   readonly liquidationPath: LiquidationPath | null;
 }
 
@@ -101,16 +100,12 @@ export function observeWeek(state: GameState): WeekObservation {
 }
 
 export function runOutcome(state: GameState): RunOutcome {
-  return {
-    runStatus: select.runStatus(state),
-    endReason: state.company.endReason,
-    liquidationPath: state.company.liquidationPath,
-  };
+  return select.runOutcome(state);
 }
 
-/** Company-book net income of a completed game year (§2.5 annual rollup; no selector yet, §2.11 gap). */
+/** Company-book net income of a completed game year (§2.5 annual rollup). */
 export function yearNetIncomeCents(state: GameState, year: number): number | null {
-  const rollup = state.history.annual.find((r) => r.year === year);
+  const rollup = select.annualHistory(state).find((r) => r.year === year);
   return rollup === undefined ? null : rollup.netIncomeCents;
 }
 

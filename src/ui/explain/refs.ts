@@ -1,10 +1,11 @@
 // ExplainRef builders for the P0 screens and the links between explanations (DESIGN §13.13). P0's refs are `live`
 // (explain.cash, explain.netWorth), `ledger`, `tuning` and `history`; `report` refs resolve from the retained calc
 // weeks; `input` refs arrive with the first player-set values in P1.
+import { CASH_ON_HAND_ACCOUNTS } from '../../engine';
 import type { ExplainRef, HistoryMetric, LedgerFilter } from '../../engine';
 
-/** §11 11.2 cash on hand: the operating and reserve accounts (restricted cash is excluded). */
-export const CASH_ON_HAND_ACCOUNTS: readonly string[] = ['cash.operating', 'cash.reserve'];
+/** §11 11.2 cash on hand: the operating and reserve accounts (restricted cash is excluded), as the engine defines it. */
+export { CASH_ON_HAND_ACCOUNTS };
 
 export const cashRef: ExplainRef = { kind: 'live', explainer: 'cash', args: [] };
 export const netWorthRef: ExplainRef = { kind: 'live', explainer: 'netWorth', args: ['scoring'] };

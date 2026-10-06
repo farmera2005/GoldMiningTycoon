@@ -92,3 +92,17 @@ describe('explainers (DESIGN §2.8; §13 P0 "explain cash → ledger")', () => {
     expect(sumChildren(company)).toBe(company.value);
   });
 });
+
+describe('run outcome and annual history (DESIGN §1 1.14, §2.5)', () => {
+  it('an active new game has no end reason or liquidation path and no completed year', () => {
+    expect(select.runOutcome(fresh())).toEqual({ runStatus: 'active', endReason: null, liquidationPath: null });
+    expect(select.annualHistory(fresh())).toEqual([]);
+  });
+  it('reads the company slice as stored', () => {
+    const s = {
+      ...BASE,
+      company: { ...BASE.company, runStatus: 'lost', endReason: 'liquidated', liquidationPath: 'p1Counter' },
+    } as GameState;
+    expect(select.runOutcome(s)).toEqual({ runStatus: 'lost', endReason: 'liquidated', liquidationPath: 'p1Counter' });
+  });
+});

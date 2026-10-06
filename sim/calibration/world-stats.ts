@@ -158,14 +158,65 @@ function claimRows(world: WorldSlice): Map<string, ClaimRow[]> {
   return byTemplate;
 }
 
-export function runCalibration(opts: CalibrationOptions): CalibrationResult {
-  const tuning = opts.tuning ?? baseTuning;
+/**
+ * Streaming form of the calibration: add worlds one at a time (generated here, or the `world` slice of a newGame state
+ * handed over by the simulator's `--world-only` collector), then read the statistics. Order of `add` calls is the
+ * caller's; every statistic below is order-independent except floating-point summation, so callers add in seed order.
+ */
+export interface WorldStatsAccumulator {
+  add(world: WorldSlice): void;
+  readonly worlds: number;
+  templates(): Record<string, TemplateStats>;
+}
+
+export function createWorldStatsAccumulator(): WorldStatsAccumulator {
   const rows = new Map<string, ClaimRow[]>();
   const perDistrict = new Map<string, { n: number; target: number }[]>();
   const honesty = new Map<string, string[]>();
+  let poolW: Record<EconClass, number> | null = null;
+  let worlds = 0;
+  return {
+    get worlds() {
+      return worlds;
+    },
+    add(world) {
+      worlds++;
+      poolW ??= listingPoolWeights(world.genParams);
+      for (const [tpl, list] of claimRows(world)) rows.set(tpl, (rows.get(tpl) ?? []).concat(list));
+      for (const did of world.districtIds) {
+        const d = world.districts[did];
+        if (d === undefined) continue;
+        const tpl = templateOf(world.genParams, d.templateId);
+        const pd = perDistrict.get(d.templateId) ?? [];
+        pd.push({ n: d.claimIds.length, target: tpl.parcelsPerDistrict[1] });
+        perDistrict.set(d.templateId, pd);
+        const hs = honesty.get(d.templateId) ?? [];
+        for (const cid of d.claimIds) {
+          const h = world.claims[cid]?.holderId;
+          if (typeof h === 'string' && h.startsWith('hld_')) {
+            const prof = world.holders[h as keyof WorldSlice['holders']];
+            if (prof !== undefined && prof.claimIds[0] === cid) hs.push(prof.honesty);
+          }
+        }
+        honesty.set(d.templateId, hs);
+      }
+    },
+    templates() {
+      const weights = poolW ?? { uneconomic: 0, marginal: 0, good: 0, excellent: 0 };
+      const out: Record<string, TemplateStats> = {};
+      for (const [tplId, list] of rows) {
+        out[tplId] = templateStats(tplId, list, perDistrict.get(tplId) ?? [], honesty.get(tplId) ?? [], weights);
+      }
+      return out;
+    },
+  };
+}
+
+export function runCalibration(opts: CalibrationOptions): CalibrationResult {
+  const tuning = opts.tuning ?? baseTuning;
+  const acc = createWorldStatsAccumulator();
   let genMs = 0;
   let kb = 0;
-  let poolW: Record<EconClass, number> | null = null;
   for (let i = 0; i < opts.worlds; i++) {
     const t0 = performance.now();
     const world = generateWorld(
@@ -175,37 +226,14 @@ export function runCalibration(opts: CalibrationOptions): CalibrationResult {
     );
     genMs += performance.now() - t0;
     kb += JSON.stringify(world).length / 1024;
-    poolW ??= listingPoolWeights(world.genParams);
-    for (const [tpl, list] of claimRows(world)) rows.set(tpl, (rows.get(tpl) ?? []).concat(list));
-    for (const did of world.districtIds) {
-      const d = world.districts[did];
-      if (d === undefined) continue;
-      const tpl = templateOf(world.genParams, d.templateId);
-      const pd = perDistrict.get(d.templateId) ?? [];
-      pd.push({ n: d.claimIds.length, target: tpl.parcelsPerDistrict[1] });
-      perDistrict.set(d.templateId, pd);
-      const hs = honesty.get(d.templateId) ?? [];
-      for (const cid of d.claimIds) {
-        const h = world.claims[cid]?.holderId;
-        if (typeof h === 'string' && h.startsWith('hld_')) {
-          const prof = world.holders[h as keyof WorldSlice['holders']];
-          if (prof !== undefined && prof.claimIds[0] === cid) hs.push(prof.honesty);
-        }
-      }
-      honesty.set(d.templateId, hs);
-    }
-  }
-  const weights = poolW ?? { uneconomic: 0, marginal: 0, good: 0, excellent: 0 };
-  const templates: Record<string, TemplateStats> = {};
-  for (const [tplId, list] of rows) {
-    templates[tplId] = templateStats(tplId, list, perDistrict.get(tplId) ?? [], honesty.get(tplId) ?? [], weights);
+    acc.add(world);
   }
   return {
     worlds: opts.worlds,
     seedBase: opts.seedBase,
     meanGenMs: genMs / opts.worlds,
     meanWorldKb: kb / opts.worlds,
-    templates,
+    templates: acc.templates(),
   };
 }
 

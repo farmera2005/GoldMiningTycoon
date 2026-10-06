@@ -7,10 +7,10 @@ import { openDecisions } from '../actions/decisions';
 import type { PendingDecision } from '../actions/types';
 import type { GameState } from '../state/types';
 import { tuningNumber } from '../state/tuning';
-import type { RunStatus } from '../systems/company/types';
+import type { EndReason, LiquidationPath, RunStatus } from '../systems/company/types';
 import { cashOnHandCents, companyNetWorthCents, netWorthCents, type NetWorthMode } from '../systems/finance/netWorth';
 import { marketSnapshot } from '../systems/history/snapshot';
-import type { MarketSnapshot, WeekSnapshot } from '../systems/history/types';
+import type { MarketSnapshot, WeekSnapshot, YearRollup } from '../systems/history/types';
 import { canAdvance, type AdvanceRefusal } from '../turn/guard';
 
 /** §1 1.3 / §13 13.2 date facts for a turn (default: the current turn). */
@@ -62,6 +62,23 @@ function runStatus(state: GameState): RunStatus {
   return state.company.runStatus;
 }
 
+/** §1 1.14 run outcome: status, why the run ended and, for a liquidation, its path (§11). Never hidden. */
+export interface RunOutcome {
+  runStatus: RunStatus;
+  endReason: EndReason | null;
+  liquidationPath: LiquidationPath | null;
+}
+
+function runOutcome(state: GameState): RunOutcome {
+  const c = state.company;
+  return { runStatus: c.runStatus, endReason: c.endReason, liquidationPath: c.liquidationPath };
+}
+
+/** §2.5 annual rollups, ascending years (completed game years only). */
+function annualHistory(state: GameState): readonly YearRollup[] {
+  return state.history.annual;
+}
+
 /** The weekly history ring (§2.5), ascending turns. */
 function weeklyHistory(state: GameState): readonly WeekSnapshot[] {
   return state.history.weekly;
@@ -76,7 +93,9 @@ export const select = {
   spotUsdPerFineOz,
   heldDistrictIds,
   runStatus,
+  runOutcome,
   weeklyHistory,
+  annualHistory,
   openDecisions: (state: GameState): PendingDecision[] => openDecisions(state),
   canAdvance: (state: GameState): null | AdvanceRefusal => canAdvance(state),
 } as const;

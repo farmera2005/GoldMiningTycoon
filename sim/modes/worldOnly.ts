@@ -2,6 +2,12 @@
 // state handed, in seed order, to every registered collector. Collectors compute world statistics (§3 class shares,
 // grade and strip bands) and must read only the state they are given; their result goes into summary.json.
 import { hashState, type GameState } from '../../src/engine';
+import {
+  bandChecks,
+  createWorldStatsAccumulator,
+  type BandCheck,
+  type TemplateStats,
+} from '../calibration/world-stats';
 import { seedFor } from '../game';
 import type { WorldRunSpec } from '../protocol';
 import { runWorlds, type SimPool } from '../runner';
@@ -63,18 +69,47 @@ export function defaultWorldCollector(): WorldStatsCollector {
   };
 }
 
+export interface WorldClassStats {
+  worlds: number;
+  templates: Record<string, TemplateStats>;
+  bands: BandCheck[];
+}
+
 /**
- * Collector factories by id, run in this order on every world-only run.
- *
- * INTEGRATION HOOK (P0 world package): register the §3 world-statistics collector from sim/calibration/world-stats.ts
- * here, e.g. `world: () => worldStatsCollector()`, so `--world-only` and the balance world block report §3's class
- * shares and grade and strip bands (BALANCE T-01, T-02). world-stats.ts today exposes `runCalibration({ worlds,
- * seedBase })`, which generates its own worlds; the collector form takes each newGame state's `world` slice instead
- * (its per-world accumulation in `add`, its percentiles and `bandChecks` in `result`), so the statistics describe the
- * same worlds the bots play and the balance scorecard can read T-01/T-02 from summary.json.
+ * §3's world statistics (§3.7 class shares, §3.18 grade, strip and parcel bands; BALANCE T-01, T-02) over the same
+ * worlds the bots play: the `world` slice of each newGame state. Truth-reading, like every calibration harness; the
+ * result is data in summary.json, never an input to a bot.
  */
+export function worldStatsCollector(): WorldStatsCollector {
+  const acc = createWorldStatsAccumulator();
+  // The world's own genParams snapshot (D-3.2) carries the prior and honesty settings it was generated with.
+  let gp: GameState['world']['genParams'] | null = null;
+  return {
+    id: 'world',
+    add(_index, state) {
+      gp ??= state.world.genParams;
+      acc.add(state.world);
+    },
+    result(): WorldClassStats {
+      const templates = acc.templates();
+      const bands =
+        gp === null
+          ? []
+          : bandChecks(
+              { worlds: acc.worlds, seedBase: 0, meanGenMs: 0, meanWorldKb: 0, templates },
+              gp.prior.statusMult.listed,
+              0,
+              gp.seller.honestyMix,
+            );
+      return { worlds: acc.worlds, templates, bands };
+    },
+  };
+}
+
+/** Collector factories by id, run in this order on every world-only run. */
 export const WORLD_COLLECTORS: Readonly<Record<string, () => WorldStatsCollector>> = {
   default: defaultWorldCollector,
+  world: worldStatsCollector,
 };
 
 export interface WorldOnlyResult {

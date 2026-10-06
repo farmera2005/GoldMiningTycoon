@@ -25,8 +25,9 @@ export { EngineGuardError } from './core/assert';
 
 // Derived values
 export { effective, EffectiveError } from './systems/events/effective';
-export { select, type DateView, type Selectors } from './select';
+export { select, type DateView, type RunOutcome, type Selectors } from './select';
 export { explain, type ExplainRef, type ExplainerName, type Explainers } from './explain';
+export { CASH_ON_HAND_ACCOUNTS } from './explain/cash';
 
 // Setup and tuning
 export {

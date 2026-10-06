@@ -38,7 +38,7 @@ const SERIES = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `series-${n}`);
 const RAMP_STEPS = [100, 200, 300, 400, 500, 600, 700];
 
 const round = (x: number, dp = 1): number => Math.round(x * 10 ** dp) / 10 ** dp;
-/** "Reproduces 13.20's figure to 0.1": most figures there are rounded, a few truncated (accent 5.05 is quoted 5.0). */
+/** "Reproduces 13.20's figure to 0.1" (D-13.70): figures are rounded to one decimal unless 13.20 quotes two. */
 const expectFigure = (actual: number, figure: number): void => {
   expect(Math.abs(actual - figure), `${actual} vs 13.20's ${figure}`).toBeLessThan(0.1);
 };
@@ -169,10 +169,10 @@ describe('T20 text contrast (WCAG 2.2, >= 4.5:1 on every surface of its theme)',
 });
 
 describe('T20 component and graphic contrast (>= 3:1 where used)', () => {
-  it('accent on surfaces (focus ring, primary buttons, "yours"): 5.0 / 4.0', () => {
+  it('accent on surfaces (focus ring, primary buttons, "yours"): 5.05 / 4.0', () => {
     expect(worstOnSurfaces('daylight', 'accent')).toBeGreaterThanOrEqual(3);
     expect(worstOnSurfaces('lamplight', 'accent')).toBeGreaterThanOrEqual(3);
-    expectFigure(worstOnSurfaces('daylight', 'accent'), 5.0);
+    expectFigure(worstOnSurfaces('daylight', 'accent'), 5.05);
     expectFigure(worstOnSurfaces('lamplight', 'accent'), 4.0);
   });
 
@@ -201,7 +201,7 @@ describe('T20 component and graphic contrast (>= 3:1 where used)', () => {
     expect(round(contrastOn('lamplight', 'status-critical', 'surface-2'), 2)).toBe(3.09);
   });
 
-  it('Daylight status fills match 13.20: critical 4.3, good 3.2 on cards and 2.9 on the page, warning 1.6, serious 2.6', () => {
+  it('Daylight status fills match 13.20: critical 4.30, good 3.2 on cards and 2.9 on the page, warning 1.6, serious 2.6', () => {
     // Critical is the one Daylight fill drawn as a bare graphic, so it alone must clear 3:1 (13.19).
     expect(worstOnSurfaces('daylight', 'status-critical')).toBeGreaterThanOrEqual(3);
     expectFigure(worstOnSurfaces('daylight', 'status-critical'), 4.3);
