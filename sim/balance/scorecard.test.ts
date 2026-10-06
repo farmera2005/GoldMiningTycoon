@@ -3,6 +3,7 @@ import { aggregateCell } from '../metrics/aggregate';
 import { operating, syntheticResult } from '../metrics/testing';
 import type { CellSummary } from '../report';
 import type { SimStart } from '../setup';
+import { buildMatrix, type MatrixCell } from './matrix';
 import {
   acrossVariants,
   bandStatus,
@@ -125,6 +126,68 @@ describe('scoring', () => {
     const r = scoreTargets({ phase: 1, cells: [cell('passive', 'bootstrapper', 0)], timing: null });
     expect(r.find((x) => x.id === 'G-03')).toMatchObject({ status: 'PASS', value: 1 });
     expect(r.find((x) => x.id === 'O-09.s2Loss')).toMatchObject({ status: 'N/A', applicability: '—' });
+  });
+});
+
+describe('O-02 over the core block only (BALANCE §3.1, §6.4)', () => {
+  /** A cell whose FSP is k / n: k games with year-1 net income > 0. */
+  function fspCell(c: MatrixCell, k: number, n = 200): CellSummary {
+    const results = Array.from({ length: n }, (_, i) =>
+      syntheticResult({ index: i }, 2, (y) => (y === 1 ? { netIncomeCents: i < k ? 1 : -1 } : {})),
+    );
+    return {
+      ...c,
+      rules: 1,
+      n,
+      years: 2,
+      seedBase: 0,
+      tuningHash: 'x',
+      metrics: aggregateCell(results, 2, {
+        cellKey: `${c.bot}|${c.start}|${c.difficulty}|${c.background}`,
+        resamples: 20,
+      }),
+    };
+  }
+  const blocks = buildMatrix(1, 1, { quick: false, games: 200 });
+  const cellsOf = (id: string) => blocks.find((b) => b.id === id)?.cells ?? [];
+  const score = (cells: CellSummary[]) => scoreTargets({ phase: 1, cells, timing: null });
+  const result = (r: TargetResult[], id: string) => r.find((x) => x.id === id) as TargetResult;
+
+  it('the core block is the 13 standard / background none / LLC cells', () => {
+    expect(cellsOf('core')).toHaveLength(13);
+    expect(cellsOf('difficulty').some((c) => c.bot === 'cautious' && c.difficulty === 'easy')).toBe(true);
+    expect(cellsOf('backgrounds').every((c) => c.bot === 'cautious' && c.background !== 'none')).toBe(true);
+  });
+
+  it('every-bot ≤ 45% reads the core cells: an easy or Operator cell at 60% cannot fail it', () => {
+    const core = cellsOf('core').map((c) => fspCell(c, 60)); // 30%
+    for (const other of [...cellsOf('difficulty'), ...cellsOf('backgrounds')]) {
+      const r = score([...core, fspCell(other, 120)]); // 60%
+      expect(result(r, 'O-02.everyBot'), `${other.difficulty}/${other.background}`).toMatchObject({
+        value: 0.3,
+        status: 'PASS',
+      });
+    }
+    expect(result(score(core), 'O-02.everyBot').value).toBe(0.3);
+  });
+
+  it('at-least-one-bot ≥ 10% reads the core cells: a difficulty or background cell cannot rescue it', () => {
+    const core = cellsOf('core').map((c) => fspCell(c, 8)); // 4%
+    expect(result(score(core), 'O-02.someBot')).toMatchObject({ value: 0.04, status: 'FAIL' });
+    const easy = cellsOf('difficulty').find((c) => c.bot === 'cautious' && c.difficulty === 'easy') as MatrixCell;
+    const operator = cellsOf('backgrounds').find((c) => c.background === 'operator') as MatrixCell;
+    for (const other of [easy, operator]) {
+      expect(result(score([...core, fspCell(other, 40)]), 'O-02.someBot')).toMatchObject({
+        value: 0.04,
+        status: 'FAIL',
+      });
+    }
+  });
+
+  it('a cell of another rules phase is not the run’s', () => {
+    const core = cellsOf('core').map((c) => fspCell(c, 60));
+    const p2 = { ...fspCell(cellsOf('core')[0] as MatrixCell, 160), rules: 2 as const };
+    expect(result(score([...core, p2]), 'O-02.everyBot').value).toBe(0.3);
   });
 });
 

@@ -1,11 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EngineGuardError } from '../core/assert';
 import { applyAction } from '../actions/apply';
+import { createDecision } from '../actions/decisions';
 import { asAction, registerTestActions } from '../actions/testActions';
+import type { DecId } from '../core/ids';
 import { hashState } from '../state/hash';
+import { produceState } from '../state/immutability';
 import { newGame } from '../state/newGame';
 import { defaultNewGameSetup } from '../state/setup';
 import type { GameState } from '../state/types';
+import { collateAlerts } from '../systems/inbox/collate';
 import { advanceWeek } from './advanceWeek';
 import { canAdvance } from './guard';
 import { PIPELINE } from './pipeline';
@@ -134,10 +138,56 @@ describe('the weekly pipeline (DESIGN §2.6)', () => {
     expect((thrown as EngineGuardError).code).toBe('GAME_OVER');
   });
 
-  it('collects blocking decisions created this turn as stop candidates (§13 collation, P0 stub)', () => {
-    const s = fresh();
-    const r = applyAction(s, asAction({ type: 'test/decide', blocking: false, deadlineInWeeks: 5, cents: 100 }));
-    if (!r.ok) throw new Error(r.error.code);
-    expect(advanceWeek(r.state).report.stopCandidates).toEqual([]);
+  // A decision created inside the pipeline: an open non-blocking decision whose default option runs `test/decide`
+  // is defaulted by the step-16 section wrap-up (§2.2), which creates the follow-up decision at the simulated turn,
+  // before §13's collation reads the inbox.
+  function withFollowUpDefault(followUpBlocking: boolean): GameState {
+    return produceState(fresh(), (draft) => {
+      createDecision(draft, {
+        kind: 'test.followUp',
+        ownerSection: 2,
+        blocking: false,
+        deadlineTurn: 1,
+        defaultOptionId: 'next',
+        options: [
+          {
+            id: 'next',
+            labelKey: 'test.next',
+            action: asAction({ type: 'test/decide', blocking: followUpBlocking, deadlineInWeeks: 3, cents: 100 }),
+            consequenceKey: 'test.next',
+          },
+        ],
+        context: { templateKey: 'test.followUp', params: {}, subject: [] },
+      });
+    });
+  }
+
+  it('collects blocking decisions created this turn as stop candidates (§13 13.10 collation, P0 stub)', () => {
+    const { state, report } = advanceWeek(withFollowUpDefault(true));
+    expect(state.inbox.closedDecisions['dec_000001' as DecId]).toMatchObject({ outcome: 'defaulted', closedTurn: 1 });
+    expect(state.inbox.decisions['dec_000002' as DecId]).toMatchObject({ blocking: true, createdTurn: 1 });
+    expect(report.stopCandidates).toEqual([{ ref: 'dec_000002', kind: 'decision', severity: 'blocking' }]);
+    expect(canAdvance(state)).toBe('BLOCKING_DECISION_OPEN');
+  });
+
+  it('does not collect a non-blocking decision created the same turn', () => {
+    const { state, report } = advanceWeek(withFollowUpDefault(false));
+    expect(state.inbox.decisions['dec_000002' as DecId]).toMatchObject({ blocking: false, createdTurn: 1 });
+    expect(report.stopCandidates).toEqual([]);
+  });
+
+  it('collation keeps only blocking decisions created at the current turn', () => {
+    // At the player's hand (turn 0): a blocking decision of an earlier turn is not this week's candidate.
+    let s = fresh();
+    for (const blocking of [true, false]) {
+      const r = applyAction(s, asAction({ type: 'test/decide', blocking, deadlineInWeeks: 5, cents: 100 }));
+      if (!r.ok) throw new Error(r.error.code);
+      s = r.state;
+    }
+    expect(collateAlerts(s)).toEqual([{ ref: 'dec_000001', kind: 'decision', severity: 'blocking' }]);
+    const later = produceState(s, (draft) => {
+      draft.clock.turn = 1;
+    });
+    expect(collateAlerts(later)).toEqual([]);
   });
 });

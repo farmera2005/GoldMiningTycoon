@@ -2,10 +2,10 @@
 // register at module load from catalog.ts; tests may register test-only rows (registerAction returns the
 // unregister function). The table is looked up by type only, never iterated, so registration order cannot matter.
 import type { GameState } from '../state/types';
+import { hasOwn } from './own';
 import type { ActionDef, ActionError, AnyAction } from './types';
 
 const registry: Record<string, ActionDef> = {};
-const hasOwn = (obj: object, key: string): boolean => Object.prototype.hasOwnProperty.call(obj, key);
 
 export class ActionRegistryError extends Error {
   constructor(message: string) {

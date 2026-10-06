@@ -130,13 +130,27 @@ function pooledYear(ctx: ScoreContext, pick: (c: CellSummary) => Proportion | un
   return pooled(parts);
 }
 
-const CORE_BOTS = ['cautious', 'balanced', 'aggressive', 'undercap'];
+/**
+ * The core block's 13 cells (BALANCE §6.4): {cautious, balanced, aggressive} × the four starts, plus undercap on the
+ * Bootstrapper; each at standard difficulty, background none, LLC and the phase's rules (cellFor's filter).
+ */
+const CORE_CELLS: readonly { bot: string; start: SimStart }[] = [
+  ...(['cautious', 'balanced', 'aggressive'] as const).flatMap((bot) =>
+    (['bootstrapper', 'backedEquity', 'backedRoyalty', 'inheritor'] as const).map((start) => ({ bot, start })),
+  ),
+  { bot: 'undercap', start: 'bootstrapper' },
+];
 
+/**
+ * O-02's "every bot ≤ 45%" and "at least one bot ≥ 10%": the highest FSP among the core block's cells only. The
+ * difficulty and background blocks also run cautious and undercap, but O-02's sample is the core matrix (standard,
+ * background none, LLC), so an easy or Operator cell must neither fail nor rescue it.
+ */
 function maxFsp(ctx: ScoreContext): Measured {
   let best: Measured = null;
-  for (const c of ctx.cells) {
-    if (!CORE_BOTS.includes(c.bot) || c.rules !== ctx.phase) continue;
-    const m = fromEstimate(c.metrics.fsp);
+  for (const { bot, start } of CORE_CELLS) {
+    const c = cellFor(ctx, bot, start);
+    const m = c === null ? null : fromEstimate(c.metrics.fsp);
     if (m !== null && (best === null || m.value > best.value)) best = m;
   }
   return best;

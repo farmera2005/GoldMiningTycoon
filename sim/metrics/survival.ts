@@ -133,8 +133,14 @@ export function ownerAheadBy(r: GameResult, n: number): boolean | null {
   return ratio === null ? null : ratio >= 1;
 }
 
-/** §5.6 FSP: year-1 company net income plus the change in unsold gold at the best visible net price, > 0. */
+/**
+ * §5.6 FSP: year-1 company net income plus the change in unsold gold at the best visible net price, > 0. Measured on
+ * every game of the cell (§3.1 O-02's sample is all of O-01's games): a run lost in year 1 counts with its year-1
+ * figures through the loss (the observer records them), so it stays in the denominator. Only a harness abort in
+ * year 1, or a build that cannot compute a term yet, leaves FSP unmeasured.
+ */
 export function firstSeasonProfit(r: GameResult): boolean | null {
+  if (r.abortedTurn !== null && r.abortedTurn < yearEndTurn(1)) return null;
   const y1 = yearEnd(r, 1);
   if (y1 === null || y1.netIncomeCents === null || r.unsoldGoldChangeY1Cents === null) return null;
   return y1.netIncomeCents + r.unsoldGoldChangeY1Cents > 0;

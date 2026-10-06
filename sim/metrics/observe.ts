@@ -109,6 +109,36 @@ export function yearNetIncomeCents(state: GameState, year: number): number | nul
   return rollup === undefined ? null : rollup.netIncomeCents;
 }
 
+/**
+ * The §11 11.2 chart's income and expense codes by family: income is revenue (`rev.`), other income (`inc.`) and
+ * gains (`gain.`); every expense is `exp.`. No sub-ledger family is income or expense. sim/metrics/observe.test.ts
+ * checks this against the engine's chart, so a new account cannot fall outside it unnoticed.
+ */
+export const INCOME_CODE_PREFIXES: readonly string[] = ['rev.', 'inc.', 'gain.'];
+export const EXPENSE_CODE_PREFIXES: readonly string[] = ['exp.'];
+
+/**
+ * Company-book net income over turns fromTurn…toTurn inclusive (income less expenses, §11 11.19), the figure the
+ * §2.5 annual rollup records for a full year. BALANCE §5.6 measures the year in which a run ended before week 52
+ * through its last turn, like any other year (no selector yet: §2.11 exposes only completed years, so this reads the
+ * company journal, a non-hidden field). The window always lies within the journal's 52-week detail (§11 11.1), since
+ * it is the run's last, partial year.
+ */
+export function netIncomeThroughCents(state: GameState, fromTurn: number, toTurn: number): number {
+  let net = 0;
+  for (const txn of state.finance.books.company.txns) {
+    if (txn.date < fromTurn || txn.date > toTurn) continue;
+    for (const line of txn.lines) {
+      const signed = (line.debit ?? 0) - (line.credit ?? 0);
+      const isPnl =
+        INCOME_CODE_PREFIXES.some((p) => line.account.startsWith(p)) ||
+        EXPENSE_CODE_PREFIXES.some((p) => line.account.startsWith(p));
+      if (isPnl) net -= signed;
+    }
+  }
+  return net;
+}
+
 /** §11's reorganization case: none can exist before P4 (D-11.73), so the case facts are all empty. */
 export function observeReorg(state: GameState): ReorgObservation {
   return absentBefore(state, 4, 'reorganization case (§11 11.16)', {
@@ -125,7 +155,16 @@ export function unsoldGoldValueCents(state: GameState): number | null {
   return absentBefore(state, 1, 'unsold gold value (§10 lots)', 0);
 }
 
-/** The first claim's district (O-16); none before P1. */
-export function firstClaimDistrict(state: GameState): string | null {
-  return absentBefore(state, 1, 'first claim district (§5)', null);
+/** A claim the company holds (owned, leased, staked or inherited) and its district. */
+export interface HeldClaim {
+  readonly claimId: string;
+  readonly districtId: string;
+}
+
+/**
+ * The claims the company holds now (§5 tenures), for O-16's first-claim district. None can be held before P1 (no
+ * tenures), so P0 reads an empty list; P1 wires §5's selector here.
+ */
+export function heldClaims(state: GameState): readonly HeldClaim[] {
+  return absentBefore<readonly HeldClaim[]>(state, 1, 'held claims (§5 tenures)', []);
 }

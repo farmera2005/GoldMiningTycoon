@@ -7,6 +7,7 @@ import type { GameState } from '../state/types';
 import { advanceWeek } from '../turn/advanceWeek';
 import fixtureV1 from './fixtures/save-v1.json';
 import { CURRENT_SCHEMA_VERSION, MIGRATIONS, MigrationError, migrateSave } from './migrations';
+import { resolveTuning, tuningHashOf } from '../state/tuning';
 import {
   BUILD_TUNING_HASH,
   createSaveCodec,
@@ -14,6 +15,7 @@ import {
   saveCodec,
   serializeSaveFile,
   toSaveFile,
+  TUNING_MATCHES_BUILD,
 } from './saveFile';
 import type { Migration, VersionedSave } from './types';
 
@@ -133,8 +135,12 @@ describe('SaveFile (DESIGN §2.9)', () => {
   it('notes TUNING_DIFFERS when a save carries tuning this build would not resolve for its setup', () => {
     const standard = parseSaveFile(serializeSaveFile(toSaveFile(fresh(), OPTS)));
     expect(standard).toMatchObject({ ok: true, notices: [] });
-    const hard = parseSaveFile(serializeSaveFile(toSaveFile(fresh('save', { difficulty: 'hard' }), OPTS)));
+    // A hard save's tuning differs from the default game's (§1 1.11), yet it is what this build resolves for it.
+    const hardGame = fresh('save', { difficulty: 'hard' });
+    expect(hardGame.meta.tuningHash).not.toBe(BUILD_TUNING_HASH);
+    const hard = parseSaveFile(serializeSaveFile(toSaveFile(hardGame, OPTS)));
     expect(hard).toMatchObject({ ok: true, notices: [] });
+    expect(saveCodec.tuningHashOf({ state: hardGame })).toBe(saveCodec.currentTuningHash);
     const overridden = newGame(defaultNewGameSetup({ companyName: 'X' }), 'o', { 'game.nw.partsResaleFactor': 0.5 });
     const r = parseSaveFile(serializeSaveFile(toSaveFile(overridden, OPTS)));
     expect(r).toMatchObject({
@@ -143,6 +149,71 @@ describe('SaveFile (DESIGN §2.9)', () => {
         { code: 'TUNING_DIFFERS', saveTuningHash: overridden.meta.tuningHash, buildTuningHash: BUILD_TUNING_HASH },
       ],
     });
+  });
+
+  // Persistence decides the notice with one comparison (src/persistence: tuningHashOf(save) !== currentTuningHash);
+  // the engine cannot import persistence (§2.1), so its rule is restated here against the same codec.
+  const persistenceSeesDifference = (s: GameState): boolean => {
+    const hash = saveCodec.tuningHashOf({ state: s });
+    return hash !== null && hash !== saveCodec.currentTuningHash;
+  };
+
+  it("notes TUNING_DIFFERS when the save's hash equals the default game's but not its own setup's (D-2.35)", () => {
+    // Setup opening spot 2500, then a simulator override back to the base 4200: the stored tuning is the default
+    // game's, yet this build resolves the save's own setup (spot 2500) to something else.
+    const setup2500 = defaultNewGameSetup({
+      companyName: 'Spot Test',
+      world: { ...defaultNewGameSetup({ companyName: 'x' }).world, openingSpotUsdPerFineOz: 2500 },
+    });
+    const game = newGame(setup2500, 'spot', { 'market.openingSpotUsdPerFineOz': 4200 });
+    expect(game.meta.tuningHash).toBe(BUILD_TUNING_HASH);
+    const setupHash = tuningHashOf(resolveTuning(setup2500));
+    expect(setupHash).not.toBe(BUILD_TUNING_HASH);
+    const r = parseSaveFile(serializeSaveFile(toSaveFile(game, OPTS)));
+    expect(r).toMatchObject({
+      ok: true,
+      notices: [{ code: 'TUNING_DIFFERS', saveTuningHash: BUILD_TUNING_HASH, buildTuningHash: setupHash }],
+    });
+    expect(saveCodec.tuningDiffers({ state: game })).toEqual({
+      saveTuningHash: BUILD_TUNING_HASH,
+      buildTuningHash: setupHash,
+    });
+    expect(persistenceSeesDifference(game)).toBe(true);
+  });
+
+  it('notes TUNING_DIFFERS for a hand-edited setup whose tuning no longer matches the stored tuning', () => {
+    const s = fresh();
+    const edited = {
+      ...s,
+      meta: { ...s.meta, setup: { ...s.meta.setup, world: { ...s.meta.setup.world, startCalendarYear: 2031 } } },
+    };
+    const editedHash = tuningHashOf(resolveTuning(edited.meta.setup));
+    const r = parseSaveFile(serializeSaveFile(toSaveFile(edited, OPTS)));
+    expect(r).toMatchObject({
+      ok: true,
+      notices: [{ code: 'TUNING_DIFFERS', saveTuningHash: s.meta.tuningHash, buildTuningHash: editedHash }],
+    });
+    expect(persistenceSeesDifference(edited)).toBe(true);
+  });
+
+  it('notes TUNING_DIFFERS, naming the default-game hash, when the save’s setup no longer resolves', () => {
+    const s = fresh();
+    const broken = { ...s, meta: { ...s.meta, setup: { ...s.meta.setup, world: null as never } } };
+    expect(saveCodec.tuningDiffers({ state: broken })).toEqual({
+      saveTuningHash: s.meta.tuningHash,
+      buildTuningHash: BUILD_TUNING_HASH,
+    });
+    expect(persistenceSeesDifference(broken)).toBe(true);
+  });
+
+  it('gives persistence a token no tuning hash can equal, and no difference for a matching save', () => {
+    expect(saveCodec.currentTuningHash).toBe(TUNING_MATCHES_BUILD);
+    expect(TUNING_MATCHES_BUILD).not.toMatch(/^[0-9a-f]{16}$/);
+    expect(BUILD_TUNING_HASH).toMatch(/^[0-9a-f]{16}$/);
+    expect(saveCodec.tuningDiffers({ state: fresh() })).toBeNull();
+    expect(persistenceSeesDifference(fresh())).toBe(false);
+    expect(saveCodec.tuningHashOf({ state: {} })).toBeNull();
+    expect(saveCodec.tuningDiffers({ state: {} })).toBeNull();
   });
 });
 

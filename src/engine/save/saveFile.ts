@@ -88,26 +88,45 @@ function buildTuningHashFor(setup: unknown): string | null {
   }
 }
 
-/** The build's tuning hash for its default game (persistence's `currentTuningHash`). */
+/** The build's tuning hash for its default game (shown as the build's tuning; not what a save is compared with). */
 export const BUILD_TUNING_HASH: string = tuningHashOf(resolveTuning(defaultNewGameSetup({ companyName: 'Build' })));
+
+/**
+ * Persistence's `currentTuningHash` (D-2.35): a token, not a hash. The codec's `tuningHashOf` reports it for a save
+ * whose tuning is exactly what this build resolves for that save's own setup, and the save's own hash otherwise.
+ * Tuning hashes are 16 hex digits, so no save's hash can ever equal the token: persistence's single comparison
+ * `tuningHashOf(save) !== currentTuningHash` is then exactly "the save's tuning differs from what this build resolves
+ * for it". (Comparing against BUILD_TUNING_HASH instead missed a save whose own hash happened to equal the default
+ * game's while its setup resolves to something else.)
+ */
+export const TUNING_MATCHES_BUILD = 'tuning-matches-build';
 
 export interface SaveCodecConfig {
   currentSchemaVersion: number;
   migrations: readonly Migration[];
 }
 
-/**
- * The engine side of saving, in the shape src/persistence's `SaveCodec` expects. `tuningHashOf` reports the build's
- * hash when the save's tuning equals what this build resolves for the save's own setup, and the save's hash otherwise,
- * so persistence's single comparison against `currentTuningHash` raises TUNING_DIFFERS exactly when the save's
- * tuning differs from the build's (whatever its difficulty).
- */
+/** Both hashes of a TUNING_DIFFERS notice (§13 13.16). */
+export interface TuningDifference {
+  readonly saveTuningHash: string;
+  readonly buildTuningHash: string;
+}
+
+/** The engine side of saving, in the shape src/persistence's `SaveCodec` expects, plus the engine's own reads. */
 export interface EngineSaveCodec {
   readonly currentSchemaVersion: number;
   migrate(save: VersionedSave): MigrationOutcome;
   checkState(state: unknown): string | null;
+  /** = TUNING_MATCHES_BUILD (see there). */
   readonly currentTuningHash: string;
+  /** TUNING_MATCHES_BUILD when `tuningDiffers` is null, else the save's own hash; null when the state has none. */
   tuningHashOf(save: { readonly state: unknown }): string | null;
+  /**
+   * §2.9 / D-2.35: null when the save's `meta.tuningHash` equals what this build resolves for the save's own setup
+   * (any difficulty); otherwise both hashes. A setup this build can no longer resolve differs by definition, and its
+   * notice names the build's default-game hash. Null too when the state carries no readable hash (checkState's case).
+   */
+  tuningDiffers(save: { readonly state: unknown }): TuningDifference | null;
   runStatusOf(save: { readonly state: unknown }): 'active' | 'ended';
 }
 
@@ -117,18 +136,27 @@ function saveTuningHash(state: unknown): string | null {
   return typeof hash === 'string' ? hash : null;
 }
 
+/** D-2.35: compares the save's own hash directly with this build's resolution of the save's own setup. */
+function tuningDifference(state: unknown): TuningDifference | null {
+  const own = saveTuningHash(state);
+  if (own === null) return null;
+  const build = buildTuningHashFor(((state as Rec)['meta'] as Rec)['setup']);
+  if (own === build) return null;
+  return { saveTuningHash: own, buildTuningHash: build ?? BUILD_TUNING_HASH };
+}
+
 export function createSaveCodec(config: SaveCodecConfig): EngineSaveCodec {
   return {
     currentSchemaVersion: config.currentSchemaVersion,
     migrate: (save) => migrateSave(save, config.migrations, config.currentSchemaVersion),
     checkState: (state) => stateProblem(state, config.currentSchemaVersion),
-    currentTuningHash: BUILD_TUNING_HASH,
+    currentTuningHash: TUNING_MATCHES_BUILD,
     tuningHashOf: (save) => {
       const own = saveTuningHash(save.state);
       if (own === null) return null;
-      const meta = (save.state as Rec)['meta'] as Rec;
-      return own === buildTuningHashFor(meta['setup']) ? BUILD_TUNING_HASH : own;
+      return tuningDifference(save.state) === null ? TUNING_MATCHES_BUILD : own;
     },
+    tuningDiffers: (save) => tuningDifference(save.state),
     runStatusOf: (save) => {
       const company = isRec(save.state) ? save.state['company'] : undefined;
       return isRec(company) && company['runStatus'] !== 'active' ? 'ended' : 'active';
@@ -191,14 +219,8 @@ export function parseSaveFile(input: unknown, codec: EngineSaveCodec = saveCodec
       migrations: outcome.applied,
     });
   }
-  if (codec.tuningHashOf({ state: migrated['state'] }) !== codec.currentTuningHash) {
-    const meta = (migrated['state'] as Rec)['meta'] as Rec;
-    notices.push({
-      code: 'TUNING_DIFFERS',
-      saveTuningHash: saveTuningHash(migrated['state']) ?? '',
-      buildTuningHash: buildTuningHashFor(meta['setup']) ?? codec.currentTuningHash,
-    });
-  }
+  const tuning = codec.tuningDiffers({ state: migrated['state'] });
+  if (tuning !== null) notices.push({ code: 'TUNING_DIFFERS', ...tuning });
   const save = migrated as unknown as SaveFile;
   save.state = freezeIfEnabled(save.state);
   return { ok: true, save, notices };
