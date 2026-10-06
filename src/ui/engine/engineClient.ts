@@ -34,6 +34,7 @@ import {
 import { EMPTY_GAME, pushNewest, pushUndo, type GameSlice } from '../store/gameSlice';
 import { defaultUiPersisted, persistedForSave, readUiPersisted, type UiPersisted } from '../store/persisted';
 import type { RunSlice, UiStore } from '../store/store';
+import { t } from '../text';
 import { summarizeWeek, weekAnnouncement } from './summarize';
 
 /** `ui/advanceWeek` refusals (13.21) plus the client's own "nothing loaded". */
@@ -146,7 +147,7 @@ export function createEngineClient(options: EngineClientOptions): EngineClient {
       } else {
         store.getState().pushToast({
           severity: 'critical',
-          message: `Autosave failed: ${result.error.message}`,
+          message: t('autosave.failed', { message: result.error.message }),
           action: 'exportNow',
         });
       }

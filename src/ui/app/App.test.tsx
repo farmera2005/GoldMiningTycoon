@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asAction, registerTestActions } from '../../engine/actions/testActions';
 import { select, type GameState } from '../../engine';
+import { createMemoryKv, type KvStore } from '../../persistence';
 import { createHarness, loadState, type Harness } from '../testing/harness';
 import { App } from './App';
 
@@ -110,6 +111,41 @@ describe('top bar and Advance (13.1, 13.9, 13.15)', () => {
     });
     expect(advanceButton().disabled).toBe(true);
     expect(advanceButton().title).toBe('The run has ended; this save is read-only.');
+  });
+
+  it('undoes the last undoable action with Ctrl+Z (D-13.11)', () => {
+    const h = renderApp();
+    const before = h.store.getState().game.state;
+    act(() => {
+      h.client.apply(asAction({ type: 'test/transfer', cents: 100_00 }));
+    });
+    expect(h.store.getState().game.state).not.toBe(before);
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true });
+    expect(h.store.getState().game.state).toEqual(before);
+    expect(h.store.getState().game.actionLog).toEqual([]);
+  });
+
+  it('raises a critical toast with Export now when an autosave fails (13.16)', async () => {
+    const memory = createMemoryKv();
+    const kv: KvStore = {
+      get: (k) => memory.get(k),
+      keys: () => memory.keys(),
+      delMany: (k) => memory.delMany(k),
+      setMany: () => Promise.reject(new Error('QuotaExceededError')),
+    };
+    const h = createHarness({ kv });
+    loadState(h.client);
+    render(<App store={h.store} services={h.services} />);
+    fireEvent.click(advanceButton());
+    act(() => h.idle.flush());
+    await act(() => h.client.settled());
+    const toasts = screen.getByRole('list', { name: 'Critical notifications' });
+    expect(within(toasts).getByText('Critical')).toBeTruthy();
+    expect(within(toasts).getByText(/Autosave failed: .*QuotaExceededError/)).toBeTruthy();
+    fireEvent.click(within(toasts).getByRole('button', { name: 'Export now' }));
+    expect(h.downloads.map((d) => d.fileName)).toEqual(['ruby-creek-placers.gmt.json.gz']);
+    fireEvent.click(within(toasts).getByRole('button', { name: 'Dismiss' }));
+    expect(within(toasts).queryByText('Critical')).toBeNull();
   });
 
   it('quick-saves with Ctrl+S, or opens Saves when the game has no slot yet', async () => {
