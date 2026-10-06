@@ -969,6 +969,7 @@ The brief scales "ground quality honesty, lender patience, and event severity". 
 | Score multiplier | `game.scoreMult` (§1) | 0.75 | 1.00 | 1.35 |
 
 Notes:
+- **Reading a cell** (D-1.67; §2.10's `DiffEntry`). A plain value is the key's value at that difficulty (`{ set }`), including the start-cash multipliers, whose base is 1.0. A `×` cell multiplies the base (`{ mul }`). A `×` cell on a table-valued key scales the named numbers of the base table and is written as `{ set }` of the scaled table; a scaled probability is capped at 1, so `geology.seller.tellDetect`'s 0.9 records-review detection of a permit-status mismatch becomes 1.0 on easy, not 1.035. Standard always resolves to the base value.
 - Inspection *detection* has no separate knob: §6 detects through inspections and complaints, both already scaled.
 - §14's blast misfire and flyrock odds scale only through `events.severityMult`, and its project loan only through §11's lender-patience knobs above; neither has a knob of its own.
 - `ops.freezeDamageProb` (§7) is **not** difficulty-scaled (§7 marks it Diff = no): freeze damage is a risk the player controls by winterizing, and `fleet.failureHazardMult` already scales breakdown odds (D-1.44). `ops.freezeDamageProbMult` stays an event hook only.
@@ -1212,9 +1213,11 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 | Key | Default | Unit | Diff? | Notes / source |
 |---|---|---|---|---|
 | `game.startCalendarYear` | 2027 | year | no | §2.4 |
-| `game.season.<tpl>.breakupMean` / `Sd` | 18.5 / 1.0 (northern) | week | sd via `sigmaMult` | R2: Dawson breakup ~May 3, SD 5–7 d; anchor wk 18–20 |
+| `game.season.<tpl>.breakupMean` / `Sd` | 18.5 / 1.0 (northern) | week | no | R2: Dawson breakup ~May 3, SD 5–7 d; anchor wk 18–20; difficulty scales the sd through `game.season.sigmaMult` |
 | `game.season.<tpl>.breakupDurMean` / `Sd` | 1.4 / 0.6 | weeks | no | |
-| `game.season.<tpl>.freezeMean` / `Sd` | 42.0 / 1.4 | week | yes (shift, sigma) | R2: first-freeze SD 7–10 d; mild falls to end of Oct; D-1.4 |
+| `game.season.<tpl>.freezeMean` / `Sd` | 42.0 / 1.4 | week | no | R2: first-freeze SD 7–10 d; mild falls to end of Oct; D-1.4; difficulty shifts the mean through `game.season.freezeUpMeanShift` and scales the sd through `game.season.sigmaMult` |
+| `game.season.sigmaMult` | 1.0 | × | yes | multiplies every season-date sd (1.4.3) |
+| `game.season.freezeUpMeanShift` | 0 | weeks | yes | added to the freeze-up mean (1.4.3, 1.4.4) |
 | `game.season.<tpl>.min/maxOperatingWeeks` | 17 / 27 | weeks | no | brief 20–26 typical |
 | `game.weather.tempPersistence` | 0.55 | AR(1) φ | no | |
 | `game.weather.moistPersistence` / `wetnessWeight` | 0.5 / 0.4 | — | no | |
@@ -1240,13 +1243,14 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 | `game.investor.planFloorFineOz` | 200 / 450 / 600 | oz by year | no | R2: typical op 300–700 oz/yr |
 | `game.investor.approvalThresholdUsd` | 100,000 | USD | no | R5 example ~$50k; raised (1.8.1) |
 | `game.investor.approvalTokenWeeks` / `approvalCooldownWeeks` | 4 / 4 | weeks | no | anti re-roll (D-1.34) |
-| `game.investor.prefRate` / `equityPct` / `equityContributionUsd` | 0.08 / 0.40 / 1,300,000 | — | contribution via cash mult | Backed equity |
-| `game.investor.royaltyContributionUsd` / `royaltyRate` / `royaltyPaybackMultiple` / `royaltyTailRate` / `royaltyMinimumUsd` | 900,000 / 0.10 / 2.0 / 0.03 / 100,000 | — | contribution and minimum via cash mult | R5 payback structure |
+| `game.investor.prefRate` / `equityPct` / `equityContributionUsd` | 0.08 / 0.40 / 1,300,000 | — | no | Backed equity; difficulty scales the contribution through `game.startCompanyCashMult` (1.8) |
+| `game.investor.royaltyContributionUsd` / `royaltyRate` / `royaltyPaybackMultiple` / `royaltyTailRate` / `royaltyMinimumUsd` | 900,000 / 0.10 / 2.0 / 0.03 / 100,000 | — | no | R5 payback structure; difficulty scales the contribution and the minimum through `game.startCompanyCashMult` (1.8) |
 | `game.owner.deskDaysOffice` / `deskDaysField` | 5 / 2.5 | days/wk | no | §6 "0.5 desk-week" in the field |
-| `game.start.bootstrapper.companyCashUsd` | 400,000 | USD | via `startCompanyCashMult` | preflight: $250k gave S2 36–40% (D-1.42) |
-| `game.start.bootstrapper.personalCashUsd` | 120,000 | USD | via `startPersonalCashMult` | 1.8; posted to the owner book at `newGame` (D-1.64) |
-| `game.startCompanyCashMult` / `game.startPersonalCashMult` | 1.0 / 1.0 | × | yes (1.11: 1.25 / 1.0 / 0.85 and 1.1 / 1.0 / 0.9) | 1.8 starting cash (D-1.43, D-1.64) |
-| `game.start.inheritor.companyCashUsd` | 300,000 | USD | via `startCompanyCashMult` | preflight Inheritor S2: $90k 0–3%; $250k 46% (P1) / 30% (full); $300k 60% / 43% (D-1.42, D-1.54; BALANCE R-3) |
+| `game.start.bootstrapper.companyCashUsd` | 400,000 | USD | no | preflight: $250k gave S2 36–40% (D-1.42); difficulty scales it through `game.startCompanyCashMult` |
+| `game.start.bootstrapper.personalCashUsd` | 120,000 | USD | no | 1.8; posted to the owner book at `newGame` (D-1.64); difficulty scales it through `game.startPersonalCashMult` |
+| `game.startCompanyCashMult` / `game.startPersonalCashMult` | 1.0 / 1.0 | × | yes | 1.8 starting cash (D-1.43, D-1.64); 1.11: 1.25 / 1.0 / 0.85 and 1.1 / 1.0 / 0.9 |
+| `game.start.inheritor.companyCashUsd` | 300,000 | USD | no | preflight Inheritor S2: $90k 0–3%; $250k 46% (P1) / 30% (full); $300k 60% / 43% (D-1.42, D-1.54; BALANCE R-3); difficulty scales it through `game.startCompanyCashMult` |
+| `game.inheritorDebtMult` | 1.0 | × | yes | multiplies the Inheritor note's principal (1.8) |
 | `game.inheritorTierWeights` | excellent 0.07 / good 0.30 / marginal 0.38 / uneconomic 0.25 | share | no | D-1.18, D-1.42 |
 | `game.inheritorDepletionAdd` | 0.10 | fraction | no | §3 3.6.1 |
 | `game.inheritor.preStrippedBlocks` | 2 | blocks | no | §3 implements (1.8.2) |
@@ -1254,8 +1258,8 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 | `game.inheritor.planHeadroomAcres` | 5 | acres | no | P2+ plan cap = inherited open acres + 5 |
 | `game.inheritor.regulatorStandingStart` | 55 | 0–100 | no | §6 allows 50–65 |
 | `game.investor.penaltyMult` | 1.0 | × | yes | |
-| `game.investor.sDistress` | missedPayroll −12, defaultNotice −8, missedPlanPayment −8, inReorganization −6, covenantBreach −4, requirementMissed −4, none +2 | S points (worst of quarter) | negatives via `penaltyMult` | 1.8.1 check-in; the two reorganization terms are new (owner ruling 2026-10-05) |
-| `game.investor.reorgFilingPenalty` | 20 | S points, once per case | via `penaltyMult` | 1.8.1; one stance band on standard: a holder at S 60–79 becomes concerned, 40–59 unhappy, 20–39 hostile |
+| `game.investor.sDistress` | missedPayroll −12, defaultNotice −8, missedPlanPayment −8, inReorganization −6, covenantBreach −4, requirementMissed −4, none +2 | S points (worst of quarter) | no | 1.8.1 check-in; the two reorganization terms are new (owner ruling 2026-10-05); difficulty scales the negative terms through `game.investor.penaltyMult` |
+| `game.investor.reorgFilingPenalty` | 20 | S points, once per case | no | difficulty scales it through `game.investor.penaltyMult`; 1.8.1; one stance band on standard: a holder at S 60–79 becomes concerned, 40–59 unhappy, 20–39 hostile |
 | `game.investor.motionMissedPayments` | 1 | missed plan payments | no | converts the case while a hostile holder presses its motion; otherwise §11's `finance.reorg.missedPaymentsToConvert` (2) |
 | `game.scenario.reorgMedalCap` | `'silver'` | medal | no | 1.10; owner ruling 2026-10-05 ("cannot earn the gold medal") |
 | `game.reputation.decayPerWeek` | 0.005 | /wk | no | |
@@ -1309,7 +1313,7 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 - **Owner time:** a records review (3 days) and two site visits (2 days each) in one office week leave 2 days queued for the next week; forcing them cuts the owner's field `availableFraction` by 2/6 that week. Owner labor: reassigning the owner-foreman from claim A (crew of 5) to claim B stands A's plan down at the next step 7; activating a second plan with no hired foreman fails with `FOREMAN_REQUIRED` when its crew (excluding the owner) exceeds 3 or it runs a second shift or a second plant line, and succeeds at F = 0.92 with incident odds × 1.15 when its crew is 3 or fewer on one shift and one line; an owner-foreman on a three-line claim covers L1 and L2 and L3 runs under a line lead hand (§8 D-8.49); an owner-mechanic in pool mode (P3) adds 50 hours to that district's pool, not to a site shop; a fatal owner roll is recorded as serious.
 - **Reputation:** bounded to [0, 100]; from 90 with no inputs reaches 70 in ≈ 139 weeks (±2); sponsorship cap enforced; capped kinds truncate at the cap and reset in week 1.
 - **Net worth:** scrambling all hidden truth (geology, component health, honesty, employee truth, true fineness of unassayed lots, season drivers) leaves `netWorth(state,'scoring')` unchanged (property); the worked example (1.13) reproduces ($584k company, $704k owner, $683k real); metal-account ounces are valued by `metalAccountValueForScoring`, never by `netSalePerFineOz`; real NW divides by cpiIndex; contingent guarantees change nothing until demanded; a reorganization filing leaves `netWorth(state,'scoring')` unchanged except for the case costs, and the discharged claims leave it only at discharge (confirmation of a consensual plan, completion of a non-consensual one). `seasonView` never returns an unrevealed date (scrambled-truth property).
-- **Difficulty:** every key in 1.11 exists in the tuning schema with exactly these values; conversely, every key marked difficulty-scaled in any section's tuning file appears in 1.11 with identical values (schema scan; `ops.freezeDamageProb` must be marked Diff = no); resolution applies each multiplier exactly once; geology priors are identical across difficulties.
+- **Difficulty** (`tests/data/difficulty.test.ts`, which reads 1.11 from DESIGN.md itself): every `difficulty.ts` key is a 1.11 row and a resolvable tuning key, with one entry per difficulty; every 1.11 row whose key exists in this build's tuning is in `difficulty.ts` and resolves to exactly 1.11's value at every difficulty, read by the 1.11 cell convention (rows whose owners ship later are listed as deferred and join with their keys; the first P0 merge resolved `geology.seller.honestyMix`, `geology.seller.tellDetect` and the two start-cash multipliers); each entry applies exactly once; standard resolves to the base tables, so the standard `tuningHash` and the goldens are unchanged, and easy and hard differ from standard exactly where 1.11's cells differ; through `newGame`, easy books $500k + $132k and hard $340k + $108k, ground truth is identical across difficulties and only the honesty shares move; `ops.freezeDamageProb` is not a 1.11 row. **Converse scan** (P1; not yet implemented in P0): every tuning-table row whose Diff cell reads `yes` names only 1.11 keys, and every 1.11 key has a `yes` row in its owner's table (`ops.freezeDamageProb` reads no). The Diff cells follow §2.10's convention so the scan can read them (D-1.67).
 - **Scenarios:** fixtures for 1,000 oz reached in year 2 week 30 → gold; the 1.10 medal-cap example (filed year 1 week 44, 1,000 oz in year 2 week 38) → silver, and the same run reaching it in year 3 → silver; a reorganized Debt-Free run cannot win before confirmation (`distressStage` 7) or while plan notes remain (`interestBearingDebt` > 0); a scenario run whose case converts ends `lost` / `liquidated`; debt-free evaluated only in week 52; Gold Baron uses real owner NW; `cumFineOzRecovered` uses estimated fineness until the assay and re-evaluates on assay, counts every plant line's cleanups, and counts a `source: 'sample'` lot once, at creation.
 - **Simulator gates (BALANCE; bots from the §2.12.1 catalog, standard, 500 seeds per cell).** "Survival" is gated both ways (D-1.49): BALANCE O-01 needs the `cautious` bot's pooled going-concern S2 in 60–70% **and** its pooled no-bankruptcy B2 ≥ 75% (interim bands in BALANCE §7). B2 = not lost and no bankruptcy filing of either kind (liquidation or reorganization) in seasons 1–2 (BALANCE §5.1); S2 = B2 plus production in at least one season, no distress fleet sale, and at season 2's end a claim plus a fleet washing ≥ 20 bcy/hr, or company cash ≥ $150k × cpiIndex (BALANCE §5.2). A reorganized run keeps playing and is measured normally afterwards, but it has failed every window that contains its filing. Every survival figure prints S2, B2, the reorganization share and the retreated share B2 − S2 beside it; B2 per start type is reported, and the pooled B2 gates. Other gates: `cautious` S2 by background within ±5 pp of the mean (±7 pp interim in P1–P2), with §4's Geologist net-worth cap (median NW ratio ≤ 1.15 × the other four backgrounds', BALANCE O-07) read on the owner-ahead share for a start whose median sits on the waterfall floor; `cautious` S2 by start type within 10 pp of the 60–70% band; year-5 owner-ahead share within 20 pp between any two starts (BALANCE O-06 b; median NW ratios reported beside it). Owner-ahead share = share of games whose owner NW ends at or above its start (NW ratio ≥ 1.0, BALANCE §5.3). Wherever a Backed median sits on the investor-waterfall floor (a ratio of $50k ÷ $250k = 0.20), an outcome gate uses the owner-ahead share instead of the median (D-1.55); Inheritor season-1 production attempt rate ≥ 80%; arid chosen by `cautious` in ≤ 70% of seeds; sole-prop `cautious` S2 within 5 pp of the same bot as an LLC (P4+); Backed equity: among `cautious` runs with two losing seasons, P(ouster, forced redemption, or a reorganization filed while a redemption demand is open, by the end of season 3) in 40–70%, and the 2-season loss rate (a bankruptcy filing of either kind, or ouster: 1 − B2) of all `cautious` runs in 8–25% (P4+).
 
@@ -1381,6 +1385,7 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 - **D-1.64:** `newGame` posts the start's cash through the ledger: company cash as owner capital in the company book (`cash.operating` / `eq.ownerCapital`) and personal cash in the owner book (`own.cash` / `own.equity`), each × its difficulty multiplier. New keys: `game.start.bootstrapper.personalCashUsd` (120,000), `game.startCompanyCashMult` and `game.startPersonalCashMult` (base 1.0; 1.11 sets the difficulty values). Rationale: a Bootstrapper's scoring net worth must start at 1.8's $520,000, and cash changes only through ledger postings (§11), so even the opening balance has an explanation.
 - **D-1.65:** only §1 draws on its `setup` stream. §1's `inheritorStreams(seed)` builds the Inheritor's streams and hands `ground` and `pits` to §3's `genInheritedGroup`, `fleet(i)` to §9's `materializeInheritedFleet` and `hand` to §8's candidate, as §4 hands `sample` to `drawSample`. Rationale: §2.3 stream rule (b), which the registry test checks by engine folder (§2.14); the stream names and keys are unchanged, so the generated content is the same.
 - **D-1.66:** the calendar helper is `weekToDateRange(week)` → `{ start, end }` with no year; `turnDate(turn, startCalendarYear)` adds the year, week and display year for labels. Rationale: with no leap days (D-1.1) a week has the same dates every year, so the year belongs to the turn, not to the week.
+- **D-1.67** — 1.11's cells are read by one convention: a plain value is `{ set }`, a `×` cell is `{ mul }` on a numeric base, and a `×` cell on a table-valued key is `{ set }` of the base table with the named numbers scaled, a scaled probability capped at 1 (`geology.seller.tellDetect`). Every section's tuning-table Diff cell reads exactly `yes` or `no` (`yes` only when every key of the row is a 1.11 row; a key reached through another key reads `no` and names it), and 1.20 gains the rows `game.season.sigmaMult`, `game.season.freezeUpMeanShift` and `game.inheritorDebtMult` that 1.11 already listed. The P0 test checks `difficulty.ts` against 1.11 in both directions, read from DESIGN.md; the converse scan of the Diff cells joins the data tests in P1. — `{ mul }` scales only a numeric base, and 0.9 × 1.15 is not a probability. The P0 scan found Diff cells written as `**yes**`, as values, as "via …" or as one `yes` for a row where only one key is scaled (§5's `land.neg*`), three 1.11 keys with no row at all, and §14's capex medians marked `no` although 1.11 scales them (D-14.41 now follows 1.11), so a scan could not gate until the cells were normalized; the normalization changed no tuning value.
 
 ### 1.24 Open questions
 
@@ -1488,7 +1493,7 @@ type StopCandidate = { ref: MsgId; kind: AlertKind; severity: Severity }
 
 - **Immutability.** State is treated as immutable. Handlers use Immer `produce` (Immer is pure TS and allowed in the engine). Auto-freeze is on in development and tests, off in the simulator for speed.
 - **Actions are data.** Every player decision is a JSON-serializable object with a `type` discriminant (`{ type: 'claim/makeOffer', listingId, terms }`). Bots, the UI, and replays all go through `applyAction`. Actions never carry derived values (no "price I saw"); handlers re-derive from state, so a replay cannot smuggle in stale numbers.
-- **Validation is total.** Every action handler first runs a pure validator returning typed errors (`INSUFFICIENT_FUNDS`, `PERMIT_REQUIRED`, `NOT_IN_SEASON`, …). The UI calls `validateAction` to grey out buttons and show the reason.
+- **Validation is total.** Every action handler first runs a pure validator returning typed errors (`INSUFFICIENT_FUNDS`, `PERMIT_REQUIRED`, `NOT_IN_SEASON`, …). The UI calls `validateAction` to grey out buttons and show the reason. A validator never throws: an id that arrives from outside the engine (an action, a replayed log, a save's `actionLog`, a bot) is looked up as an own property only (`engine/actions/own.ts`), so an id such as `'constructor'` or `'__proto__'` gets `DECISION_NOT_FOUND`, not an exception (D-2.59).
 - **Actions resolve immediately where the real world would.** Buying a listed machine for cash, hiring an available candidate, and selling gold to a local buyer resolve at action time. Things that take time (permit review, mobilization, refinery settlement, negotiation replies) create pending records that the weekly pipeline advances.
 - **Undoable.** A successful `ActionResult` carries `undoable`. The engine sets it `false` when the handler drew from any RNG stream (the handler context records every `rng()` call), revealed hidden information (inspection reports, records findings, test results), or made a commitment to a counterparty (offer sent, bid placed, order placed, hire). Each action's registry row declares `reveals` and `commits`; the RNG part is detected. §13 offers undo only for undoable actions, within the week (D-13.11).
 - **Handler context.** A handler gets the Immer draft and a `HandlerContext`: `origin` (`'player'`, or `'pipeline'` for a default applied at its deadline), `turn`, `rng`, `effect(e)`, `markReveals()`, `markCommits()` and `applyNested(action)`. `ctx.rng` has core `rng`'s exact signature `(seed, stream, ...keys)`, so the stream-literal lint rule and the registry test (2.14) still see a literal stream name; it builds the stream through `streamState` and `rngFromState` and records the draw, which makes the action `undoable: false`. Handlers draw only through it. `markReveals` and `markCommits` cover a reveal or a commitment that depends on the action's parameters. `applyNested` runs an already-validated action on the same draft with the same context, so a decision option's draws and its row's flags count toward the outer `decision/answer`. `clock.actionSeq` counts player actions only: a default the pipeline applies leaves it unchanged (D-2.40).
@@ -1570,8 +1575,8 @@ The requirement: **same seed + same setup + same action log ⇒ byte-identical s
 
 | Quantity | In state | Notes |
 |---|---|---|
-| Money | integer **cents** (`Cents` branded number) | Arithmetic in floats, rounded at ledger posting with `roundCents` (half away from zero). Never store fractional cents. UI shows USD. |
-| Gold | troy ounces of three kinds, never mixed: **metal oz** (the alloy as it sits in the ground: §3 grades, §4 estimates, §7 box and losses); **weighed raw oz** = metal ÷ (1 − dirtFrac), what the scale reads at a cleanup (§7 `rawWeighed`, §5 settlement, §10 lots, §1 production counters; D-7.26); **fine oz** = weighed raw × fineness = metal × alloyFineness | Gold that changes hands (weighing, in-kind deliveries, lots, splits, sales, forward and prepay deliveries) moves in integer **milli-ounces** (`MilliOz`, stored as `MilliOz` or as oz with exactly 3 decimals); weighing floors to 0.001 oz and the remainder stays in the box (§7). Flows and estimates (contained, in-box, losses) are floats in metal oz. Two finenesses: `alloyFineness` = fine oz per metal oz (§3 and §4 "fineness", §10 `trueAlloyFineness`); `fineness` = fine oz per weighed raw oz (§10 `trueFineness`, `estFineness`, `assayedFineness`; §5's f_est = alloy × (1 − estimated dirt)). Every displayed ounce is labelled raw or fine; "raw" means weighed raw except in grades and estimates, where it means metal. |
+| Money | integer **cents** (`Cents` branded number) | Arithmetic in floats, rounded at ledger posting with `roundCents` (half away from zero). Float dollars become cents through `usdToCents`, which rounds usd × 100 half away from zero and treats a product within 1e-11 (relative) of a half-cent tie as the tie, so a decimal amount rounds as written: $1.005 → 101¢, although 1.005 × 100 is 100.4999… in binary. §13.2's display rounds the number's shortest decimal the same way, so the screen and the ledger agree on decimal inputs (D-2.2). Never store fractional cents. UI shows USD. |
+| Gold | troy ounces of three kinds, never mixed: **metal oz** (the alloy as it sits in the ground: §3 grades, §4 estimates, §7 box and losses); **weighed raw oz** = metal ÷ (1 − dirtFrac), what the scale reads at a cleanup (§7 `rawWeighed`, §5 settlement, §10 lots, §1 production counters; D-7.26); **fine oz** = weighed raw × fineness = metal × alloyFineness | Gold that changes hands (weighing, in-kind deliveries, lots, splits, sales, forward and prepay deliveries) moves in integer **milli-ounces** (`MilliOz`, stored as `MilliOz` or as oz with exactly 3 decimals); weighing floors to 0.001 oz (`floorMilliOz`; a value within 1e-11 relative of a milli-ounce boundary snaps to it, so 1.005 oz weighs 1,005 milli-oz) and the remainder stays in the box (§7); `toMilliOz` rounds half away from zero with the same tie snap (D-2.2). Flows and estimates (contained, in-box, losses) are floats in metal oz. Two finenesses: `alloyFineness` = fine oz per metal oz (§3 and §4 "fineness", §10 `trueAlloyFineness`); `fineness` = fine oz per weighed raw oz (§10 `trueFineness`, `estFineness`, `assayedFineness`; §5's f_est = alloy × (1 − estimated dirt)). Every displayed ounce is labelled raw or fine; "raw" means weighed raw except in grades and estimates, where it means metal. |
 | Volume | **bank cubic yards (bcy)** for in-situ material and all pay and overburden accounting; **loose cubic yards (lcy)** inside hauling math and for dump, stack and backfill-void capacity (§7 7.13, e.g. `BlockOps.voidLcy`) | Swell factors convert (gravel 1.20, muck 1.30). lcy never appears in pay or overburden accounting. "Yards washed" means bcy of pay fed to the plant. |
 | Grade | metal ("raw") troy oz per bcy of pay (`oz/bcy`) | Displayed as oz/yd³; the geologist panel also shows g/m³: **1 g/m³ = 0.024581 oz/yd³** (1 g = 0.0321507 ozt; 1 m³ = 1.307951 yd³; D-13.14), so 0.012 oz/yd³ = 0.488 g/m³. |
 | Area | acres | Disturbed / reclaimed / bonded acres tracked separately. |
@@ -1581,7 +1586,7 @@ The requirement: **same seed + same setup + same action log ⇒ byte-identical s
 | Percentages | decimals 0..1 in state; UI formats | |
 | Hard rock (§14, optional) | short tons (`st`); grade in fine oz per st (`ozPerSt`) | Used only by §14. |
 
-**IDs.** Strings `prefix_000123` from per-prefix counters in `state.ids`, zero-padded to 6 digits (wider once a counter passes 999,999). A prefix that has never minted an id has no counter and counts as 0, so registering a new prefix needs no save migration. §3's generator mints the world's ids (`dst`, `crk`, `clm`, `blk`, `hld`) on counters of its own and returns only the `WorldSlice`, so `newGame` raises each counter past the highest canonical id in the generated world (`reserveIdsFrom`), and a later `nextId` can never collide with one (D-2.38). `compareIds(a, b)` orders by prefix, then by the numeric suffix (not lexically). Each prefix has a branded type (`ClaimId`, `MachineId`, …). `EntityRef = { kind: EntityKind; id: Id }` names an entity unambiguously for explain links and §13 routes. **Registry** (`engine/core/ids.ts`; a lint rule rejects unregistered prefixes):
+**IDs.** Strings `prefix_000123` from per-prefix counters in `state.ids`, zero-padded to 6 digits (wider once a counter passes 999,999). A prefix that has never minted an id has no counter and counts as 0, so registering a new prefix needs no save migration. §3's generator mints the world's ids (`dst`, `crk`, `clm`, `blk`, `hld`) on counters of its own and returns only the `WorldSlice`, so `newGame` raises each counter past every id the world holds: `reserveIdsFrom` scans the slice for canonical ids, and §3's `worldIdCounters(world)` (per prefix, the count the generator minted; block ids are implicit, `blockIdBase + idx`, and appear as strings only in the sparse `blockStates`) is merged in by maximum per prefix. A later `nextId` can never collide with a world id (D-2.38). `compareIds(a, b)` orders by prefix, then by the numeric suffix (not lexically). Each prefix has a branded type (`ClaimId`, `MachineId`, …). `EntityRef = { kind: EntityKind; id: Id }` names an entity unambiguously for explain links and §13 routes. **Registry** (`engine/core/ids.ts`; a lint rule rejects unregistered prefixes):
 
 | Owner | Prefixes |
 |---|---|
@@ -1783,9 +1788,9 @@ interface SaveFile {
 }
 ```
 
-- IndexedDB (via an `idb-keyval`-style thin wrapper) with named slots plus rotating autosaves written after every `advanceWeek` (slot counts and cadence are §13's, D-13.25). Export writes `.gmt.json.gz` (gzip by default, `save.exportGzip`); the Saves screen's `Compress exports` checkbox, on by default, writes plain `.gmt.json` instead (§13 13.16). Import accepts gzipped or plain `.gmt.json`. A manual save, and so its export, carries `actionLog`; an autosave never does. `persistence/` stays engine-free: the app hands it the engine's `saveCodec` (migration, state check, tuning hashes, run status), so slot storage and file export never import the engine (D-13.74).
+- IndexedDB (via an `idb-keyval`-style thin wrapper) with named slots plus rotating autosaves and year-start snapshots written after every `advanceWeek` and kept per game (slot counts, cadence and the UI-side game id are §13's, D-13.25, D-13.80). Every slot-store operation resolves to a typed result and never rejects: a storage failure is `SAVE_READ_FAILED` or `SAVE_WRITE_FAILED`, and the UI always shows it (§13 13.16, D-13.81). Export writes `.gmt.json.gz` (gzip by default, `save.exportGzip`); the Saves screen's `Compress exports` checkbox, on by default, writes plain `.gmt.json` instead (§13 13.16). Import accepts gzipped or plain `.gmt.json`. A manual save, and so its export, carries `actionLog`; an autosave never does. `persistence/` stays engine-free: the app hands it the engine's `saveCodec` (migration, state check, tuning hashes, run status), so slot storage and file export never import the engine (D-13.74).
 - `engine/save/migrations.ts` holds pure `vN → vN+1` migrations; loading always migrates forward to current. Every migration has a fixture test.
-- **Tuning on load** (D-2.35). A save keeps its own tuning (`meta.tuning`) until the player migrates it. The codec compares that tuning with what this build resolves for the save's own setup (base → difficulty → scenario → setup, no simulator overrides). A save made on another difficulty therefore raises no notice; genuinely different tuning (a simulator override, or a base value this build changed) raises the `TUNING_DIFFERS` notice, which carries both hashes (`saveTuningHash`, `buildTuningHash`; §13 13.16).
+- **Tuning on load** (D-2.35). A save keeps its own tuning (`meta.tuning`) until the player migrates it. The codec compares the save's own `meta.tuningHash` directly with the hash this build resolves for the save's own setup (base → difficulty → scenario → setup, no simulator overrides; `tuningDiffers`). A save made on another difficulty therefore raises no notice; genuinely different tuning (a simulator override, or a base value this build changed) raises the `TUNING_DIFFERS` notice, which carries both hashes (`saveTuningHash`, `buildTuningHash`; §13 13.16). A setup this build can no longer resolve differs by definition, and its notice names the build's default-game hash. Persistence, which may not import the engine, makes one comparison, `tuningHashOf(save) !== currentTuningHash`; the codec makes it exact by setting `currentTuningHash` to the token `TUNING_MATCHES_BUILD`, which no 16-hex-digit hash can equal, and returning that token from `tuningHashOf` for a save that matches and the save's own hash otherwise.
 - **Load order and validation** (D-2.43). `parseSaveFile` checks `format` and that `schemaVersion` is a positive integer (else `SAVE_FORMAT`), then the version (newer → `SAVE_TOO_NEW`; older → migrate, with a `SAVE_MIGRATED` notice naming the migrations applied), then the envelope and the state: every §2.5 slice is present; `meta.tuningHash` equals the hash of `meta.tuning`; `clock.year` and `clock.week` match `clock.turn`; every `ids` key is a registered prefix with a non-negative integer counter; in both ledgers every transaction balances and sits in its own book, `seq` ascends, no cash account is negative, the book sums to zero and the cached balances equal a recomputation from the journal and monthly summaries; each `…Ids` array the frame keeps (P0: the inbox's messages, open decisions and closed decisions) equals its Record's sorted keys; `history.weekly` ascends strictly by turn; `runStatus` is a known value. Unreadable JSON, a migration that throws, or any failed check is `SAVE_CORRUPT`, and the input is never modified. Owners add checks for their slices' internals as they ship.
 - **Retention.** Every collection that grows with time has a retention rule set by its owner, so a year-10 save fits the budgets in 2.13:
   - history: the 157-entry weekly ring plus annual rollups (2.5);
@@ -1820,8 +1825,8 @@ data/
   balance/seeds.json   # BALANCE §6.2 seedBase per phase (read by sim/ only)
 ```
 
-- Each file exports `as const satisfies SomeSchema`. A unit test runs zod validation over every data file and checks cross-references: every model references an existing brand and class; every event effect names a registered hook; every `difficulty.ts` key exists in tuning and appears in §1 1.11, and every 1.11 row exists in `difficulty.ts` (§1 D-1.44).
-- **Difficulty entries** are not all multipliers: `type DiffEntry = { mul: number } | { set: TuningValue }`. `mul` scales a numeric base; `set` replaces it with a number, flag, enum or table (honesty mix, weeks, auto-pay defaults). `difficulty.ts: Record<TuningKey, Record<Difficulty, DiffEntry>>`.
+- Each file exports `as const satisfies SomeSchema`. The zod schemas for every data file live in `tests/data/schemas.ts`, not beside the data: zod is a test-time dependency, and `data/` may import only `data/` and engine types (2.1). The data test (`tests/data/validation.test.ts`) runs them over every file under `src/data`, with a coverage guard that fails on a data file the schemas do not list, a listed file that no longer exists, a tuning key holding an object or array without a shape schema, or a schema for a key that no longer exists. It also checks cross-references: every model references an existing brand and class; every event effect names a registered hook; every `difficulty.ts` key is a §1 1.11 row and a resolvable tuning key, and every 1.11 row whose key exists in this build's tuning is in `difficulty.ts` with exactly 1.11's values (`tests/data/difficulty.test.ts` reads the table from DESIGN.md itself; rows whose owners ship later join with their keys; §1 D-1.44, D-1.67; D-2.7).
+- **Difficulty entries** are not all multipliers: `type DiffEntry = { mul: number } | { set: TuningValue }`. `mul` scales a numeric base; `set` replaces it with a number, flag, enum or table (honesty mix, weeks, auto-pay defaults). `difficulty.ts: Record<TuningKey, Record<Difficulty, DiffEntry>>`. §1 1.11's cells map onto entries by one convention (D-1.67): a plain value is `{ set }` (the start-cash multipliers too, whose base is 1.0); a `×` cell is `{ mul }` on a numeric base; a `×` cell on a table-valued key is written as `{ set }` of the base table with the named numbers scaled, and a scaled probability is capped at 1 (`geology.seller.tellDetect`: 0.9 × 1.15 becomes 1.0). Standard always resolves to the base value, so a standard game's `tuningHash` is the base tables' hash.
 - **Resolution.** Tuning is resolved once at `newGame`: base → difficulty (`mul` or `set`) → scenario overrides (replace) → setup (replace: `world.startCalendarYear` → `game.startCalendarYear`, and `world.openingSpotUsdPerFineOz`, when not null, → `market.openingSpotUsdPerFineOz`; D-2.36) → optional sim overrides (replace). The result is `TuningResolved`, stored in `meta.tuning` with its hash in `meta.tuningHash` (D-2.35). Games always use the tuning they were created with until the player explicitly migrates. The simulator can sweep overrides without editing files. A layer that names an unknown key or an application-configuration key (`ui.*`, `sim.*`, `save.*`), or carries a value that is not tuning data, throws `TuningError` (`TUNING_KEY_UNKNOWN`, `TUNING_KEY_NOT_ENGINE`, `TUNING_VALUE_INVALID`). `ui.*` keys are excluded from both.
 - **Effective values.** Every value an event may change is a registered hook (`data/events/hooks.ts`, owned row by row by the reading section), read through `effective(state, key, q)` from P1. A lint rule (`gmt/no-raw-hook-read`) forbids reading a hook key raw: a string literal equal to a registered hook key may appear only as a direct argument of `effective()` or core `effectiveValue()`, or in a type position. The files that name hook keys by design are exempt: the registry and the event and preparation tables (`data/events/**`, `hooks.ts` included), the tuning files (`data/tuning/**`), `data/difficulty.ts` and the scenario overrides (`data/scenarios/**`) (D-2.46). §2 hosts `effective()` and `EffectModifier` in engine core; the type and resolution are §12 12.3's, and the two texts must stay identical:
 
@@ -1841,13 +1846,13 @@ data/
   - If A holds any `set`, the latest one wins (tie: lowest id), clamped to the hook's set bounds.
   - Otherwise `v = base × clamp(Π mul) + clamp(Σ add)`, with per-hook bounds (defaults: product [0, 5], sum ±10 in the hook's unit).
   - Memo: scoped to the identity of the immutable `events.modifiers` Record (Immer gives it a new identity whenever a modifier is added or removed, and keeps it otherwise), key `(tuningHash, turn, events.modifiersVersion, key, q)`. A key that no modifier targets returns its base without touching the cache, so a game with no events never grows it (D-2.41).
-- Every system section lists its constants in a "Tuning" table with default value, unit, and whether difficulty scales it.
+- Every system section lists its constants in a "Tuning" table with default value, unit, and whether difficulty scales it. That **Diff** cell reads exactly `yes` or `no`: `yes` when every key the row names is a §1 1.11 row, `no` otherwise. A key that difficulty reaches only through another key (a start cash through `game.startCompanyCashMult`) reads `no` and names that key in its notes, and 1.11's values sit in the notes, not in the cell. A row's keys are full keys, or keys under the one namespace its table states (§6 `permits.`, §8 `staff.`, §14 `hardrock.`), so §1 1.22's converse scan can read every table (D-1.67).
 
 ### 2.11 Selectors, derived values, and valuations
 
 Selectors are pure functions over state, memoized in the UI (2.3 item 6). Canonical derived values have a single implementation, used by the UI, bots, the simulator and scenario goals alike, and none of them reads hidden fields:
 
-- **Money (§11):** `cashOnHand` (the balances of `CASH_ON_HAND_ACCOUNTS`, `cash.operating` + `cash.reserve`; the public surface exports the list, so the UI's cash explanation names the same accounts); `availableLiquidity` (unrestricted cash + revolver availability); `forecast13Week`; `seasonProductionForecast(state, claimIds, year)`; `costPerOunce` (cash and all-in); `claimPnL`; `distressStatus` (from P4 with the reorganization case and the company's eligibility to file, both from visible figures).
+- **Money (§11):** `cashOnHand` (the balances of `CASH_ON_HAND_ACCOUNTS`, `cash.operating` + `cash.reserve`; the public surface exports the list, so the UI's cash explanation names the same accounts); `availableLiquidity` (unrestricted cash + revolver availability); `forecast13Week`; `seasonProductionForecast(state, claimIds, year)`; `costPerOunce` (cash and all-in); `claimPnL`; `distressStatus` (from P4 with the reorganization case and the company's eligibility to file, both from visible figures); and, to add in P1, `periodNetIncome(state, fromTurn, toTurn)`: company-book net income over any span of turns (§11 11.19), which the simulator needs for the year a run ended in. Until it exists, `sim/metrics/observe.ts` reads the company journal for that figure (D-2.57).
 - **Net worth:** `netWorth(state, mode)`, mode ∈ `'scoring' | 'book' | 'appraised'`, implemented by §11 (11.20). `'scoring'` is defined by **§1 1.13**: the owner's share of company NW at player-visible marks, after the investor waterfall, plus the owner's personal items. Scenarios, bots, the simulator, the history snapshot and the end report all use `'scoring'`.
 - **Operations (§7):** `projectOpsVisible(state, claimId, planOverride?)` (the visible one-week projection, per plant line and for the claim, also §11's capacity preview); `productionForecast(state, fromTurn, toTurn)` (cleanups per line); `defaultMinePlan` (one line, L1).
 - **Equipment (§9):** `machineCostPerHour`, `resaleEstimate` (visible condition), `replacementAdvice`.
@@ -1891,8 +1896,8 @@ Exit codes (D-2.51): 0 done; 1 a bot defect (a validator rejection, or a blockin
   2. each week: the bot answers open decisions and returns actions, which go through `applyAction`. An action the validator rejects counts as a bot defect: the harness reports it, and the bot test suite fails on any. A blocking decision the bot leaves open is a bot defect too: the harness stops that game, records `abortReason` `blockingDecisionUnanswered`, leaves its later years unmeasured, and the CLI exits 1 (D-2.53).
   3. `advanceWeek(state, { explain: false })`, then `evaluateStops` under `defaultStopRules()` for pacing statistics;
   4. the game ends when `runStatus ≠ 'active'`, or for a Y-year game after the pipeline of turn 52Y − 1 (year Y, week 52); a reorganization case does not end it. Turn 0 is `newGame`'s year 1 week 1 (D-2.13), so year 1 runs 51 pipelines and every later year 52, and B_N and S_N are read at turn 52N − 1 (BALANCE §5.1; D-2.52).
-- **Visibility.** Bots implement `Bot.decide(state, view): Action[]` using only player-visible information: the 2.11 selectors and `view`'s visible records. Bots never read hidden state. A test runs bots against a state whose hidden fields are scrambled and asserts identical decisions.
-- **Observation.** The harness reads every metric through the 2.11 selectors, in one adapter (`sim/metrics/observe.ts`), never from bot-side estimates (BALANCE §5). A system the game's rules phase does not have is observed as absent (null, taking its neutral value: nothing washed, no claim held, no fleet); once the rules phase has the system, an input not yet wired to its owner's selector throws `ObservationNotWiredError` instead of reading zero (D-2.54). The NW ratio's start NW comes from the game's resolved tuning (§1 1.8's start-table keys × the difficulty cash multipliers), so a `--tuning` override flows through; a start whose keys the tuning lacks has no NW ratio (n/a).
+- **Visibility.** Bots implement `Bot.decide(state, view): Action[]` using only player-visible information: the 2.11 selectors and `view`'s visible records. Bots never read hidden state. A test runs bots against a state whose hidden fields are scrambled (`sim/bots/scramble.ts`, 2.14) and asserts identical decisions; a deliberately leaky control bot must fail it (D-2.58).
+- **Observation.** The harness reads every metric through the 2.11 selectors, in one adapter (`sim/metrics/observe.ts`), never from bot-side estimates (BALANCE §5). A system the game's rules phase does not have is observed as absent (null, taking its neutral value: nothing washed, no claim held, no fleet); once the rules phase has the system, an input not yet wired to its owner's selector throws `ObservationNotWiredError` instead of reading zero (D-2.54). One input is not yet a selector: company net income over part of a year (BALANCE §5.6's year in which a run ended), which the observer sums from the company journal, a non-hidden field, classifying accounts by §11 11.2's code families (`rev.`, `inc.` and `gain.` are income, `exp.` is expense; a test checks the families against the engine's chart and `periodTotals`), until §2.11's `periodNetIncome` lands in P1. O-16's first claim is the first non-empty holding the observer sees after any applied action or week, the lowest claim id when several arrive together (D-2.57). The NW ratio's start NW comes from the game's resolved tuning (§1 1.8's start-table keys × the difficulty cash multipliers), so a `--tuning` override flows through; a start whose keys the tuning lacks has no NW ratio (n/a).
 - **Survival** is gated both ways (owner ruling 2026-10-05; D-2.16). BALANCE §5.1–5.2 define the two measures (canonical there):
   - **B_N, no bankruptcy:** the run is not lost (liquidation, ouster, or a scenario lost by a missed deadline or a forfeit) by the end of season N, **and** it made no bankruptcy filing of either kind (liquidation or reorganization) in seasons 1..N. A reorganized run keeps playing and is measured normally afterwards, but it has failed every window that contains its filing.
   - **S_N, going-concern survival** (the brief's "survives"): B_N, and it produced in at least one season, made no distress fleet sale, and at the end of season N holds a claim plus a fleet that can wash ≥ 20 bcy/hr, or has company cash ≥ $150,000 × `cpiIndex`.
@@ -2025,8 +2030,8 @@ The worker run passes the state by structured clone twice per run; at 3.5 MB tha
 - **Saves:** round trip (save → load → identical hash); every migration's fixture; `SaveFile.ui` changes never alter the state hash; **per-slice year-10 save size** against 2.13 (two-claim operation and 12-claim fixtures).
 - **Performance:** the 2.13 budgets on fixed fixtures in CI. A miss fails the perf job, not the unit suite.
 - **Scenario tests:** scripted mini-games (e.g. "buy a known claim, run one season, expect ounces within band").
-- **Bots:** the hidden-field scramble test (2.12); zero validator rejections over 20 seeds × 2 years per catalog bot; one fixture per *(refined)* rule of 2.12.1: a Bootstrapper `cautious` whose gross 13-week outflow exceeds its liquidity but whose largest cumulative net outflow does not still operates; a one-claim, one-shift `cautious` hires no foreman, and adding a second claim or shift makes it hire one; the starter tier buys grade-D excavator, dozer and plant; a P1 mechanic is hired exactly when 0.30 × projected maintenance > projected mechanic wages, and from P3 when projected maintenance > $120k; an arid `cautious` at a well that holds ≥ 20 bcy/hr buys no water truck; `aggressive` never buys a listing whose price plus planned fleet exceeds its liquidity. Fixtures for D-2.32 and D-2.33: over 20 seeds × 5 years every catalog bot except the three named ones keeps exactly one plant line per claim, runs no claim under the small-crew rule and puts no mechanic in pool mode; a P3 `multiLine` adds a line only when the visible two-line projection reaches 1.5 × one line; a P4 `cautious` that receives `finance.involuntaryPetition` while eligible answers *reorganize* and files the first passing plan in the stated order (the §11 11.16.7 worked example's company files the 260-week level plan: at 156 weeks the notes need ≈ $183k a year and at 208 weeks ≈ $152k, both above D ≈ $142.8k), and one whose debts exceed `finance.reorg.debtLimitUsd` × cpiIndex is liquidated by the trigger; no bot ever submits `owner/fileBankruptcy` or an unprompted `finance/fileReorganization`; a P1 bot sells its fleet to a dealer when the insolvency counter reaches grace − 1.
-- **Data validation:** zod over every data file, plus the difficulty-table and hook-registry cross-checks (2.10).
+- **Bots:** the hidden-field scramble test (2.12): `sim/bots/scramble.ts` builds the twin (`scrambleHidden`) from every registered scrambler, each rewriting only hidden fields, deterministically from a seed (P0: `scrambleWorldTruth`, every §3 hidden field of claims, claim water, creeks, districts and holders, with packed truth swapped between claims of the same block grid so the twin stays decodable). Tests check that every hidden field differs, that the twin equals the state once hidden fields are stripped (`withoutHidden`), that no `hidden` block lacks a scrambler, and that a deliberately leaky control bot fails the decision-identity check while `passive` passes; from P1 each owner registers a scrambler for the hidden fields it adds (D-2.58). Zero validator rejections over 20 seeds × 2 years per catalog bot; one fixture per *(refined)* rule of 2.12.1: a Bootstrapper `cautious` whose gross 13-week outflow exceeds its liquidity but whose largest cumulative net outflow does not still operates; a one-claim, one-shift `cautious` hires no foreman, and adding a second claim or shift makes it hire one; the starter tier buys grade-D excavator, dozer and plant; a P1 mechanic is hired exactly when 0.30 × projected maintenance > projected mechanic wages, and from P3 when projected maintenance > $120k; an arid `cautious` at a well that holds ≥ 20 bcy/hr buys no water truck; `aggressive` never buys a listing whose price plus planned fleet exceeds its liquidity. Fixtures for D-2.32 and D-2.33: over 20 seeds × 5 years every catalog bot except the three named ones keeps exactly one plant line per claim, runs no claim under the small-crew rule and puts no mechanic in pool mode; a P3 `multiLine` adds a line only when the visible two-line projection reaches 1.5 × one line; a P4 `cautious` that receives `finance.involuntaryPetition` while eligible answers *reorganize* and files the first passing plan in the stated order (the §11 11.16.7 worked example's company files the 260-week level plan: at 156 weeks the notes need ≈ $183k a year and at 208 weeks ≈ $152k, both above D ≈ $142.8k), and one whose debts exceed `finance.reorg.debtLimitUsd` × cpiIndex is liquidated by the trigger; no bot ever submits `owner/fileBankruptcy` or an unprompted `finance/fileReorganization`; a P1 bot sells its fleet to a dealer when the insolvency counter reaches grace − 1.
+- **Data validation:** zod over every data file (schemas in `tests/data/schemas.ts`, with a coverage guard), plus the difficulty-table and hook-registry cross-checks (2.10, D-2.7).
 
 **Gold conservation identity** (metal oz unless marked). It chains §7 7.10, §3 3.8, §4 4.12 and §10 10.9; each owner tests its own part, and this test checks the whole chain:
 
@@ -2111,12 +2116,12 @@ The build then stops for the owner's review, and the next phase starts only when
 ### 2.17 Decisions
 
 - **D-2.1** — Randomness is stateless keyed streams: FNV-1a 64 + SplitMix64 seeding into xoshiro128\*\*, with no RNG state in `GameState`. — Stream isolation makes tuning one system leave the others byte-identical, and nothing about RNG needs saving.
-- **D-2.2** — Money is integer cents, rounded half away from zero at posting. — Float drift in a ledger breaks balancing tests and golden hashes.
+- **D-2.2** — Money is integer cents, rounded half away from zero at posting. Converting float dollars (`usdToCents`) or ounces (`toMilliOz`) rounds x·10^k half away from zero and treats a product within 1e-11 (relative) of a half-unit tie as the tie; weighing (`floorMilliOz`) snaps to a milli-ounce boundary within the same tolerance (2.4). — Float drift in a ledger breaks balancing tests and golden hashes. Most decimal ties are not exact in binary (1.005 × 100 = 100.4999…), so rounding the float product would post 100¢ where §13.2's display, which rounds the shortest decimal, shows $1.01; the snap keeps the ledger and the screen in agreement and moves a value by at most about 1e-11 relative, far inside the 1e-6 oz conservation check.
 - **D-2.3** — Transcendental math comes from our own `dmath`, not `Math.*`. — Engines differ in the last bit, which can fork a replay across browsers.
 - **D-2.4** — Immer for immutable updates; auto-freeze off in the simulator. — Structural sharing keeps UI selectors cheap; freezing costs too much over 130,000 weeks.
 - **D-2.5** — Saves go into IndexedDB through a thin `idb-keyval`-style wrapper; exports are gzipped JSON. — Simple, async and large-quota storage, and human-readable files when unzipped.
 - **D-2.6** — Simulator worker pool: game *i* uses seed `seedBase + i`, and results aggregate in index order. — Output is identical for any worker count, so runs on 4 and 8 cores compare directly.
-- **D-2.7** — Data files are `as const satisfies Schema`, plus a zod test with cross-reference checks. — Compile-time types and runtime validation of designer edits.
+- **D-2.7** — Data files are `as const satisfies Schema`, plus zod schemas for every data file with cross-reference checks. The schemas live in `tests/data/schemas.ts`, and a coverage guard fails on any data file, or object-valued tuning key, that they do not cover (2.10). — Compile-time types and runtime validation of designer edits. zod is a test-time dependency and `data/` may import only `data/` and engine types (2.1), so the schemas cannot sit beside the data; the guard stops a new file or key from escaping validation.
 - **D-2.8** — ID collisions are resolved this way: §9 uses `fo`, `aev`, `rct`, `mi`; §6, §5 and §4 keep `ord`, `insp`, `auc`, `ctr`. `lst` is one counter with two branded types; `ivr` for investor agreements; `emp_owner` is the only reserved non-counter id. Longer names (`ford`, `eauc`, `ectr`, `minsp`, `elst`, `inv`) were considered and not adopted. — §9 (D-9.43) and §1 (D-1.48) already adopted these; a shared counter keeps listing ids unique, and `EntityRef` routes them.
 - **D-2.9** — The stream registry uses the owners' adopted names: `finance-lender`, `finance-royaltyco`, `finance-equity`, `finance-insurance` (§11 D-11.57) and `market-buyers` (§10 D-10.37), not `royalty-co`, `equity-offer` or `gold-buyers`. §4's `seller-data` stream does not exist and is not registered. — One name per stream, matching the text engineers will implement.
 - **D-2.10** — In step 12, §11's deferred-revenue drawdowns run before §4 `recordProduction`, as §7, §10, §11 and §12 wrote, not the reverse order. — The two read disjoint data and commute (property test), and four owners already agree.
@@ -2144,10 +2149,10 @@ The build then stops for the owner's review, and the next phase starts only when
 - **D-2.32** — Every catalog bot keeps one plant line per claim, a foreman (owner or hire) on every claim, and mechanics in site mode, unless its row says otherwise; three named bots, `smallCrewNoForeman` (P1), `multiLine` (P3) and `poolMechanics` (P3), each take one of the new options. BALANCE §4.0's last-resort fleet sale is mirrored into the catalog's common rules. — The owner asked that bots keep these defaults, so the 1.0 baselines and the preflight figures stay comparable; one named bot per option measures whether it dominates (BALANCE O-04, O-07), which is the only way the simulator can catch a dominant multi-claim strategy. The last-resort rule was in BALANCE §4.0 but missing here.
 - **D-2.33** — Bots never file on their own initiative; from P4 they answer §11's involuntary-petition decision with *reorganize* when eligible (no guarantor filing), file the first plan that passes `reorgPlanPreview` in a fixed order of terms and schedules, and pay it before discretionary spend. — With no rule the simulator could never measure the reorganization share the owner asked for, and every bot would give up where a careful owner fights on. Answering only the petition, the moment a liquidation would otherwise happen, means the rule turns no recoverable run into a failure: the run fails that window either way, so B_N and S_N read as they would without it, while later-window net worth is measured as a careful owner would play. A fixed search order keeps bot decisions deterministic and identical under scrambled hidden state (§11's preview reads only visible state).
 - **D-2.34** — Saves from phase N load in phase N+1: every schema change from P1 on ships a migration and a fixture; P0 saves are not supported (owner ruling 2026-10-05: default confirmed, §0 smaller call 1, OQ-2.1). — Retrofitting migrations later is expensive, and dropping playtesters' saves at each phase would cost goodwill for little saving.
-- **D-2.35** — The game's resolved tuning lives in the state as `meta.tuning` (part of the state and its hash), and `meta.tuningHash` is its hash, re-checked at load. The load codec compares a save's tuning with what this build resolves for the save's own setup, so a save on another difficulty raises no `TUNING_DIFFERS` notice and genuinely different tuning does; the notice carries both hashes. — "A game keeps its tuning until the player migrates" (2.9, 2.10) needs the resolved values inside the save; a hash alone could only say that they differ. Comparing with the build's default game would flag every easy or hard save.
+- **D-2.35** — The game's resolved tuning lives in the state as `meta.tuning` (part of the state and its hash), and `meta.tuningHash` is its hash, re-checked at load. The load codec compares the save's own `meta.tuningHash` directly with the hash this build resolves for the save's own setup (`tuningDiffers`), so a save on another difficulty raises no `TUNING_DIFFERS` notice and genuinely different tuning does; the notice carries both hashes, and a setup that no longer resolves differs by definition. Persistence's single comparison receives the token `TUNING_MATCHES_BUILD` as `currentTuningHash`, and the codec's `tuningHashOf` returns that token for a matching save and the save's own hash otherwise. — "A game keeps its tuning until the player migrates" (2.9, 2.10) needs the resolved values inside the save; a hash alone could only say that they differ. Comparing with the build's default game would flag every easy or hard save, and comparing a save's hash with the default game's missed a save whose hash equals it while its own setup resolves to something else; the token keeps persistence engine-free and its comparison exact.
 - **D-2.36** — Tuning resolution has a `setup` layer between the scenario and the simulator overrides: the setup's `world.startCalendarYear` replaces `game.startCalendarYear`, and a non-null `world.openingSpotUsdPerFineOz` replaces `market.openingSpotUsdPerFineOz` (also §10's `referenceSpot`). — Dates and the opening price each read one tuning key, whoever set them, and a simulator override still wins over the wizard's choice.
 - **D-2.37** — `newGame(setup, seed, tuning?, options?)` takes a non-empty string seed and an optional `{ rulesPhase }`, which defaults to the build's phase (`BUILD_RULES_PHASE`) and may not exceed it; `meta.rulesPhase` is 0–6, and a P0 build records 0. — `--rules pN` (2.12) had no way into `newGame`; a game must record the rules it actually ran, and no build can run rules it does not have.
-- **D-2.38** — `state.ids` is `Partial<Record<IdPrefix, number>>` (an absent prefix counts as 0), and `newGame` raises each counter past the highest canonical id in the generated world (`reserveIdsFrom`). — A new prefix then needs no save migration. §3's generator mints world ids on its own counters and returns only the `WorldSlice`, so without the reservation a later `nextId` could collide with a generated id.
+- **D-2.38** — `state.ids` is `Partial<Record<IdPrefix, number>>` (an absent prefix counts as 0), and `newGame` raises each counter past every id the generated world holds: `reserveIdsFrom` scans the slice's canonical ids, and §3's `worldIdCounters(world)` (the count the generator minted per prefix) is merged in by maximum. — A new prefix then needs no save migration. §3's generator mints world ids on its own counters and returns only the `WorldSlice`, so without the reservation a later `nextId` could collide with a generated id. Block ids are implicit (`blockIdBase + idx`) and appear as strings only in the sparse `blockStates`, so the scan alone left `ids.blk` below the last block.
 - **D-2.39** — Decisions are created only through §2's `createDecision`, which checks the spec and mints the `dec` id. A closed decision moves to `inbox.closedDecisions` (sorted ids) as `{ closedTurn, outcome: 'answered' | 'defaulted', optionId, errorCode? }` and is pruned `game.alerts.inboxRetentionWeeks` after it closed. A default whose action no longer validates still closes as `'defaulted'`, recording the validator's code; in P0, step 16 applies every due default. — The `dec` prefix is §2's, so other owners need a §2 helper (2.14). Without the closed record, validation could not tell `DECISION_CLOSED` from `DECISION_NOT_FOUND`. A deadline must always close its decision, even when the world has moved on and the default is no longer valid.
 - **D-2.40** — `HandlerContext.rng` has core `rng`'s exact signature and wraps it to record draws; the context adds `applyNested`, `markReveals` and `markCommits`; `decision/answer` carries `decisionId`, `optionId` and flat primitive `params` merged into the option's action, never replacing its `type`; `clock.actionSeq` counts player actions only. — The literal-stream lint rule and the registry test must still see each stream name; an option run inside an answer must carry its draws and flags into the answer's `undoable`; params that could change the type would let an answer run an action the decision never offered; defaults the pipeline applies are not player actions, so they must not shift the flavor stream's keys.
 - **D-2.41** — The `effective()` memo is scoped to the identity of the immutable `events.modifiers` Record and keyed `(tuningHash, turn, modifiersVersion, key, q)`; a key that no modifier targets skips the cache; `effective()` also reads numeric tuning keys that are not registered hooks. The same text is in §12 12.3. — A version counter alone cannot tell two games in one process apart, nor an undone branch from a redone one with different modifiers (undo restores the counter). Immer changes the Record's identity exactly when a modifier changes, and skipping the cache keeps an event-free game from growing it.
@@ -2165,7 +2170,10 @@ The build then stops for the owner's review, and the next phase starts only when
 - **D-2.53** — A bot answers a blocking decision that has no default with its lowest option id (code-unit order), through one shared helper; a blocking decision a bot leaves open stops that game with `abortReason` `blockingDecisionUnanswered`, its later years unmeasured, and the CLI exits 1. — §2.12.1 assumed every decision has a default, but only non-blocking ones must (2.2). The tie-break by id keeps the answer deterministic and identical under scrambled hidden state; an open blocking decision makes `canAdvance` refuse the week, so without the rule the game would stop unexplained and its short run would be scored like a finished one.
 - **D-2.54** — The simulator observes a game only through the 2.11 selectors, in one adapter (`sim/metrics/observe.ts`). §2.11 gains `select.runOutcome` (`runStatus`, `endReason`, `liquidationPath`) and `select.annualHistory` (with `weeklyHistory` and `dateView` listed), the public surface exports `CASH_ON_HAND_ACCOUNTS`, and the UI keeps the `HistoryMetric` label and unit table until §2 publishes one in P1. An input of a system the rules phase has, but whose selector is not wired, throws `ObservationNotWiredError`. — BALANCE §5 requires every metric to come from engine selectors; the simulator had been reading the run's end and the annual rollups straight from state, and the UI was repeating §11's cash-account list. Throwing keeps a P1 game from scoring S_N or cost per ounce on a silent zero.
 - **D-2.55** — `sim.bootstrapResamples` (1,000) and `sim.weeklySampleSeeds` (20) join the `sim.*` table, and `sim.workers` defaults to 0 (one per core). Engine timings go only to the console and `timing.json`; `npm run sim` writes `targets: []` and leaves scoring to `sim:balance`. In P0 the `save.*` budgets live in `tests/perf/budgets.ts` and `save.exportGzip` is `exportSaveText`'s default. — BALANCE §3.0 and §6.6 named the resample count and the sample size but no key held them; timings differ run to run, and §6.2 requires byte-identical JSON; one scorer avoids two scorecards that could disagree.
-- **D-2.56** — Scoring conventions where BALANCE left the call open (BALANCE §3.0, §4.0, §5.1, §6.6, §6.7, §7, O-02, O-13, G-03): medians, other quantiles and ratios take a seeded 95% percentile bootstrap (seeded by cell label and metric), quantiles are Hyndman–Fan type 7, and pooled equal-weight proportions and differences of two proportions take a normal-approximation interval; games.csv puts `rules` after `entity`, money in USD with cents and its unit in the column name, turns as absolute turns, per-year columns to the longest cell, and harness columns (stops by year and kind, `longestQuietWeeks`, `rejectedActions`, `abortReason`) at the end; `sim:balance` fails on a new FAIL or a worsened status among gating clauses only, a reported clause's change shows on the scorecard, and the baseline is phase N's file, else N − 1's, or `--baseline`; O-13's engine-time clauses are N/A in summary.json and scored on the console; G-03 is `passive` B5 = 100% over the debt-free starts; O-02's "every bot" and "at least one bot" clauses read the highest first-season profit rate among the core-bot cells; multi-part targets are scored as named clauses (`T-06.bcy`, `T-09.market`, `O-06a.<start>`), each with its §7 row's status. — Each was needed to compute a number BALANCE asks for: Wilson covers a single proportion only; `passive` never washes, so S_N is always 0; a max over the core bots answers both O-02 clauses at once; and a clause-level registry is what lets a test check the simulator's table against BALANCE §7.
+- **D-2.56** — Scoring conventions where BALANCE left the call open (BALANCE §3.0, §4.0, §5.1, §6.6, §6.7, §7, O-02, O-13, G-03): medians, other quantiles and ratios take a seeded 95% percentile bootstrap (seeded by cell label and metric), quantiles are Hyndman–Fan type 7, and pooled equal-weight proportions and differences of two proportions take a normal-approximation interval; games.csv puts `rules` after `entity`, money in USD with cents and its unit in the column name, turns as absolute turns, per-year columns to the longest cell, and harness columns (stops by year and kind, `longestQuietWeeks`, `rejectedActions`, `abortReason`) at the end; `sim:balance` fails on a new FAIL or a worsened status among gating clauses only, a reported clause's change shows on the scorecard, and the baseline is phase N's file, else N − 1's, or `--baseline`; O-13's engine-time clauses are N/A in summary.json and scored on the console; G-03 is `passive` B5 = 100% over the debt-free starts; O-02's "every bot" and "at least one bot" clauses read the highest first-season profit rate among the core block's 13 cells (standard difficulty, background none, LLC, the run's rules), so no difficulty, background or entity cell can fail or rescue them; multi-part targets are scored as named clauses (`T-06.bcy`, `T-09.market`, `O-06a.<start>`), each with its §7 row's status. — Each was needed to compute a number BALANCE asks for: Wilson covers a single proportion only; `passive` never washes, so S_N is always 0; a max over the core block's cells answers both O-02 clauses at once, on O-02's own sample; and a clause-level registry is what lets a test check the simulator's table against BALANCE §7.
+- **D-2.57** — Runs that end early are measured through their last turn. The year a run ended in takes company-book net income through its last turn plus the unsold-gold change at that turn: FSP counts that year (FSP is undefined only for a harness abort), and games.csv's `netIncomeUsdN` for it carries the partial figure. Stop reasons per year divide by game-years of exposure, Σ (min(finalTurn, 52Y − 1) + 1)/52 over the cell's games, so a full Y-year run counts exactly Y years and a lost or aborted run's partial year counts on both sides; the by-year stop columns keep fully played years only. Until §2.11 adds `periodNetIncome` (P1), the observer reads that partial-year net income from the company journal, a non-hidden field, classifying accounts by §11 11.2's code families and checking them against the engine's chart and `periodTotals` in a test; it is the one exception to D-2.54. O-16's first claim is the first non-empty holding the observer sees after any applied action or week, the lowest claim id when several arrive together. — BALANCE §5.1 measures a lost run's other metrics as on any active run, and O-02's sample is all of O-01's games, so dropping year-1 losses biased FSP upward; a per-year rate with no denominator counted a lost run's partial year as a whole year. No selector gave net income for part of a year, and reading zero would have hidden every early loss (BALANCE §5.6, §6.6 now state these rules).
+- **D-2.58** — The bot scrambled-truth test uses `sim/bots/scramble.ts`: `scrambleHidden(state, seed)` applies every registered `HiddenScrambler`, each rewriting only hidden fields, deterministically from the seed. P0 registers `scrambleWorldTruth` (every §3 hidden field of claims, claim water, creeks, districts and holders; packed truth swapped between claims with the same block grid); from P1 each owner registers one for the hidden fields it adds, and a test fails on any `hidden` block no scrambler covers. A deliberately leaky control bot must fail the identity check while `passive` passes; `withoutHidden` (the state minus every scrambled field) is there for §13's T8. — An identity test whose twin barely differs, or that no leaky bot could fail, proves nothing; swapping packed truth between same-grid claims keeps the twin decodable, so a bot that reads truth meets different but valid geology instead of a crash.
+- **D-2.59** — Validation looks up ids that arrive from outside the engine (an action, a replayed log, a save's `actionLog`, a bot) as own properties only (`engine/actions/own.ts`: `hasOwn`, `ownValue`). — A plain `rec[id]` returns an inherited value for `'constructor'`, `'toString'` or `'__proto__'`, so validation threw instead of returning `DECISION_NOT_FOUND`; validation must be total (2.2), and a fast-check property now shows `validateAction` never throws for any string id.
 
 ### 2.18 Open questions
 
@@ -2454,9 +2462,19 @@ genCreekNetwork(D, r):
   each tributary: w.p. 0.5 one order-3 branch at U(0.3, 0.8) of its length, length U(0.75, 2) mi
         (≈ 920 valley rows per district on average; a valley parcel uses ≈ 11.6 rows once gaps and the unusable rows
         at each creek head are counted, so the network can lay more than nTarget and nTarget caps most districts; D-3.33, D-3.49)
-  fixed draw count: polyline jitters are drawn for the longest possible creek, and all 8 tributary slots (nTrib's maximum),
-        each with its branch draws, are drawn even when unused, so the draw count never depends on the realized
-        tributary count, lengths or branch rolls
+  draw order on r (fixed, stream rule e: nothing below depends on the realized tributary count, lengths or branch rolls):
+        main: heading offset, length, the jitters of the longest possible main stem;
+        tributaries: count, nTribMax (8, nTrib's maximum) junction fractions, first-side u, then per tributary slot
+          0..nTribMax−1, used or not: angle, length, the jitters of the longest tributary, branch u, branch position,
+          branch angle, branch side u, branch length, the jitters of the longest branch;
+        attributes, per fixed slot, used or not (1 + 2·nTribMax = 17 slots in this order: the main stem, tributary slots
+          0..nTribMax−1, branch slots 0..nTribMax−1): half-width (the range of the slot's order), gold u, grade factor LN,
+          no-trail u, fish u, anadromous u;
+        overlays: withdrawn u, fraction, start u; special u, tributary index, fraction, start u (7 draws);
+        names: one per fixed slot in the same slot order, unique across all slots (a taken name probes forward, no draw)
+  a realized creek takes the attributes and name of its own slot: the main stem slot 0; the tributary drawn in tributary
+        slot i keeps slot i even after the tributaries are re-ordered by junction position; its branch takes branch slot i
+        (D-3.57)
   valleyHalfWidthFt: order 1 U(500, 900); order 2 U(250, 500); order 3 U(150, 300)
   goldBearing = r.u() >= geology.world.barrenCreekP (0.20); creek.gradeFactor = goldBearing ? LN(1, σcreek) : barrenCreekFactor (0.15)
   noTrail = order >= 2 and r.u() < geology.world.noTrailCreekP (0.15)
@@ -2559,10 +2577,13 @@ arid:   r.u() < 0.20 ? (sourceKind = 'spring', baseGpm = usableFrac × LN(40, 0.
         hidden: wellYieldGpm = clamp(LN(120, 0.8), tpl wellClampGpm [5, 1500]); depthToWaterFt = clamp(LN(180, depthSig 0.5), depthClampFt [30, 800])
         nearestFillMi = distanceToTownMi × U(geology.water.nearestFillFrac (0.3, 1.0))   // §7 water trucking
 each branch takes all its draws on every claim (north also draws a fill fraction it does not use, arid a bench lift)
-rightStub (recorded senior water right; the last draws on this stream, recentCat claims only):
-        if r.u() < geology.water.rightStubP (north 0.10, arid 0.30):
-          creek or spring source: { priority 'senior', gpm: min(lowFlowGpm, U(50, 300)), source 'surface' }
-          arid, sourceKind 'none': { priority 'senior', gpm: U(50, 300), source 'groundwater' }   // a pumping right: a well must
+rightStub (recorded senior water right; the last draws on this stream, taken on every claim; recentCat claims only get one):
+        u = r.u(); right = round(U(50, 300), 0.1 gpm)               // the right as recorded
+        if recentCat and u < geology.water.rightStubP (north 0.10, arid 0.30):
+          creek or spring source: { priority 'senior', gpm: min(lowFlowGpm, right), source 'surface' }   // the cap comes after
+                                                                     // the rounding, so a surface right never exceeds lowFlowGpm
+                                                                     // (a capped right carries lowFlowGpm's full value; D-3.61)
+          arid, sourceKind 'none': { priority 'senior', gpm: right, source 'groundwater' }   // a pumping right: a well must
                                                                      // still be drilled (§7), and physical draw ≤ wellYieldGpm
         cleared by assignStatus on open or withdrawn parcels and by forfeitToOpen (the right lapses with the claim)
 
@@ -2578,7 +2599,7 @@ listedFlowGpm(claimId) = baseGpm × geology.water.listingShape (early 1.40 / mid
                          // typical §1 hydrograph values at the three periods; display and §5 waterScore only
 ```
 
-Example: a claim with 4 upstream channel miles has a raw flow of 600 gpm and a usable baseline of 480 gpm. In June (sff ≈ 1.4) that is ≈ 670 gpm; in a dry late August (sff ≈ 0.6) ≈ 290 gpm; the climatological low flow is 216 gpm. A 50 bcy/hr plant at 15 gpm per bcy/hr needs 750 gpm once-through, so it must recycle all season (§7), and a §6 water grant is capped at 0.8 × 216 = 173 gpm of fresh draw. If the claim had a recent operator and rolled a senior right, its gpm is min(216, U(50, 300)): a right of 216 gpm or less that a drought cannot curtail (§6). §3 gives physical availability and the recorded right only.
+Example: a claim with 4 upstream channel miles has a raw flow of 600 gpm and a usable baseline of 480 gpm. In June (sff ≈ 1.4) that is ≈ 670 gpm; in a dry late August (sff ≈ 0.6) ≈ 290 gpm; the climatological low flow is 216 gpm. A 50 bcy/hr plant at 15 gpm per bcy/hr needs 750 gpm once-through, so it must recycle all season (§7), and a §6 water grant is capped at 0.8 × 216 = 173 gpm of fresh draw. If the claim had a recent operator and rolled a senior right, its gpm is min(216, the drawn right recorded to 0.1 gpm): a right of 216 gpm or less that a drought cannot curtail (§6). §3 gives physical availability and the recorded right only.
 
 ### 3.4 Parcel layout and status
 
@@ -2649,12 +2670,14 @@ genEnv(K, D, r):
   everything else 'u' (benches, dredge tailings, uplands)          → surfaceCodes
   fishBearing     = creek.fishBearing (the parcel touches the channel)
   specialStatus   = K overlaps any overlay (withdrawn parcels held under valid existing rights, or a special-status stretch)
-  previouslyDisturbed = any pre-game Block.state disturbance (3.6) or oldTimerKind ∈ {dredge, handCut, hydraulic, dryWash}
+  previouslyDisturbed = any pre-game Block.state disturbance or historicAcres > 0 (3.6)   // physical: what was worked (D-3.60)
   sensitivity     = clamp(0.10 + 0.30·fishBearing + 0.25·anadromous + 0.25·wetlandShare + 0.20·specialStatus + N(0, 0.05), 0, 1)
   adjacentClaimIds = parcels sharing a block edge (same creek and touching rows, or a bench beside a valley parcel on shared rows)
   northness       = cos(direction the bench slope faces, toward the creek: headingDeg + side·90° + 180°)   // +1 faces north
   thawAspectMult  = bench ? 1 − 0.35 × northness : 1.0                                                   // 0.65 … 1.35
 ```
+
+`previouslyDisturbed` follows the ground, not the old-timer kind: a kind that worked no block left the ground undisturbed (for example a hand-cut parcel whose richest paystreak blocks all lie under ≥ 10 ft of overburden), so the flag never tells a hidden kind apart from a featureless claim. When `hydraulic` ships (P6) it works bench blocks but leaves its tailings fans downstream; it must then leave a visible on-claim feature (3.9), or a disturbed claim with no visible workings would reveal the kind again.
 
 Example: a 20-ac valley parcel on a fish-bearing (not anadromous) main stem with 4 of its 15 non-channel blocks wetland: sensitivity ≈ 0.10 + 0.30 + 0.25 × 4/20 = 0.45. Working the channel column needs a 404 individual permit (fish-bearing), and the wetland blocks need 404 fill coverage too, so a player who mines only the upland blocks avoids it at the cost of the paystreak if it hugs the creek. That is a real §6 trade-off generated here.
 
@@ -2785,7 +2808,7 @@ Each parcel gets an `OldTimerKind` from the template mix (3.2). Old-timers took 
 |---|---|---|---|---|
 | drift | 1898–1930 | top U(40%, 80%) of PS, each w.p. 0.8 | `bottomShare × U(0.6, 0.9)`, where bottomShare = G(5 ft) − G(−1 ft) ≈ 0.70–0.85 | winter-dump tailings pile; λg × 2 and s_b × 0.6 (bottom pay gone) |
 | handCut | 1898–1940 | top 30% of PS with OB < 10 ft | U(0.5, 0.8) | tailings pile |
-| dredge | 1920–1962 | every block with f > 0.05 on the dredged stretch | U(0.80, 0.92) | OB → 0, permafrost → 0, boulders × 0.3, λg → 6.0; remaining gold mostly fine or in bedrock below dredge depth (s_b → max(s_b, 0.5)) |
+| dredge | 1920–1962 | every block with f > 0.05 on the dredged stretch | U(0.80, 0.92), drawn for every block of the parcel, worked or not | on the worked blocks only: OB → 0, permafrost → 0, boulders × 0.3, λg → 6.0; remaining gold mostly fine or in bedrock below dredge depth (s_b → max(s_b, 0.5)). Unworked valley fill beside them keeps its cover and frost (D-3.58) |
 | dryWash (arid) | 1930–1942 | top 50% of PS | U(0.10, 0.30) (upper 2–3 ft only) | small dry-wash reject piles, fine gold |
 | hydraulic (P6) | 1870–1900 | benches | U(0.5, 0.8) | OB reduced, huge tailings fans downstream |
 | recentCat | 1985–2018 | top U(15%, 50%) of the PS blocks not already depleted | the whole column is **mined** (`Block.state`) | production history, own tailings, possible inherited liability |
@@ -2965,7 +2988,8 @@ interface SampleRequest { blockId: BlockId; volumeBcy: number; interval?: { h1: 
   samplerCaptureMult?: number /* §4/§8 skill, default 1 */ }
 interface SampleResult {
   blockId: BlockId; methodId: string; volumeBcy: number; volumeMeasuredBcy: number;
-  intervalDepthFt: [number, number] | null;  // below surface, for display
+  intervalDepthFt: [number, number] | null;  // the logged interval, ft below the current surface (step 7); null when the
+                                             // sample never reached pay or sampled a pile. §4 reads [1] as depthReachedFt
   reachedPay: boolean; reachedBedrock: boolean; stopReason: 'none' | 'reach' | 'frozen' | 'water';
   reportedGradeOzPerBcy: number; recoveredMg: number;
   colorsBySize: Record<SizeClass, number>;   // particles seen (count × capture, rounded)
@@ -3024,6 +3048,14 @@ interface SampleResult {
    if reachedPay: observed.overburdenFt = OB_now × LNmean(1, m.geomCv)
    if reachedBedrock: depthToBedrockFt = depthToBedrock × LNmean(1, m.geomCv); payThicknessFt = T × LNmean(1, m.thickCv ?? 0.10);
                       bedrockType = true type w.p. 0.9, else a random other type
+   intervalDepthFt (pay reached, in situ; D-3.59): only the logging factors above, never true geometry, and no new draw:
+       top    = OB_now × obNoise + (T − h2) × thickNoise          // obNoise, depthNoise = LNmean(1, geomCv); thickNoise = LNmean(1, thickCv)
+       bottom = the dug depth, when a pit or hole stopped at its reach, the frost line or flooding (stopReason ≠ none);
+                else, bedrock reached: depthToBedrock × depthNoise + the bedrock the sampler aimed to dig (m.bedrockPenFt,
+                  or −req.interval.h1 for a face or channel sample; never the hidden B);
+                else: top + (h2 − h1) × thickNoise
+       bottom = max(bottom, top, and the logged bedrock contact depthToBedrock × depthNoise when bedrock was reached)
+       // with geomCv = thickCv = 0 and B ≥ the bedrock dug it reproduces the true interval [depth − h2, depth − h1]
    permafrost = bt.permafrost >= 0.5 && h1 < T; clay/boulders = tercile(x + N(0, 0.10)) at cuts 0.33 / 0.66
    colorsBySize_k = round(N_k × capture_k); massBySizeMg = pits/bulk ? W_k : null
    extractedBcy = V (exposure-mode pans and drill holes: V, negligible); hidden.drawnRawOz = Σ M_k / 31,103.5
@@ -3186,6 +3218,8 @@ Example: a held 20-ac northern valley claim with no visible workings: 20 × 0.30
 
 Every NPC-held parcel belongs to a holder. A holder owns 1–6 parcels: contiguous held runs on a creek are grouped w.p. 0.5. **Honesty is a property of the holder**, so it persists across relistings and across all of that holder's claims.
 
+**Draw order** on `rng(seed,'world','holders',D.id)` (fixed, stream rule e; D-3.57): first one group u per held run (a contiguous held stretch on one creek and side; runs in order of their lowest claim id), grouped w.p. `geology.seller.groupRunP` into holders of at most `maxParcelsPerHolder` (6) parcels; then, for **every** held parcel in `compareIds` order, grouped or not, its situation, honesty, first-name and last-name draws. A holder takes the draws of its lowest-id parcel; the other parcels of a group take theirs and leave them unused. Retuning `groupRunP` or the cap therefore never moves another holder's hidden honesty or situation.
+
 ```ts
 type SellerHonesty = 'accurate' | 'optimistic' | 'cherryPicked' | 'fraudulent';
 type SellerSituation = 'retiringOperator' | 'estate' | 'prospector' | 'distressedOperator' | 'absentee' | 'competitorBust';
@@ -3305,7 +3339,7 @@ Worked example. The truth is a paystreak averaging 0.009 oz/bcy in place. The se
 
 #### 3.10.4 Tells
 
-Tells are rolled once per (listing, channel) on `rng(seed,'seller-tells',listingId,channel)`, with `p = min(0.98, base × skillMult)`. §4 supplies `skillMult` from the geologist, consultant tier or owner background. Found tells become evidence notes (§4 `EvidenceRef`) and inbox lines. Accurate sellers generate **no** tells: a review returns "consistent with records".
+Tells are rolled once per (listing, channel) on `rng(seed,'seller-tells',listingId,channel)`, with `p = min(0.98, base × skillMult)`. The base probabilities below are standard's `geology.seller.tellDetect`; difficulty scales every cell × 1.15 (easy) or × 0.85 (hard), each capped at 1 (§1 1.11, D-1.67). §4 supplies `skillMult` from the geologist, consultant tier or owner background. Found tells become evidence notes (§4 `EvidenceRef`) and inbox lines. Accurate sellers generate **no** tells: a review returns "consistent with records".
 
 | Tell | Applies to | Records review | Geologist review | Site visit | Text (template) |
 |---|---|---|---|---|---|
@@ -3468,7 +3502,7 @@ Block-state changes come from §7 (stripping, mining, thaw, disturbance, reclama
 | P2 | Staking open parcels (§5); week-36 NPC forfeitures and week-40 NPC staking; the scarcity multiplier; permit and bond statements become real (§6 `instantiatePermitStub` at listing, records check, `misstatedPermit` on a false statement); the starter permitted lease in each district's initial market; recorded senior water rights on listings; environmental attributes gate §6 permits; inherited liability enforced. |
 | P3 | No new content. Ground fields drive §9 wear. |
 | P5 | Gold ripple on listing hazard (on `goldIdxReal`); competitors hold, bid on and relist claims (busts list the week after); first-look candidates once §1's reputation reaches 70 (they also bar competitors); title defects for fraudulent sellers (§5 diligence); the supply-floor `landOpened` request; "gold rush" and "land opened to entry" events. |
-| P6 | `temperateFederal`, `alaskaState` and `yukon` templates (claim units 40/160 and 23 ac); 4–6 districts (default 5); regime-specific holders (state rental and labor filings feed forfeiture odds). Last and optional: the hard-rock track (§14). §14 owns the lode deposit model and its generation rules (`genLodeSystems`, `layLodeParcels`, 14.2–14.3); §3 only hosts the results in the world slice (`world.lodes`, `world.lodePanelStates`) and calls §14's generator, adding no lode rules of its own. |
+| P6 | `temperateFederal`, `alaskaState` and `yukon` templates (claim units 40/160 and 23 ac); 4–6 districts (default 5); regime-specific holders (state rental and labor filings feed forfeiture odds); the `hydraulic` old-timer kind, which must leave a visible on-claim feature (3.4.1, D-3.60). Last and optional: the hard-rock track (§14). §14 owns the lode deposit model and its generation rules (`genLodeSystems`, `layLodeParcels`, 14.2–14.3); §3 only hosts the results in the world slice (`world.lodes`, `world.lodePanelStates`) and calls §14's generator, adding no lode rules of its own. |
 
 **Phase exit gates** (§1 1.19) that §3's content must pass: **P1** — listing-pool class shares in band for both templates and the grade and strip bands (3.18 simulator), the sample-gold conservation property, and the Inheritor tier test; **P2** — ≥ 8% of northern listings with true transferable plan authority and a starter lease in every district; **P5** — the long-run supply test (3.18).
 
@@ -3537,7 +3571,7 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 | `geology.sample.exposureMaxObFt` | 0.5 | ft | no | (`conserveMinBcy` deleted: every sample books its gold lines, 3.8) |
 | `geology.sample.exposureDepthFrac` / `defaultThickCv` / `waterStopFt` | 0.4 / 0.10 / U(1, 4) | share / CV / ft above bedrock | no | prose (3.8): method defaults and the water-inflow stop |
 | `geology.sample.bedrockIdP` / `groundObsSd` / `tercileCuts` | 0.9 / 0.10 / 0.33, 0.66 | p / sd / cuts | no | prose: step 7 observations (3.8) |
-| `geology.seller.honestyMix` | table 3.10.1 (§1 1.11 values) | shares | **yes** | |
+| `geology.seller.honestyMix` | table 3.10.1 (§1 1.11 values) | shares | yes | |
 | `geology.seller.honestyTilts` / `situationMix` | table 3.10.1 tilts / prospector 0.35, absentee 0.25, retiringOperator 0.15, estate 0.10, distressedOperator 0.15 | × odds / shares | no | prose (3.10.1) |
 | `geology.seller.groupRunP` / `maxParcelsPerHolder` | 0.5 / 6 | p / parcels | no | prose (3.10.1) |
 | `geology.seller.methods` | table 3.10.2 | — | no | seller pans, 3-bcy pits, bedrock scrapes |
@@ -3548,7 +3582,7 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 | `geology.seller.cherryPitMult` / `cherryReportShare` / `bedrockScrapeP` | 2.5 / 0.35 / 0.5 | × / share / p | no | |
 | `geology.seller.fraudMult` (median, σ, clamp) | 4.0, 0.35, [2.5, 10] | × | no | |
 | `geology.seller.fraudSampleSigma` / `fraudTitleDefectP` | 0.25 / 0.3 | ln / p | no | title defect from P5 (§5 defects and diligence) |
-| `geology.seller.tellDetect` | table 3.10.4 | p | yes (easy ×1.15, hard ×0.85; needs §1's table) | |
+| `geology.seller.tellDetect` | table 3.10.4 | p | yes | 1.11: × 1.15 / × 1.00 / × 0.85 on every cell, each capped at 1 (§1 D-1.67) |
 | `geology.supply.initialListedShare` / `minInitialPerDistrict` | 0.17 / 6 | share / count | no | steady-state share |
 | `geology.supply.baseListHazard` | 0.025 | /wk per off-market parcel | no | ≈ 15 active listings in P1 (3.11) |
 | `geology.supply.seasonMult` | 1.4 / 1.2 / 0.6 | × | no | off / pre / in season |
@@ -3572,7 +3606,7 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 | `geology.water.lowFlowShape` (creek / spring) | 0.45 / 0.90 | × baseGpm | no | climatological low of §1's hydrograph |
 | `geology.water.listingShape` (early / mid / late) | 1.40 / 0.90 / 0.75 | × baseGpm | no | display and §5 `waterScore` only |
 | `geology.water.listingNoiseSigma` | 0.20 | ln | no | |
-| `geology.water.rightStubP` (north / arid) / `rightStubGpm` | 0.10 / 0.30; U(50, 300), surface ≤ `lowFlowGpm` | p / gpm | no | recentCat claims that stay held (3.3.4); §6 senior right |
+| `geology.water.rightStubP` (north / arid) / `rightStubGpm` | 0.10 / 0.30; U(50, 300) recorded to 0.1 gpm, surface ≤ `lowFlowGpm` | p / gpm | no | recentCat claims that stay held (3.3.4); §6 senior right |
 | `geology.water.benchLiftFt` / `nearestFillFrac` | U(30, 300) / U(0.3, 1.0) | ft / × distanceToTownMi | no | prose (3.3.4) |
 | `geology.refEcon.stripUsd` / `washUsd` (north / arid) | 2.50 / 2.20; 12.00 / 14.00 | $ per bcy | no | prose (3.7); the `geology.refEcon.*` keys are sim, tests and dev reveal only (renamed from `geology.refOp.*`); spot = `market.openingSpotUsdPerFineOz`, with no fallback key |
 | `geology.refEcon.devBaseUsd` / `devPerAcreUsd` (north / arid) | 150,000 / 120,000; 8,000 / 7,000 | $ / $ per mined acre | no | prose (3.7) |
@@ -3615,7 +3649,7 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 - Bedrock cleanup: cleaning 0.5 of 1.5 ft (s_b 0.20, λb 0.6) leaves 0.0768 of block gold.
 - Access: the 3.3.3 example gives fuel adder $1.23, parts 1.4 wk, mob 1.54, `mobMultClass` 2.2, `distScale` 0.70. A winter-trail claim in week 30 (trail shut, air open) has `freightOpen` true and `freightMode` 'air'; in week 8 (trail open) 'trail'; with `geology.access.closed` on its district every mode is closed and `freightMode` is null.
 - Water: 4 upstream mi → baseGpm 480 (usable); sff 1.4 → 672 gpm; sff 0.6 → 288; spring baseGpm 32 at sff 0.6 → 30.7 (0.96 scale); lowFlowGpm 216. An `ops.waterAvailableMult` 0.5 modifier halves a spring claim's `waterAvailableGpm` exactly once and leaves a creek claim's unchanged.
-- Water right: a surface `rightStub` gpm never exceeds `lowFlowGpm`; an arid `sourceKind: 'none'` claim's right is `groundwater`; open, withdrawn and forfeited parcels carry none.
+- Water right: a surface `rightStub` gpm never exceeds `lowFlowGpm` (exactly, no tolerance), and a right the cap does not bind is the draw recorded to 0.1 gpm; an arid `sourceKind: 'none'` claim's right is `groundwater`; open, withdrawn and forfeited parcels carry none.
 - Gold multiplier: P1 (goldIdxReal 1) → 1.000; lag-8 goldIdxReal 1.30 → 1.140; 0.70 → 1.707 (§10's examples); goldIdx 1.10 with cpiIndex 1.10 (real 1.00) → 1.000. Forfeiture uses ×1.5 only when `goldIdxRealAt` < 0.85.
 - Scarcity: `npcHeldBaseline` 40 with 20 NPC parcels left → 2.0; with 10 left → 2.5 (clamp); in P1 → 1. `h_list` never exceeds 0.10.
 - Depletion: Σ removed = x exactly (within 1e-9) in every case, including a dredge x = 0.92 on a 45%-coarse mix (water-filling); drift example gives in-place 0.0132 and tailings 0.0115 oz/bcy; a second depletion with Δ = 0.10 on x = 0.56 gives minedOutFraction 0.66.
@@ -3636,7 +3670,9 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 - `drawSample`: never negative; reachedBedrock implies h1 ≤ 0; result keys are a whitelist (no truth fields outside `hidden`); deterministic for a given rng key.
 - Unbiasedness: with capture = 1, noise 0 and fullColumn without bedrock, the mean of 20,000 draws is within 2% of g. The zero-coarse frequency matches e^(−λ) within 1 point.
 - Closed-form CV matches the Monte Carlo CV within 10% for V ≥ 3 bcy.
-- Stream isolation: adding draws to `'seller'` or `'supply'` leaves `truthPack` byte-identical; adding or removing the creek-history, old-drill or water-right draws leaves every `truthPack` and every other water field byte-identical; generating a world with one extra district leaves earlier districts identical; the world (every `truthHash`) is identical for the three start types and three difficulties, except the Inheritor's re-packed family run.
+- Fixed draw counts: retuning `geology.world.nTrib` or `branchP` leaves the main stem, its overlays and every surviving tributary and branch (geometry, attributes, name) unchanged, and every creek of a district has a unique name; retuning `geology.seller.groupRunP` keeps every single-parcel holder's situation, honesty and name, a grouped holder carries the draws its lowest-id parcel would have had alone, and the holder stream's draw count is the same whatever the grouping (D-3.57).
+- Logged geometry: `SampleResult.intervalDepthFt` reproduces the true interval with zero logging noise (the control); with random true geometry no visible geometry number equals a truth value or an exact simple function of one; a pit logs the bedrock it dug below the logged contact, never the hidden cleanup depth (D-3.59). `env.previouslyDisturbed` = pre-game disturbance or historicAcres > 0 on every claim, and is false on every claim with no visible feature (D-3.60). `worldIdCounters(world).blk` equals the last block id, and `newGame`'s `ids` are at least the world's counters (D-2.38).
+- Stream isolation: salting one `'world'` sub-stream at a time (oldtimers, water, status, env, drill, creekHist, holders) leaves every field owned by an unaffected step byte-identical, and no stream key is opened twice during generation; adding draws to `'seller'` or `'supply'` leaves `truthPack` byte-identical; adding or removing the creek-history, old-drill or water-right draws leaves every `truthPack` and every other water field byte-identical; generating a world with one extra district leaves earlier districts identical; the world (every `truthHash`) is identical for the three start types and three difficulties, except the Inheritor's re-packed family run.
 - Gold conservation with samples: for any sequence of samples of any method and size (pans, drill holes, pits, trenches, bulk, tailings) and mining on a block, contained₀ = remaining + §7's mining terms + Σ (creditedRawOz + sampleCaptureLoss + sampleProcessingLoss + samplingVariance) (±1e-6 oz), the sample terms of §2.14's identity.
 - Seller evidence regenerated on relist equals the original `ClaimedEvidence` byte for byte.
 - Accurate sellers produce no tells. Cherry-picked claimed grade ≥ accurate claimed grade on the same evidence. Fraudulent claimed grade ≥ 2.5 × max(honest, 0.6 gMed). Fabricated samples have ln-sd ≈ 0.25 ± 0.1 (n ≥ 8). Fraudulent beliefRawOz / claimedRawOz ≤ 0.4.
@@ -3716,12 +3752,18 @@ Region-template values live in `data/regions/` (3.2); a template field of the sa
 - **D-3.54** — `drawSample(bt, bs, req, m, rng, ctx)` takes a `DrawContext { surface, climateBand, physics }`, built by `drawContextFor(state, blockId)`. Its draw order is fixed and each step draws whether or not the path uses it; only the particle-mass loop's length depends on N_k. Poisson below λ = 30 is exact inversion of the CDF on one uniform, the same law and draw as core `rng.poisson` (it replaces Knuth's product method). The vertical-profile functions take λb explicitly (`profileOf(bt, λb)`, from `genParams.sample.bedrockDecayFt`), and the closed forms take `SamplePhysics`. — Natural exposures exist only on channel blocks and the water table and inflow odds differ by climate band, so the physics needs those visible facts, and its constants must come from the world's snapshot (D-3.2), not live tuning. Knuth's method draws N + 1 uniforms; inversion draws the same distribution with one, so a sample's stream layout stays fixed (§2.3).
 - **D-3.55** — Two pseudo-code corrections: the junction boost covers exactly `junctionBoostRows` (7) rows, the junction row k and the 6 below it (the old `richLog[k−7 .. k]` spanned 8); and a claim whose cementation median is 0 gets cementation 0 on every block (the block noise is still drawn), not clamp(0 + N(0, 0.05)) half-normal noise. — The prose and the key both say 7 rows. The half-normal noise would give every northern valley block a mean cementation of ≈ 0.02 against 3.2's "benches 0.15, else 0", and charge the yardstick's cement strip term on ground that has none.
 - **D-3.56** — Every number §3 gave only in pseudo-code or prose is a registered `geology.*` key (3.16, marked "prose"), with no value changed; four constants are new (`geology.world.dredgedMaxStretches` 6, `outletEdgeFrac` U(0.25, 0.75), `geology.oldTimer.recentGapP` 0.2 and the hydraulic `obMult` 0.5 in `geology.oldTimer.kinds`). The yardstick's constants are spelled out per `geology.refEcon.*` key and its spot is `market.openingSpotUsdPerFineOz`, with no fallback key. `geology.method.churnHistoric` holds a copy of §4's `churnHistoric` row for the old drill logs until §4's method table lands. — CLAUDE.md rule 4: a number a designer might change lives in a tuning file under a key the owning section names, and the generation snapshot (D-3.2) can freeze only keys.
+- **D-3.57** — Two generation streams take fixed draw counts beyond their geometry. `genCreekNetwork` draws attributes for all 1 + 2·nTribMax fixed slots (main stem, tributary slots, branch slots; six draws each), then the 7 overlay draws, then one name per slot, unique across all slots, and each realized creek takes its own slot's attributes and name. `assignHolders` draws one group u per held run, then situation, honesty and two name indices for every held parcel in id order, and a holder takes its lowest-id parcel's draws. The stream keys are unchanged. — Stream rule (e): the attribute and name draw counts used to follow the realized branches, so a `branchP` retune moved the overlays and every later name, and a `groupRunP` retune moved every later holder's hidden honesty and situation. Per-slot sub-streams would also have worked, but a new key shape needs the owner's approval (CLAUDE.md rule 2).
+- **D-3.58** — A dredge's side effects (overburden and permafrost to 0, boulders × 0.3, λg 6, s_b ≥ 0.5) apply only to the blocks it worked (f > 0.05), as 3.6's table says; unworked valley fill keeps its cover and frost. Every block of the parcel still takes its extraction draw. — The engine had stripped and thawed the whole parcel, which the table never said and no dredge does. Measured at 400 worlds per template (seed bases 1000 and 90000): the whole-claim strip ratio p10 rises (north 1.64 → 1.91, arid 0.53 → 0.72), its p50 barely moves (north 4.12–4.13 → 4.13–4.16, arid 1.65 → 1.66–1.68), and every gating band of 3.18 and BALANCE T-01/T-02 still passes.
+- **D-3.59** — `SampleResult.intervalDepthFt` is the interval as logged, built only from step 7's logging factors already drawn (no new draw, so the draw order is unchanged): top = OB_now·obNoise + (T − h2)·thickNoise; bottom = the dug depth where a pit or hole stopped (reach, frost, flooding), else the logged bedrock contact plus the bedrock the sampler aimed to dig (never the hidden B), else top + (h2 − h1)·thickNoise; bottom ≥ top and ≥ the logged contact. It is null for overburden-only and tailings results. §4 reads `intervalDepthFt[1]` as `SampleRecord.depthReachedFt`, so §4's gravel penetrated `depthReachedFt − observed.overburdenFt` is a logged quantity. — The exact `[depth − h2, depth − h1]` revealed the true overburden and pay thickness from a single pan, a leak of hidden truth (§2.5 "Hidden vs known", §3.1).
+- **D-3.60** — `env.previouslyDisturbed` is physical: any pre-game `Block.state` disturbance or `historicAcres > 0`, not membership of a disturbing old-timer kind. When `hydraulic` ships (P6) it needs a visible on-claim feature, because it works blocks but leaves its fans downstream. — A kind that worked no block (most hand-cut parcels) left featureless ground flagged as disturbed, which told the player the hidden kind with certainty.
+- **D-3.61** — A water right is drawn U(50, 300), recorded to 0.1 gpm, and only then capped at the claim's unrounded `lowFlowGpm` for a surface right; both right draws are taken on every claim. — Rounding after the cap could leave a surface right 0.05 gpm above `lowFlowGpm`, §6's grant cap, which 3.18 forbids; a capped right therefore carries `lowFlowGpm`'s full float value.
 
 ### 3.20 Open questions
 
 - **OQ-3.1 — Should true geology ever change after generation?** *Resolved — owner ruling 2026-10-05: default confirmed (§0).* Immutable truth stays (D-3.1). Examples are a flood redistributing tailings, a permafrost slump, or a survey dispute that redraws block boundaries (rather than removing blocks from a claim). The design assumes immutable truth (D-3.1), and packed storage, seller evidence and §4's estimator all rely on it. Allowing mutation later means moving truth into mutable per-block state and invalidating estimates, which is expensive to retrofit. **Default: immutable.** Events change `Block.state` or claim membership only.
 - **OQ-3.2 — Is staking limited to pre-generated parcels?** *Resolved — owner ruling 2026-10-05: default confirmed (§0).* Pre-generated parcels only. The design stakes only the parcels laid at `newGame` (fixed geometry, fixed block IDs), which keeps truth packing, the map and adjacency static. Free-form staking (the player drawing a 20-ac rectangle over any open blocks, or splitting a 160-ac open parcel into units) would need dynamic claim creation, re-gridding of truth and new block IDs mid-game, which is expensive to retrofit. **Default: pre-generated parcels only**; §5 may stake a large open parcel as several 20-ac units of the same parcel.
 - **OQ-3.3 — World generation time and slice size at five districts (P6).** *Open; not a P0 or P1 failure.* The P0 engine generates the P1 two-district world in ≈ 66 ms (target < 25 ms) and a five-district, 315-claim world in ≈ 151 ms (target < 60 ms), most of it in the deterministic dmath `exp` and `normInv` and in packing; both stay far below the brief's 1.5 s ceiling. At generation the five-district world slice is 1,252 kB against §2.13's 1,000 kB `world` budget: packed truth is 621 kB, as 3.1 estimated, but the visible per-claim data (environment, water, geometry, public record, pre-game block states, names) adds ≈ 2 kB per claim that the estimate left out. The P1 world (561 kB) fits. **Default:** when P6 fixes the district count, trim per-claim visible fields (or rebuild derivable ones on load) or raise the `world` budget, and speed up generation or relax the time targets. Trimming stored fields changes the state shape, so by then it ships with a save migration (§2.9).
+- **OQ-3.4 — Hand-cut workings that work no block.** *Open; a P1 calibration check, nothing retuned in P0.* The P0 engine finds that 84.9% of `handCut` parcels work no block: the kind takes the top 30% of the paystreak with overburden < 10 ft, and in the north those blocks are usually all under deeper cover. That runs against D-3.45 (every kind but drift leaves a visible feature) and against §4's `geology.recordsWorkedShare` of 0.30 for `handCut`. Since D-3.60 such parcels read as undisturbed and show no workings, so the prior's visible-kind odds and §4's records model see fewer hand-cut parcels than the template mix says. **Default:** re-measure in P1 with §4's estimator in place, then either relax the hand-cut rule (deeper cover, or the top 30% of whatever paystreak the parcel has) or lower the template's `handCut` share and the records share together; both are §3 and §4 tuning, logged in the tuning changelog.
 
 ### 3.21 Sources
 
@@ -3956,7 +3998,7 @@ interface SampleRecord {
                  audited: boolean; bulkSampleProgramId?: ProgramId };   // fixed at recordProduction time (4.4.6)
   volumeBcy: number;                                  // §3 volumeMeasuredBcy (reported)
   interval: 'fullColumn'|'upperPay'|'exposure'|'overburdenOnly'|'tailings';
-  bedrockLogged: boolean; depthReachedFt: number;
+  bedrockLogged: boolean; depthReachedFt: number;    // §3 intervalDepthFt[1]: the logged bottom of the interval (§3 D-3.59)
   observed: { overburdenFt?: number; depthToBedrockFt?: number; payThicknessFt?: number; bedrockType?: BedrockType;
               permafrost: boolean; clay: Level; boulders: Level; waterInflow: boolean; oldWorkings: boolean };
   colours: Record<SizeClass, number>; massMg: Record<SizeClass, number> | null; recoveredMg: number;
@@ -5142,7 +5184,7 @@ Trade-offs, one line each:
   - Delegation: a staff geologist plans and runs programs by VOI within a budget.
   - Hard rock (optional, last): see §14. §14 owns the lode method rows (core drilling, rock chips, RC on veins), fire assay and QA/QC (14.4) and `estimateLode` (14.5); §4's programs and estimator run them unchanged, and 4.2 adds no hard-rock method rows.
 - **Phase exit gates** (§4's share of §1 1.19; tests in 4.22):
-  - **P0:** estimator calibration against §3's generator for every template × setting, old-timer kind and 160-acre claims.
+  - **P0:** estimator calibration against §3's generator (4.22): every cell defined by visible information (template × listing setting, template × visible old-timer evidence including `noVisibleWorkings`, 160-acre claims, the listing pool) at every evidence mix, and the hidden-attribute cells (true old-timer kind, true deep muck) from the pit grid on (D-4.47).
   - **P1:** calibration (north creek and arid fan, held and listed populations); the 4.4–4.10, 4.12 and 4.14 fixtures; production reconciliation (zero-noise ±0.02) and the incremental path; gold conservation with sample lots; difficulty multipliers; performance and `knowledge` save budget.
   - **P2:** Notice enforcement fixtures; seller and family verification; VOI and default-context EVSI fixtures; listing access tiers.
   - **P3:** drilling fixtures, including the deep-muck example (pits unchanged, sonic inferred) and its EVSI; contractor ledger, standby and minimum footage.
@@ -5199,7 +5241,7 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 | `geology.recordsTailingsPriorMedian` | 0.012 / 0.005 / 0.0025 | oz/bcy | no | hand-era / dozer / dredge; R3 |
 | `geology.recordsMaxFindProb` | 0.95 | prob | no | |
 | `geology.recordsItemWeight` | 1.0 / 0.9 / 1.0 / 0.8 / 1.0 | — | no | creekHistory / oldWorkings / priorExploration / filedProduction / permitHistory |
-| `geology.recordsFindMult` | 1.0 / 1.0 / 0.9 | × | **yes** (easy / standard / hard) | multiplies every find probability (4.10.2) |
+| `geology.recordsFindMult` | 1.0 / 1.0 / 0.9 | × | yes | easy / standard / hard (1.11); multiplies every find probability (4.10.2) |
 | `geology.reviewerMult` | owner 0.6; staff 0.5 + 0.005·skill; owner-geo 0.9; consultant 0.75 / 0.85 / 0.95 | — | no | records find |
 | `geology.tellSkillMult` | records: reviewerMult / 0.78; geologist review: owner-geo 1.15, staff 0.7 + 0.006·skill, consultant 1.0 / 1.15 / 1.3 | — | no | §3 `revealTells` |
 | `geology.confMeasuredMaxSpread` / `IndicatedMaxSpread` / `InferredMaxSpread` | 1.45 / 1.9 / 3.5 | base P90/P10 | no | R3 90% bands ±10–25% / ±25–40% / ±50–100% |
@@ -5215,7 +5257,7 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 | `geology.falseBedrockGeoBase` / `PerSkill` | 1.6 / 0.012 | — | no | |
 | `geology.programsPerGeologist` | 2 | count | no | |
 | `geology.pitStopBase` / `pitStopBoulder` | 0.05 / 0.10 | prob | no | caving and boulders; water inflow is §3's |
-| `geology.pitStopMult` | 0.7 / 1.0 / 1.3 | × | **yes** (easy / standard / hard) | multiplies `pStop` (4.3) |
+| `geology.pitStopMult` | 0.7 / 1.0 / 1.3 | × | yes | easy / standard / hard (1.11); multiplies `pStop` (4.3) |
 | `geology.pitWetDepthFt` | 12 | ft | no | |
 | `geology.pitHrBase` / `PerFt` / `PerSampleBcy` / `Backfill` / `WetAdd` | 0.6 / 0.06 / 0.10 / 0.3 / 0.5 | h | no | R3: 4–12 pits/day shallow, 1–4 deep or wet |
 | `geology.pitFrozenRateMult` | 0.35 | mult | no | R2/R3 frozen dig 20–50% of thawed; applies to frozen depth only |
@@ -5228,7 +5270,7 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 | `geology.winterTrailWindowMobMult` | 1.4 | mult | no | replaces access mult 2.2 inside Jan–Mar |
 | `geology.demobFracOfMob` | 0.5 | frac | no | |
 | `geology.contractorLeadWeeksBase` | sonic 6, rc 4, auger 2, churn 10, geophysics 3, pitting 1 | weeks | no | |
-| `geology.contractorLeadMult` | 0.8 / 1.0 / 1.25 | × | **yes** (easy / standard / hard) | multiplies `leadMult` (4.12) |
+| `geology.contractorLeadMult` | 0.8 / 1.0 / 1.25 | × | yes | easy / standard / hard (1.11); multiplies `leadMult` (4.12) |
 | `geology.ripple.drilling` / `pitting` / `geophysics` / `consultants` / `lab` / `leadTime` | see 4.18 | — | no | §10 ripple forms; canonical |
 | `geology.stormLostDays` / `wetLostDaysEarthwork` / `deepColdLostDays` | 3 / 1 / 2 | days | no | |
 | `geology.hotProductivityMult` | 0.75 | mult | no | arid July–Sept |
@@ -5293,12 +5335,16 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 - **Order independence and determinism.** Shuffling acquisition order (same ids) gives a bit-identical estimate. Golden values match across Node and browsers via dmath. The memo returns identical objects for identical evidence hashes, and a save/load round trip changes no estimate.
 - **No truth leakage.** Scrambling all `world` truth fields leaves `estimateFromEvidence` and the program planner unchanged.
 - **RNG isolation.** Adding a program on claim A leaves every draw on claim B unchanged. Re-pitting block X uses `k + 1`.
-- **Calibration (simulator, nightly, against §3's generator).** Over 1,000 claims per template × setting × evidence mix (prior, records, pans, pit fences, pit grid, + bulk, sonic, sonic + bulk):
+- **Calibration (simulator, nightly, against §3's generator).** 1,000 claims per cell at each of eight evidence mixes (prior, records, pans, pit fences, pit grid, + bulk, sonic, sonic + bulk). A cell passes a mix when:
   - P10–P90 holds truth contained oz in 0.72–0.88 of claims;
-  - median `ln(P50/truth)` within ±0.10;
-  - block-level z sd within 0.85–1.15.
+  - median `ln(P50/truth)` is within ±0.10;
+  - block-level z sd is within 0.85–1.15.
 
-  The prototype passes for the north creek template without old-timers (4.9). Old-timer kinds, the arid template, bench and deep-muck settings and 160-acre claims are P0 gates.
+  **Which cells gate** (D-4.47). A Bayesian estimator is calibrated over the population that shares its information, so a cell can be held to the gates only at evidence that observes the attribute defining it:
+  - *Gated at every mix:* cells defined by player-visible information only. Each template × visible listing setting (`claim.setting`: `valleyBottom`, `bench`, `dredgedGround`, `fan`, `gulch`); each template × visible old-timer evidence (one cell per kind the visible workings identify, plus a `noVisibleWorkings` cell); each template's 160-acre claims; and each template's listing pool (below, with its teeth test).
+  - *Reported at prior, records, pans and pit fences; gated at pit grid, + bulk, sonic and sonic + bulk:* cells defined by a hidden attribute, namely the true old-timer kind (none, drift, hand-cut, dry-wash, dredge, recent operator) and true deep-muck ground. Only evidence that samples the pay across the claim can see workings and depth; before that, such a cell averages over kinds or deposits the evidence cannot tell apart, so its numbers are printed at every mix but scored only from the grid on.
+
+  The harness marks each cell × mix gated or reported, and its exit code counts gated failures only. The prototype passed for the north creek template without old-timers (4.9).
   - **Listing pool.** A second population draws claims from §3's steady-state listing pool with §3 3.11's weights and uses the `'listed'` prior; it must pass the same 0.72–0.88 coverage and ±0.10 bias gates. At §3's measured `statusMult.listed` 0.92 a ±0.10 gate alone cannot catch a missing selection allowance, so the test also checks its effect: with `statusMult.listed` forced to 1.0, the prior-only median `ln(P50/truth)` must rise by ln(1/0.92) ≈ 0.08 (± 0.02) against the correct run (the test has teeth).
 - **Confidence gates.** Fixtures at each class boundary: base spread 1.90 vs 1.91; cov0 0.70 vs 0.69; processed 74 vs 75 bcy; coarseSd 0.060 vs 0.061. Sonic-only on mid-reach ground is inferred; sonic plus bulk is indicated.
 - **Seller check.** The 4.10.5 fixture gives twin mean z 1.06 (`twinMismatch`), claim-wide z = 2.23 and pHonest 0.026. Verification passes with three honest twins and fails with salted values. The `unreportedPits` tell probability is 0.63 for the owner-geologist.
@@ -5372,6 +5418,7 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 - **D-4.44** — The prior status (held, listed, open) is fixed when the claim first gets player evidence and does not change on purchase. — Adverse selection happened when the claim was listed; switching to the held prior after buying would make every purchase look better overnight.
 - **D-4.46** — Planning wash cost carries §3's `geology.refEcon.frozenWashAdd` (0.40 × frozen share), so the player's, §5's and the bots' cutoffs on frozen ground match the engine's frozen/thawed break-even ratio (≈ 1.36–1.38) instead of reading ≈ 15% optimistic. The 4.9 and 4.11 worked figures were computed before this term; the P0 estimator prototype gate recomputes them (expected effect: cutoffs on frozen blocks rise ≈ 10–15%, so fewer candidate blocks, and EVSI shifts toward tests that split marginal frozen blocks). — The planning tool must agree with the engine, or the explain system teaches the wrong lesson.
 - **D-4.45** — The verdict line uses the decision context's set, its P10–P90 and P(S ≥ breakeven), and names one biggest unknown by a fixed precedence (barren creek, top VOI hint, blocking gate). — One plain sentence for the first purchase, built only from numbers the panels already show, and deterministic.
+- **D-4.47** — Calibration cells gate by what the evidence can see (integrator ruling, P0). Cells defined by player-visible information (template × visible setting, template × visible old-timer evidence with a `noVisibleWorkings` cell, 160-acre claims, the listing pool) gate at every evidence mix. Cells defined by a hidden attribute (true old-timer kind, true deep-muck ground) are reported at prior, records, pans and pit fences and gate at pit grid, + bulk, sonic and sonic + bulk. — A Bayesian estimator is calibrated over the population that shares its information: at evidence that cannot see a hidden kind or deposit, the estimate is correctly the mixture over the kinds consistent with what is visible, so a cell sliced by the hidden attribute shows opposite-sign biases that are not errors. Gating those cells there would force the prior to read hidden truth (§2.5 "Hidden vs known"); gating them once the evidence samples the pay across the claim still catches a real model error.
 
 ### 4.24 Open questions
 
@@ -6477,12 +6524,12 @@ Sub-order within each step follows §2.6: in step 3 §5 runs first (calling §3 
 | `land.inGroundFrac` | 0 / 0.006 / 0.015 / 0.030 / 0.045 | × in-situ gross | no | by evidence class; D-5.2 |
 | `land.permitResourceMult` / `land.permitReplacementUsd` | 1.0/1.0/1.1/1.5 ; notice 8k, plan 75k | × ; $ | no | R1 plan prep $10–250k |
 | `land.improvementCredit` / `land.sellerAroRecognition` | 0.7 / 0.5 | × | no | |
-| `land.askMarkup` | 0.30 | × | yes 0.25/0.30/0.35 (§1 1.11) | |
+| `land.askMarkup` | 0.30 | × | yes | §1 1.11: 0.25 / 0.30 / 0.35 |
 | `land.askMotivationDisc` / `land.askNoiseSigma` | 0.25 / 0.12 | × / log-σ | no | |
 | `land.motivationDriftPerWeek` / `land.motivationDriftCap` | 0.01 / 0.25 | /wk | no | |
 | `land.askRepriceHysteresis` | 0.03 | × | no | |
 | `land.rippleElasAcre` / `land.rippleElasResource` / `land.rippleLagWeeks` | 0.8 / 1.3 / 8 | — / wk | no | D-5.4 |
-| `land.resMotivationDisc` | 0.35 | × | yes 0.45/0.35/0.25 (§1 1.11) | |
+| `land.resMotivationDisc` | 0.35 | × | yes | §1 1.11: 0.45 / 0.35 / 0.25 |
 | `land.resMomentumSens` / `land.resCompetitionPrem` / `land.resFloorFracOfA` | 0.5 / 0.20 / 0.5 | × | no | |
 | `land.royaltyBase` | 0.03/0.05/0.09/0.12/0.16 | fraction | no | land anchors; brief 2–5% → 15–25% |
 | `land.royaltyRegionAdj` / `land.royaltyPermitAdj` | N +0.02, T 0, A −0.01 ; notice +0.01, plan +0.03 | pts | no | |
@@ -6499,7 +6546,8 @@ Sub-order within each step follows §2.6: in step 3 §5 runs first (calling §3 
 | `land.lessorAssumedLifeYears` / `land.lessorAnnualOzCap` | 6 / 600 | yr / raw oz | no | R2: typical op 300–700 oz/yr |
 | `land.lessorCredenceBase` / `land.lessorCredenceRep` | 0.35 / 0.25 | p | no | |
 | `land.leaseYear0Ramp` / `land.lessorResidualFrac` / `land.optionExerciseProb` | 0.3 / 0.6 / 0.35 | × | no | |
-| `land.leaseCureWeeks` / `land.leaseSurrenderNoticeWeeks` | 4 / 4 | wk | cure: yes 6/4/3 (§1 1.11); notice: no | cure runs from §6's miss at `dueTurn + 1` |
+| `land.leaseCureWeeks` | 4 | wk | yes | §1 1.11: 6 / 4 / 3; cure runs from §6's miss at `dueTurn + 1` |
+| `land.leaseSurrenderNoticeWeeks` | 4 | wk | no | |
 | `land.forfeitDamagesMult` | 1.0 | × V_belief | no | |
 | `land.amendFloorFrac` | 0.85 | × U(current terms) | no | lease amendments (5.7) |
 | `land.sellerDiscountRate` | private .12, estate .15, distressed .35, competitor .15, auction .25 | /yr | no | |
@@ -6518,8 +6566,8 @@ Sub-order within each step follows §2.6: in step 3 §5 runs first (calling §3 
 | `land.bondCarryCostFracPerWeek` (seller's cost of `sellerBondCarryWeeks`, max 13) | 0.002 | × bond face / wk | no | P5 utility; §6 caps the carry at 13 wk |
 | `land.carryDefaultHaircut` | 0.25 | × | no | |
 | `land.diligenceCostUsd` / weeks | basic 750 / full 7,500 ; 1 / 3 | $ ; wk | no | R3: records review $500–5k |
-| `land.defectLambda` | private .15, compSale .20, estate .45, distressed .60, auction .50 | /listing | via mult | |
-| `land.titleDefectRateMult` | 0.6 / 1.0 / 1.4 | × | yes (§1 1.11) | |
+| `land.defectLambda` | private .15, compSale .20, estate .45, distressed .60, auction .50 | /listing | no | difficulty scales it through `land.titleDefectRateMult` |
+| `land.titleDefectRateMult` | 0.6 / 1.0 / 1.4 | × | yes | easy / standard / hard (§1 1.11) |
 | `land.defectMix` / `land.detectProb` / `land.defectKnownProb` | tables in 5.6 | | no | detectProb has records / basic / full levels; `misstatedPermit` is deterministic (not in the mix) |
 | `land.nonTransferableCauseMix` | suspended 0.4 / bondCancelNotice 0.3 / bondForfeited 0.3 | p | no | passed to §6 (5.6) |
 | `land.defectConcession` / `land.voidHeadStartWeeks` | 0.8 / 1 | × / wk | no | |
@@ -6547,7 +6595,8 @@ Sub-order within each step follows §2.6: in step 3 §5 runs first (calling §3 
 | `land.negInsultZ` / `land.negMinStepFrac` / `land.negPatienceDistressedAdj` | −0.5 / 0.01 / −1 | z / × U_ask / rounds | no | distressed channel or distressedOperator situation |
 | `land.rivalBluffProb` / `land.bgBuyerBidFrac` | 0.3 / 0.90 | p/wk / × ask | no | |
 | `land.negCompetitionLogit` / `negDeadlineLogit` | 0.8 / 0.5 | logit | no | |
-| `land.negConcession` / `negMotivationConcession` / `negCompetitionStiffen` / `negPressureConcession` / `negFloorMargin` | 0.35 / 0.6 / 0.5 / 0.5 / 0.05 | × | yes (concession 0.42/0.35/0.28, §1 1.11) | |
+| `land.negConcession` | 0.35 | × | yes | §1 1.11: 0.42 / 0.35 / 0.28 |
+| `land.negMotivationConcession` / `negCompetitionStiffen` / `negPressureConcession` / `negFloorMargin` | 0.6 / 0.5 / 0.5 / 0.05 | × | no | |
 | `land.negPatienceBase` / `negPatienceSpread` | 4 / 2 | rounds | no | |
 | `land.counterValidWeeks` / `land.walkCooldownWeeks` | 2 / 12 | wk | no | |
 | `land.landmanBandHalfWidth` / `land.hintBandMinSkill` | 0.20 / 70 | × R / landSkill | no | |
@@ -8290,7 +8339,7 @@ All keys sit under `permits.`. USD values are year-1 dollars × `cpiIndex`, exce
 | `rceIndirectRate` / `rceMobBase.notice` / `.plan` / `rceCampRemovalUsd` / `bondCostDriftReal` | 0.45 / 2,500 / 8,000 / 10,000 / 0.01 | — | no | 35–60% indirect; SRCE +9.1% (R1); `rceMobBase` × §3 `accessFactors(state, claimId).mobMult` (D-6.46) |
 | `noticeBondMinUsd` / `bondReviewIntervalWeeks` / `bondTopUpWeeks` / `bondIncreaseAcceptWeeks` / `sellerBondCarryMaxWeeks` | 2,000 / 156 / 8 / 2 / 13 | — | no | design |
 | `surety.weights` (credit / fin / exp / stand) | 0.40 / 0.25 / 0.20 / 0.15 | — | no | design |
-| `surety.tiers` (uw floor / premium / collateral) | A 75/1.5%/0; B 60/2.5%/10%; C 45/4%/25%; D 30/7%/50% | — | yes (premium ×0.85 / 1 / 1.15) | 1–10% of face (R1) |
+| `surety.tiers` (uw floor / premium / collateral) | A 75/1.5%/0; B 60/2.5%/10%; C 45/4%/25%; D 30/7%/50% | — | yes | 1–10% of face (R1); §1 1.11 scales the premium × 0.85 / × 1.00 / × 1.15 |
 | `surety.minPremiumUsd` / `capacityMult` / `ownerCapacityFrac` / `quoteValidWeeks` / `underwritingMedianWeeks` / `cancelNoticeWeeks` / `indemnityLoad` / `riderFeeUsd` | 500 / 3 / 0.5 / 13 / 3 / 9 / 0.10 / 150 | — | no | design; the thin-file score is §11's `finance.credit.thinFileScore850` (600), not a §6 key (D-6.48) |
 | `surety.reorgCollateralFrac` / `reorgApprovalWeeks` / `reorgMaxTier` | 0.50 / 1 / D | × face, wk, tier | no | design (6.8): a filing defaults the indemnity agreement; sureties call collateral; D-6.58 |
 | `release.stage1Frac` / `revegBase.north` / `.arid` / `freshTopsoilBonus` / `freshTopsoilWeeks` / `reseedCostFrac` / `inspectionMedianWeeks` / `transferBondWeeks` | 0.60 / 0.85 / 0.65 / 0.10 / 104 / 0.5 / 3 / 4 | — | no | staged release (R1) |
@@ -8299,7 +8348,8 @@ All keys sit under `permits.`. USD values are year-1 dollars × `cpiIndex`, exce
 | `autoPayLeadWeeks` / `fineDueWeeks` / `fineLateMonthlyRate` / `referralWeeks` / `referralMult` | 1 / 4 / 0.01 / 13 / 1.5 | — | no | design |
 | `insp.baseRate` (safety / land plan / notice / dormant / water / waterRights / stateRecl / wetlands) | 2.0 / 1.5 / 0.75 / 0.25 / 1.0 / 0.5 / 0.5 / 0.15 | per yr | no | MSHA 2/yr (R1); `labor` has no routine inspections |
 | `insp.cooldownWeeks` / `standingIntercept` / `historySlope` / `historyCap` / `complaintForcedProb` | 3 / 0.5 / 0.25 / 4 / 0.6 | — | no | design; `complaintForcedProb` is applied by §6 inside `forceInspection` (D-6.49) |
-| `insp.diffMult` / `fineDiffMult` | 0.7 / 1.0 / 1.3 each | × | yes | |
+| `insp.diffMult` | 0.7 / 1.0 / 1.3 | × | yes | inspection frequency; §1 1.11 |
+| `fineDiffMult` | 0.7 / 1.0 / 1.3 | × | yes | every fine (6.10); §1 1.11 |
 | `safety.baseCitations` / `safetyOfficerCoverageSlope` / `cultureIntercept` / `fleetSlope` / `sizeIntercept` / `sizeSlope` / `ssBase` | 3.0 / 0.45 / 1.5 / 0.6 / 0.6 / 0.08 / 0.18 | — | no | 2–8 per inspection; 18% S&S (R1); coverage per §8 D-8.19 |
 | `safety.nonSsMedian` / `ssMedian` (clamps) | 180 [168–3,000] / 900 [300–20,000] | USD | no | MSHA 2025 minimum $168; small mines $130–500 (R1) |
 | `safety.abateMedianUsd` / `abateHours` / `failureToAbatePerWeekUsd` / `seriousMedianUsd` / `fatalMedianUsd` / `lateNotificationMedianUsd` | 600 / 4 / 5,000 / 25,000 / 120,000 / 12,000 | — | no | max $90,649; flagrant $332,376; late notice $7,555 minimum (R1) |
@@ -9622,7 +9672,7 @@ All `ops.*`; USD in year-1 dollars × `cpiIndex`. "Diff" = scaled by difficulty.
 | `ops.extraLineMinAcres` | 20 / 40 | acres | no | claim size for line 2 / line 3 (§3: 20-acre claims take 2 lines, association claims of 40 acres and more take 3) |
 | `ops.foremanRedeployMax` | 0.6 | share | no | |
 | `ops.plantHoursMultByBand` | cool 0.80, else 1.0 | — | no | §1 D-1.3 (night-freeze shutdowns) |
-| `ops.weatherHoursMult` | storm 0.75, wet 0.92, else 1.0 | — | via events | P5; read by §1's `weatherHoursMult` composite |
+| `ops.weatherHoursMult` | storm 0.75, wet 0.92, else 1.0 | — | no | P5; read by §1's `weatherHoursMult` composite; not difficulty-scaled; §12 events change it through the hook |
 | `ops.heatDayShiftHoursMult` | 1 − 0.03 × (meanTempF − 80), clamp [0.55, 1]; night shift 0.95 in hot weeks | — | no | P1 (§1 D-1.25) |
 | `ops.fireLevelHoursMult` | L1–L2 0.97; L3 day shift ≤ 8 h; L4 0 | — | no | P1; IFPL levels (R2) |
 | `ops.nightLightGalPerHr` / `ops.nightLightFreeWeeksNorth` | 2.0 / weeks 22–30 | gal / wk | no | 4 light towers; midnight sun |
@@ -10684,7 +10734,7 @@ All `staff.*` unless noted; USD in year-1 dollars × `cpiIndex`. "Diff" = scaled
 | `gen.rel*` / `gen.safety*` | 58, sd 16 / 0.40·rel + 0.25·skill + 15, sd 12 | — | no | design |
 | `gen.localShare` / `gen.employedP` | outpost 0.5, serviceTown 0.7, hubCity 0.9 / winter 0.25, rush 0.40, operating 0.60, post-freeze 0.15 (arid prime 0.50, heat 0.25) | p | no | design |
 | `gen.classMix` / `gen.offClassPenalty` / secondary | .30/.35/.20/.15 / dozer 25, excavator 20, loader 12, truck 8 / 0.5 | — / pts | no | design |
-| `resume.bias` | skill 6, rel 10, safety 6 | pts | via `resumeBiasMult` | design |
+| `resume.bias` | skill 6, rel 10, safety 6 | pts | no | design; difficulty scales it through `staff.resumeBiasMult` |
 | `resumeBiasMult` | 1.0 (easy 0.6, hard 1.3) | × | yes | §1 1.11 (listed there with these values) |
 | `resume.sourceSd` / `halfWidth` | 8.3 table | pts | no | design |
 | `refs.*` | $150; 1 wk; biasKeep 0.4; sd and w ×0.6; flags rel < 35 p 0.7, safety < 30 p 0.6 | — | no | design |
@@ -10708,7 +10758,7 @@ All `staff.*` unless noted; USD in year-1 dollars × `cpiIndex`. "Diff" = scaled
 | `morale.safetyRecordWeight` | 0.06 per record point, centred on 50 (−3 … +3) | pts | no | brief: safety record drives morale (D-8.40) |
 | `morale.hireStart` / `fatigue.hireStart` | 60 / 10 | pts | no | design |
 | `morale.shock.*` | missed pay −15; fire −3/−6; quit −1; layoffs −2; cut −0.5/%; bonus +4/wk (cap 10); promotion +5; recall +3; season bonus paid +6 | pts | no | design |
-| `quit.*` | q0 −5.8; morale 1.0/10 pts; new 0.7; unpaid 1.5/wk; demand 0.8; skill 0.4; bonus −0.25/wk pay (cap 3); share −0.3; tenure −0.15/season (cap 3); walkOff 0.5; max 0.95 | logit | via `quitHazardMult` | design |
+| `quit.*` | q0 −5.8; morale 1.0/10 pts; new 0.7; unpaid 1.5/wk; demand 0.8; skill 0.4; bonus −0.25/wk pay (cap 3); share −0.3; tenure −0.15/season (cap 3); walkOff 0.5; max 0.95 | logit | no | design; difficulty scales the hazard through `staff.quitHazardMult` |
 | `unpaidRefusalWeeks` | hourly 2, salaried 3 | wk | no | R5 §19 |
 | `poach.*` | b0 −1.6; ratio 8; morale 0.6; bonus −0.25; share −0.6; tenure −0.4 | logit | no | §12 12.13 |
 | `rehire.*` | r0 −4.0; morale 0.5; skill 0.3; demand 1.0; retainer −0.75 per 25%; bonus −0.4; tenure −0.2; `p1RecallProb` 0.75 | logit | no | design |
@@ -12011,7 +12061,7 @@ All `fleet.*`; USD in year-1 dollars × cpiIndex. Catalog, brand, component and 
 | `fleet.certStockTarget` / `certSellP` / `certPremium` / `certMinHealth` / `certReportSd` | 8 / 0.08 / 1.12 / 0.45 / 0.0625 | — | no | R4 certified +10–20% |
 | `fleet.listingAgeMedian` / `fleet.hoursPerYearMedian` | private 12, certified 5, auction 14 / 1,150 | yr / h | no | |
 | `fleet.careWearMax` / `careWearMin` / `priorRebuildAtHealth` / `parkedDecayPerYear` / `repoDeferredPmHit` | 1.45 / 0.70 / 0.30 / 0.02 / 0.10 | — | no | |
-| `fleet.privateLemonShare` | 0.10 / 0.20 / 0.30 | — | **yes** | §1 |
+| `fleet.privateLemonShare` | 0.10 / 0.20 / 0.30 | — | yes | easy / standard / hard (§1 1.11) |
 | `fleet.auctionEveryWeeks` / `auctionLotsMean` / `auctionPreviewWeeks` | 8 (winter 6) / 16 / 3 | wk / lots | no | |
 | `fleet.auctionBidderMean` / `siteRemoteMult` / `auctionBidderGoldExp` / `auctionFloodBidderCut` | 3.5 / 1.0, 0.8, 0.55, 0.4 / 0.8 / 0.4 | — | no | |
 | `fleet.auctionDefaultFeeShare` / `auctionBanWeeks` | 0.10 / 26 | — / wk | no | |
@@ -12055,7 +12105,7 @@ All `fleet.*`; USD in year-1 dollars × cpiIndex. Catalog, brand, component and 
 | `fleet.pmSkipWearSlope` / `pmOverdueCap` / `pmToleranceFrac` | 0.6 / 2.5 / 0.10 | — | no | R4 skipped PM ×1.5–2.5 |
 | `fleet.idleWearShare` / `idleHazardShare` | 0.3 / 0.3 | — | no | |
 | `fleet.lambda0.<family>` | per 9.2.5 (excavator 0.0012 …) | per op-h | no | calibrated to R4 availability |
-| `fleet.failureHazardMult` | 0.80 / 1.00 / 1.15 | — | **yes** | §1 |
+| `fleet.failureHazardMult` | 0.80 / 1.00 / 1.15 | — | yes | easy / standard / hard (§1 1.11) |
 | `fleet.hazardWearA` / `hazardWearExp` | 9 / 4 | — | no | |
 | `fleet.tier4ColdHazardMult` / `preTier4RemotePremium` | 1.3 / 1.05 | — | no | R4 |
 | `fleet.infantHazardMult` / `infantHours` | 1.0 / 300 | — / h | no | R4 100–500 h |
@@ -13068,11 +13118,11 @@ All keys are in `data/tuning/market.ts`, except refinery and analyst content (`d
 | `market.macroDriftScale` | 0.05 | /yr | no | normalizes μ_macro in tilts |
 | `market.meanReversionKappa` | 0.25 | /yr | no | R5 0.15–0.35 |
 | `market.fairValueRealGrowth` | 0.005 | /yr | no | |
-| `market.garch.{sigmaBarWeekly,alpha,gammaUp,beta}` | 0.0180 / 0.07 / 0.03 / 0.88 | — | σ̄ via volMult | R5 α 0.08–0.10, β 0.85–0.88; γ Baur 2012 |
+| `market.garch.{sigmaBarWeekly,alpha,gammaUp,beta}` | 0.0180 / 0.07 / 0.03 / 0.88 | — | no | R5 α 0.08–0.10, β 0.85–0.88; γ Baur 2012; difficulty scales σ̄ through `market.volMult` |
 | `market.garch.{sigmaMinWeekly,sigmaMaxWeekly}` | 0.008 / 0.065 | /wk | no | R5 clamp 1–6%; h stored clamped |
-| `market.volMult` | 1.0 | × | **0.85 / 1.0 / 1.15** | §1 difficulty table; scales σ̄ and jump size |
+| `market.volMult` | 1.0 | × | yes | §1 1.11: 0.85 / 1.0 / 1.15; scales σ̄ and jump size |
 | `market.tDof` | 5 | — | no | R5 ν 4–6 |
-| `market.jump.{probWeekly,sizeBase,sizeExpMean,sizeCap}` | 0.025 / 0.02 / 0.015 / 0.15 | p, log | size via volMult | R5 0.02–0.04/wk |
+| `market.jump.{probWeekly,sizeBase,sizeExpMean,sizeCap}` | 0.025 / 0.02 / 0.015 / 0.15 | p, log | no | R5 0.02–0.04/wk; difficulty scales the jump size through `market.volMult` |
 | `market.jump.upProb.{bull,range,bear}`; `blowoff{Valuation,UpShift,LookbackWeeks}` | 0.60 / 0.50 / 0.40; 0.25 / −0.25 / 26 | — | no | crashes after records (R5 2025–26) |
 | `market.{valuationFloor,valuationCap,reflectFactor}` | 0.40 / 2.80 / 0.5 | ×F | no | sanity band |
 | `market.{spotHardMin,spotHardMax}` | 800 / 40,000 | USD × cpi | no | bug rails |
@@ -13106,7 +13156,7 @@ All keys are in `data/tuning/market.ts`, except refinery and analyst content (`d
 | `market.silver.{agShareOfImpurity,payable,minAgFrac,goldSilverRatio}` | 0.75 / 0.90 / 0.02 / 80 | — | no | R3 weight chain; R5 90–95% payable above 1–3% Ag |
 | `market.metalAccount.{feeAnnual,minWeeklyUsd,bidSpread}` | 0.0020 / 10 / 0.0025 | — | no | R5 depository 0.1–0.5%/yr |
 | `market.storage.{bankBoxWeeklyUsd,bankBoxCapacityRawOz,courierFlat[4],courierPct}` | 10 / 400 / 150, 300, 600, 900 / 0.001 | USD | no | the camp safe's $9,000 price is §9's `campSafe` item (D-10.42); R5 safe $3–15k |
-| `market.theft.base.{campOpen,campSafe,bankBox}` | 0.0060 / 0.0012 / 0.00005 | /wk | via events.frequencyMult | designer; R5 high-grading 1–10% context |
+| `market.theft.base.{campOpen,campSafe,bankBox}` | 0.0060 / 0.0012 / 0.00005 | /wk | no | designer; R5 high-grading 1–10% context; difficulty reaches it through `events.frequencyMult` |
 | `market.theft.{accessMult[4],goldRoomCut,ownerCut,securityFloor,valueRefUsd,valueExp,valueMin,valueMax,unstaffedMult,safeLossMin}` | 1.25, 1.0, 0.85, 0.75 / 0.30 / 0.25 / 0.40 / 250k / 0.35 / 0.5 / 2.0 / 2.0 / 0.4 | — | no | valueRef × cpi |
 | `market.goldLeaseRate` | 0.005 | /yr | no | R5 forward carry |
 | `market.forward.spread.{refinery,dealer,bank}`; `im.{refinery,dealer}` | 0.0075 / 0.0050 / 0.0100; 0.10 / 0.15 | — | no | R5 10–20% deposit; bank and prepay take no IM |
@@ -14705,7 +14755,7 @@ All in `data/tuning/finance.ts` and `data/finance/*` (lenders, products, insuran
 | `finance.credit.weights` | owner .40, paydex .20, fin .25, time .15 | — | no | SBSS-like blend |
 | `finance.credit.tierCutoffs` | 210 / 175 / 140 | U points | no | SBA min 165 sits inside B (R5) |
 | `finance.credit.companyDerogPts` / `HalfLifeWeeks` | 40 / 104 | | no | |
-| `finance.appetiteScoreShift` | +30 / 0 / −30 | U points | **yes** | §1.11 |
+| `finance.appetiteScoreShift` | +30 / 0 / −30 | U points | yes | §1.11 |
 | `finance.tierWidthPoints` | 35 | U points | no | one tier on the U scale |
 | `finance.bankerCreditTierBonus` | 1 | tiers | no | §1 banker edge; shift = bonus × `tierWidthPoints` = 35 U points (D-11.58) |
 | `finance.bank.minProfitableYears` / `bankerMinProfitableYears` | 2 / 1 | fiscal years (NI > 0, ≥ 100 fine oz) | no | bank history gate; the banker's 1 is the second banker edge, listed in §1.7 |
@@ -14747,13 +14797,13 @@ All in `data/tuning/finance.ts` and `data/finance/*` (lenders, products, insuran
 | `finance.maxEquityPartners` | 2 | count | no | |
 | `finance.rescue.minUsd` / `burnWeeks` / `pctBounds` | 100,000 / 8 / 0.35–0.65 | | no | R5 rescue 30–60% equity |
 | `finance.rescue.royaltyBounds` / `royaltyPayback` | 0.10–0.25 / 2.5 | | no | |
-| `finance.paymentGraceWeeks` | 3 / 2 / 1 | weeks | **yes** | late-fee grace for standard lenders; shifts each lender's base grace by (value − 2) (§1.11 adopts it, D-11.14) |
-| `finance.defaultTimelineMult` | 1.25 / 1.00 / 0.75 | × lender notice weeks | **yes** | §1.11; R5 60–90 days (bank), 30–60 (equipment) |
-| `finance.covenantCureWeeks` | 13 / 8 / 4 | weeks | **yes** | §1.11 |
-| `finance.covenantStrictnessMult` | 0.90 / 1.00 / 1.15 | × threshold | **yes** | §1.11 |
+| `finance.paymentGraceWeeks` | 3 / 2 / 1 | weeks | yes | late-fee grace for standard lenders; shifts each lender's base grace by (value − 2) (§1.11 adopts it, D-11.14) |
+| `finance.defaultTimelineMult` | 1.25 / 1.00 / 0.75 | × lender notice weeks | yes | §1.11; R5 60–90 days (bank), 30–60 (equipment) |
+| `finance.covenantCureWeeks` | 13 / 8 / 4 | weeks | yes | §1.11 |
+| `finance.covenantStrictnessMult` | 0.90 / 1.00 / 1.15 | × threshold | yes | §1.11 |
 | `finance.seasonYearEndWeek` | `northernInterior` 52 / `aridDesert` 26 | week, by §1 climate template | no | season-year end for the DSCR test and the revolver clean-up window, read on the company's primary climate (11.14, D-11.62); arid works Oct–Apr. P6 `northernYukon` and `temperateMountain` (summer seasons) take 52 |
-| `finance.repoLagWeeks` | 8 / 4 / 2 | weeks | **yes** | §1.11 |
-| `finance.p1InsolvencyGraceWeeks` | 8 / 6 / 4 | weeks | **yes** | §1.11 |
+| `finance.repoLagWeeks` | 8 / 4 / 2 | weeks | yes | §1.11 |
+| `finance.p1InsolvencyGraceWeeks` | 8 / 6 / 4 | weeks | yes | §1.11 |
 | `finance.lateFeePct` / `defaultInterestPts` / `stepUpPts` | 0.05 / 0.03 / 0.01 | | no | R5 5% late fee, +2–5 default |
 | `finance.waiverFee` | 0.25% of balance, $500–5,000 | | no | R5 |
 | `finance.accelerationNoticeWeeks` / `repoDisposalWeeks` | 2 / 4 | weeks | no | UCC 10-day notice (R5) |
@@ -14761,7 +14811,7 @@ All in `data/tuning/finance.ts` and `data/finance/*` (lenders, products, insuran
 | `finance.repoCostUsd` | 3k / 6k / 12k / 25k | by access | no | R5 $1.5–10k road |
 | `finance.crossDefaultThresholdUsd` | 50,000 | USD | no | R5 $25–100k |
 | `finance.workoutWeeks` / `workoutReservePct` | 4 / 0.50 | weeks / × cost basis | no | §5 `land.forcedSale` reserve and creditor credit (11.14) |
-| `finance.distress.watchWeeks` | 6 / 4 / 3 | weeks | **yes** | stage 0 Watch and §13 `cash.projectedNegative`; + §8 `alertBonusWeeks`; §1.11 (D-11.56) |
+| `finance.distress.watchWeeks` | 6 / 4 / 3 | weeks | yes | stage 0 Watch and §13 `cash.projectedNegative`; + §8 `alertBonusWeeks`; §1.11 (D-11.56) |
 | `finance.bankruptcy.missedPayrollRuns` / `payrollShortPct` / `defaultWeeks` / `adminCostUsd` | 3 / 0.25 / 13 / 40,000 | | no | involuntary triggers and Chapter 7 administration (the liquidation waterfall, also the best-interest benchmark) |
 | `finance.bankruptcy.wagePriorityUsd` | 17,150 | USD per employee | no | R5 (507(a)(4)) |
 | `finance.guaranteeDemandWeeks` / `judgmentRate` | 4 / 0.09 | weeks / /yr | no | |
@@ -15790,15 +15840,15 @@ Per-event numbers in 12.7 are `events.def.<id>.<field>` keys in `data/events/cat
 
 | Key | Default | Unit | Diff? | Notes / source |
 |---|---|---|---|---|
-| `events.frequencyMult` | 1.0 | × | yes (0.6 / 1.0 / 1.4) | §1 table |
-| `events.severityMult` | 1.0 | tilt base | yes (0.7 / 1.0 / 1.3) | §1 table |
+| `events.frequencyMult` | 1.0 | × | yes | §1 1.11: 0.6 / 1.0 / 1.4 |
+| `events.severityMult` | 1.0 | tilt base | yes | §1 1.11: 0.7 / 1.0 / 1.3 |
 | `events.maxWeeklyProb` | 0.5 | p | no | |
-| `events.distressMercyMult` | 0.6 | × | yes (0.4 / 0.6 / 0.8) | exogenous negatives at distress ≥ 3, or in a reorganization case before confirmation (12.15) |
+| `events.distressMercyMult` | 0.6 | × | yes | §1 1.11: 0.4 / 0.6 / 0.8; exogenous negatives at distress ≥ 3, or in a reorganization case before confirmation (12.15) |
 | `events.graceWeeks` | 12 | turns | no | minor only before turn 12 |
-| `events.catastropheEarliestTurn` | 26 | turn | yes (30 / 26 / 20) | |
+| `events.catastropheEarliestTurn` | 26 | turn | yes | §1 1.11: 30 / 26 / 20 |
 | `events.catastropheCooldownWeeks` | 26 | wk | no | |
 | `events.severityPoints` | 1 / 3 / 8 / 20 | points | no | |
-| `events.budgetPerHalf` | 24 | points | yes (16 / 24 / 34) | binds only in clusters (≈ 6 expected per half at the reference op) |
+| `events.budgetPerHalf` | 24 | points | yes | §1 1.11: 16 / 24 / 34; binds only in clusters (≈ 6 expected per half at the reference op) |
 | `events.firstHalfBudgetMult` | 0.5 | × | no | year 1, weeks 1–26 |
 | `events.budgetScalePerClaim` / `budgetScaleCap` | 0.5 / 3.0 | × | no | |
 | `events.maxNewPerWeek` | 2 | events | no | player-affecting, non-consequential only |
@@ -15818,9 +15868,9 @@ Per-event numbers in 12.7 are `events.def.<id>.<field>` keys in `data/events/cat
 | `events.dispute.assertedFrac` | minor 1–2 blocks; moderate U(0.05, 0.15); major U(0.15, 0.30) | share of blocks | no | passed to §5; a real overstake uses §5's own blocks |
 | `events.incident.base` / weights | 0.0004 / .45 .35 .17 .03 | p/claim-wk | no | adds ≈ +12% serious, +17% fatal to §8's ×0.75 baseline (D-12.29); R4 lost-time 0.8–1.2/100 FTE, fatal 10–15/100k FTE |
 | `events.prep.*` | 12.4 table | USD, wk | no | R4: fire suppression $8–25k; bear fence $1–5k |
-| `ai.competitorCount` | 6 | count | yes (4 / 6 / 8) | §1 |
+| `ai.competitorCount` | 6 | count | yes | §1 1.11: 4 / 6 / 8 |
 | `ai.maxCompetitors` | 10 | count | no | |
-| `ai.aggressionMult` | 1.0 | × | yes (0.8 / 1.0 / 1.25) | §1 |
+| `ai.aggressionMult` | 1.0 | × | yes | §1 1.11: 0.8 / 1.0 / 1.25 |
 | `ai.archetypeWeights` | .30 / .20 / .15 / .25 / .10 | p | no | family / expander / junior / shoestring / dealer |
 | `ai.traits.<archetype>.*` | 12.10 table | | no | |
 | `ai.scaleExp` | −0.25 | exponent on thr/45 | no | scales §4's `geology.planWashUsdPerPayBcy` (north 12.00 / arid 14.00) for competitor size; strip cost is §4's `geology.planStripUsdPerBcy` (2.50 / 2.20); no separate `ai.*` cost keys (D-12.42) |
@@ -16024,14 +16074,14 @@ Nav items for systems not yet built in the current phase are hidden, not greyed.
 
 ### 13.2 Conventions: formatting, color, tables
 
-**Number formatting.** All formatting lives in `ui/format`. Locale is fixed to `en-US` regardless of browser locale (D-13.12). Rounding is half away from zero (`Intl.NumberFormat` `roundingMode: 'halfExpand'`), the same as the engine's `roundCents`.
+**Number formatting.** All formatting lives in `ui/format`. Locale is fixed to `en-US` regardless of browser locale (D-13.12). Rounding is half away from zero on the number's shortest round-trip decimal, the digits `String(x)` prints, which is what `Intl.NumberFormat`'s `roundingMode: 'halfExpand'` rounds: 1.005 → 1.01 and 0.125 → 0.13, while 1.9649999999999999 → 1.96. `ui/format` rounds that digit string itself with plain string arithmetic (no Intl at runtime, so the output is en-US everywhere); percentages and rates shift × 100 exactly, as Intl's percent style does, and milli-ounces round from the integer. The engine snaps decimal ties the same way when it converts dollars and ounces (`usdToCents`, `toMilliOz`; §2.4, D-2.2), so the screen and the ledger agree on decimal inputs (D-13.83).
 
 | Quantity | Rule | Examples |
 |---|---|---|
 | USD, general | thousands separators; cents shown only if abs value < `ui.fmt.centsHiddenAboveUsd` ($1,000); negative `−$` with a true minus sign | `$1,234,568` · `$999.50` · `−$45,123` |
 | USD, financial statements | whole dollars on every line; negatives in parentheses; totals computed from cents, then rounded; footnote "Totals may differ by $1 from rounding" | `($45,123)` |
-| USD, ledger | always exact cents (it is the record of account) | `$45,123.07` |
-| USD, compact (KPI tiles, chart axes only) | abs value ≥ `ui.fmt.compactAboveUsd` ($100,000) → 3 significant digits with k/M | `$1.23M` · `$412k` |
+| USD, ledger | always exact cents (it is the record of account), in the ledger view and wherever an explanation shows a ledger amount (13.13) | `$45,123.07` |
+| USD, compact (KPI tiles, chart axes only) | abs value ≥ `ui.fmt.compactAboveUsd` ($100,000) → 3 significant digits with k/M. The decimals and the k/M unit follow the rounded value, so a carry over a power of ten drops a decimal (`$9,999,600` → `$10.0M`, `$99,950,000` → `$100M`, `$999,950` → `$1.00M`); from $999.5M up, whole millions with grouping, because there is no larger unit | `$1.23M` · `$412k` · `$1,235M` |
 | Unit costs | 2 decimals always (they are < $1,000) | `$13.60/bcy` · `$212.40/hr` |
 | Gold | 3 dp below 100 oz, 2 dp at or above 100; the word **raw** or **fine** always shown | `52.901 raw oz` · `1,234.50 fine oz` |
 | Gold price | `$/fine oz`, cents hidden above $1,000 | `$4,200/fine oz` |
@@ -16685,7 +16735,7 @@ Every report cell is clickable: line → contributing accounts → ledger entrie
 
 ### 13.13 The explain system
 
-**Rule.** Every displayed value is rendered by `<Num>`, which takes an `ExplainRef`. Clicking it, or focusing it and pressing `E` or `Enter`, opens a popover. Exempt: axis ticks, row counts and pagination. The prop types require `explain` on every `<Num>`: `NumProps` is a union, so `explain={null}` compiles only with an `exempt` reason from the allow-list `NUM_EXEMPTIONS` (P0: `saveSummary`, a figure from the summary of a save that is not loaded), rendered as `data-num-exempt`; a crawler test clicks every `[data-num]` (D-13.29, D-13.72). Values inside an explanation view (popover and drawer rows, the ledger view, the Tuning viewer) are part of the explanation, not `<Num>`s: they are formatted text with tabular figures and no `data-num`.
+**Rule.** Every displayed value is rendered by `<Num>`, which takes an `ExplainRef`. Clicking it, or focusing it and pressing `E` or `Enter`, opens a popover. Exempt: axis ticks, row counts and pagination. The prop types require `explain` on every `<Num>`: `NumProps` is a union, so `explain={null}` compiles only with an `exempt` reason from the allow-list `NUM_EXEMPTIONS` (P0: `saveSummary`, a figure from the summary of a save that is not loaded), rendered as `data-num-exempt`; a crawler test clicks every `[data-num]` (D-13.29, D-13.72). Values inside an explanation view (popover and drawer rows, the ledger view, the Tuning viewer) are part of the explanation, not `<Num>`s: they are formatted text with tabular figures and no `data-num`. A ledger amount there (a `ledger` ref's popover, the drawer header and rows, `Copy as text`) is integer cents tagged `fmt: { money: 'ledger' }` and prints exact cents, matching the ledger view's footer (13.2, D-13.83).
 
 ```ts
 type ExplainRef =
@@ -16702,7 +16752,7 @@ type NumProps = { value: number; unit: Unit; fmt?: FmtOptions; goodDirection?: '
 **Popover** (320 px): label and formatted value; a formula line generated from `op` and children (`= Labor + Fuel + Maintenance + Camp + Consumables + Site fixed`); up to `ui.explainPopoverChildren` (5) children with values; `note`, if any; `Open breakdown` (drawer).
 
 **Drawer** (440 px):
-- The full tree, expanded to `ui.explainDefaultDepth` (2). Each row: label, value + unit, op symbol (Σ × ÷ min max lookup draw clamp), source chip, note.
+- The full tree, expanded to `ui.explainDefaultDepth` (2). The drawer body is keyed by its top ref (`refKey`), so a new explanation always opens at that depth, while the same ref keeps its disclosure state as the game moves on (D-13.84). Each row: label, value + unit, op symbol (Σ × ÷ min max lookup draw clamp), source chip, note.
 - **Source chips:** *tuning* opens the read-only Tuning viewer: key, resolved value, base default, difficulty multiplier, scenario override, and the active `EffectModifier`s on it that come from **player-visible** event instances (an effect that has not been announced, such as a §12 season shift that has not landed, is omitted). *entity* navigates to the entity route. *rng* shows `Random draw - stream ops-grade/1043/clm_000012`; a percentile is shown only when the owning section flags the draw `publicParams: true`, meaning every parameter of its distribution is visible (D-13.37). Gold price draws are never shown as percentiles, because the GARCH state and regime are hidden; the price tree uses §10's decomposition with its `Other / unexplained` node. *ledger* opens the filtered ledger; a chip that names one transaction opens the ledger view of that transaction's book and week (`fromTurn` = `toTurn` = its date), because `LedgerFilter` has no transaction id yet (§11 OQ-11.3; D-13.79). A `history` ref's label and unit come from the UI's `HISTORY_METRICS` table until §2 publishes them (2.5).
 - **Compare with last week** (for `report` refs): the same path in the prior week's tree, with the children that changed most highlighted with Δ. **Copy as text** for bug reports. Breadcrumbs (`explain.stack`) walk back up after following links.
 
@@ -16748,7 +16798,7 @@ Direct cost per bcy washed                 $13.60/bcy   ratio
 | 5. Owner background | 5 cards (operator, mechanic, geologist, banker, landman), each stating its one edge with the number and its P1 stub (§1 1.7) | |
 | 6. Start | Bootstrapper / Backed (equity) / Backed (royalty) / Inheritor cards with §1 1.8's numbers; Backed shows the investor terms; Inheritor warns `claim quality unknown, equipment worn, existing debt` | All four in P1 (§1 1.19) |
 | 7. World | Seed (default: 26 characters of Crockford base32, no I, L, O or U, from `crypto.getRandomValues`; editable free text, trimmed, up to 64 characters, with the UI codes `SEED_EMPTY` and `SEED_TOO_LONG` beside §1's; `Copy`), start year (default 2027), districts as `NewGameSetup.world.districtTemplates` of §3 region template IDs, each card showing its climate as a label and its real jurisdiction (`Fictional district · Alaska, federal land` / `· Nevada, federal land`; P6 adds Alaska state land, Yukon and the temperate state; §6 6.1) (P1–P5 fixed: `northernFederal` (climate `northernInterior`) + `aridFederal` (climate `aridDesert`); P6 adds up to 4 more), opening gold price (advanced; default $4,200) | the engine receives the seed string only; an Inheritor start needs a `northernFederal` district (`INHERITOR_NEEDS_NORTHERN`); the step ends with §6's disclaimer line, `Rules in this game are simplified game mechanics, not legal or regulatory advice.` |
-| 8. Review | Summary; options: Guided first season (`NewGameSetup.tutorial`; default on for a first game, `ui.tutorialDefaultOnFirstGame`), Ironman (UI-only: one autosave slot, no undo); from P2 the auto-pay defaults per obligation category (§6 D-6.16: land on at every difficulty) with the trade-off `Auto-pay → no missed fees; cash leaves without a click` | `Start` calls `newGame` and saves slot 1 |
+| 8. Review | Summary; options: Guided first season (`NewGameSetup.tutorial`; default on for a first game, `ui.tutorialDefaultOnFirstGame`), Ironman (UI-only: one autosave slot, no undo); from P2 the auto-pay defaults per obligation category (§6 D-6.16: land on at every difficulty) with the trade-off `Auto-pay → no missed fees; cash leaves without a click` | `Start` calls `newGame`, mints the game id (13.18) and writes the game's first autosave; saving manual slot 1 as well arrives with P1's wizard (the P0 stub writes only the autosave; D-13.25) |
 
 **Guided first season.** A coach panel docked bottom-right (collapsible). Steps are data in `data/text/tutorial.ts`; each has a title, a 1-2 sentence body with state params (`You have {cash} and no ground.`), a completion predicate (a pure selector over `GameState` + route), an optional `Show me` (navigates and spotlights a `data-tutorial-anchor`), and `Dismiss`. `Skip tutorial` turns it off; Help > Tutorial resets it. The coach **never blocks input, never advances time, and never chooses for the player** (D-13.23). The default steps implement §1 1.15's first ten turns (Bootstrapper, standard, arid district first while the north is frozen):
 
@@ -16789,13 +16839,13 @@ Variants (§1 1.15): **From P2 (authority path).** A lease of raw ground has no 
 | `+` / `−` / `0` | Map zoom in / out / fit | `Alt+1`–`Alt+3` on a selected card | Move a line-role card to plant line L1–L3 (assignments board, P3) |
 | `{` / `}` | Previous / next plant line (Plan, Flow, Production, Cleanups; P3) | | |
 
-Advance is deliberately on `Ctrl+Enter`, not a bare key, so a week can't be skipped by accident. Shortcuts are disabled while focus is in a text field, except `Esc`.
+Advance is deliberately on `Ctrl+Enter`, not a bare key, so a week can't be skipped by accident. Shortcuts are disabled while focus is in a text field, except `Esc`. Advance and quick save ignore key auto-repeat (one week, or one save, per deliberate press), so holding the chord cannot skip weeks and roll every autosave past the mistake, and Advance cannot re-enter itself (`RUN_IN_PROGRESS` while a week resolves). `Ctrl+S` opens the Saves screen only when there is nowhere to save (no game, no current slot, Ironman). A failed write raises the critical toast with `Export now` and leaves the player on the current screen; a current slot deleted elsewhere is forgotten, so the next `Ctrl+S` opens Saves (D-13.82).
 
 ### 13.16 Save / load UI
 
-- **Saves screen.** Slots table with columns: slot name, company, in-game date, cash, net worth (from `SaveFile.summary`), saved at (local wall clock), rules version, size, status (`active` / `ended` read-only). Actions: Load, Save here, Rename, Delete (with confirmation), Export.
-- **Title screen.** Continue (latest autosave), New game, Load, Import.
-- **Autosave** (D-13.25): after every `advanceWeek`, rotating across `ui.autosaveRotatingSlots` (3); a **year-start** snapshot at Wk 1 of each year, keeping the last `ui.autosaveYearlyKeep` (5); during runs the worker writes one every `ui.autosaveEveryRunWeeks` (8) weeks and at the stop, using the `UiPersisted` snapshot it received at run start. Writes are asynchronous; a failure shows a critical toast with `Export now`.
+- **Saves screen.** Slots table with columns: slot name, company, in-game date, cash, net worth (from `SaveFile.summary`), saved at (local wall clock), rules version, size, status (`active` / `ended` read-only). Actions on a manual slot: Load, Save here, Rename, Delete (with confirmation), Export; on an autosave or year-start row: Load, Delete (the same confirmation) and Export, so a player can clear an abandoned game. Rename focuses and selects its input; the delete confirmation (`role="group"`, labelled `Delete <slot>?`) takes focus on Cancel, the safe choice; Esc cancels either, and focus returns to the trigger; after a delete, focus moves to the next row's first action, or to the list when it is empty. While an operation runs, row controls and `Save to new slot` are `aria-disabled` (focusable but inert), not `disabled`, and the import file input stays enabled because imports queue (13.19, D-13.84).
+- **Title screen.** Continue (the newest autosave or year-start snapshot of any game), New game, Load, Import. An unreadable autosave list is reported (`SAVE_READ_FAILED`), not shown as empty.
+- **Autosave** (D-13.25), kept **per game** (`UiPersisted.gameId`, 13.18): after every `advanceWeek` the game's rotating autosave (`auto-<gameId>-<n>`, across `ui.autosaveRotatingSlots` (3)); a **year-start** snapshot at Wk 1 of each year (`year-<gameId>-<year>`: one per game and year, so the same game reaching a year again replaces its own), keeping that game's last `ui.autosaveYearlyKeep` (5); during runs the worker writes one every `ui.autosaveEveryRunWeeks` (8) weeks and at the stop, using the `UiPersisted` snapshot it received at run start. Writing or pruning one game's autosaves never touches another game's, so starting a second game cannot erase the first one's only copies; a game holds at most 3 + 5 autosave slots until the player deletes them, and slots written before game ids existed (`auto-N`, `year-N`) are never pruned automatically. Writes are asynchronous. Every slot-store operation, the slot list and the latest-autosave read included, resolves to a typed result and never rejects: a storage failure is `SAVE_READ_FAILED` (browser storage could not be read: blocked, evicted or closed) or `SAVE_WRITE_FAILED`. A failed autosave or quick save shows a critical toast with `Export now`, and the Saves screen shows the typed error and always leaves its busy state (D-13.81).
 - **Export.** `.gmt.json.gz` by default (gzip, §2.9 `save.exportGzip`); the Saves screen's `Compress exports` checkbox, on by default, writes plain `.gmt.json` instead. A manual save, and so its export, always carries the action log; an autosave never does (§2.9). The "Include replay log" setting is deferred to P1 (D-13.75). **Import.** File picker or drag-and-drop. Validation order: `format` → `schemaVersion` (older → migrate with a notice listing the migrations; newer → error `SAVE_TOO_NEW`) → parse → `tuningHash` (if it differs from what the current data resolve for the save's own setup, §2.9: notice `This game keeps the tuning it was created with`).
 - **Size budget** (§2.13 per-slice budgets; D-13.10, D-13.54). §13's parts of a year-10 save: the inbox slice in `GameState` ≤ 0.3 MB (about 10 messages a week, kept until 104 weeks after closing, at about 250 bytes each ≈ 0.26 MB) and `SaveFile.ui` ≤ 0.25 MB (the persisted calc week, dropped above `ui.persistReportMaxKb` = 200 kB, plus inbox flags, layouts, stop rules and baselines of a few kB each). Test T26.
 - **Ironman** saves have one slot plus autosave, no manual slots and no undo. The `Unsaved changes` dot appears after any action since the last write. An ended run's save loads straight into `#/end`.
@@ -16833,18 +16883,20 @@ interface UiPersisted {
   tableLayouts: Record<string, { columns: string[]; sort: SortSpec[]; filters: FilterSpec[] }>;
   tutorial: { enabled: boolean; completed: string[]; dismissed: string[] };
   recentReports: WeekReport[];             // ≤ ui.calcPersistWeeks (1); omitted if it serializes above ui.persistReportMaxKb (200)
-  ironman: boolean; uiVersion: number;
+  ironman: boolean;
+  gameId: string;                          // the game's identity: autosaves are kept per game (13.16); '' only while no game is loaded
+  uiVersion: number;                       // UI_PERSISTED_VERSION, 2 since gameId
 }
 interface Prefs { theme: 'system' | 'daylight' | 'lamplight'; density: 'comfortable' | 'compact'; fontScale: 1 | 1.125 | 1.25;
   reducedMotion: 'system' | 'on' | 'off'; texture: boolean /* accessibility patterns */; headerGrain: boolean /* decorative, 13.20 */;
   confirmAdvanceSheet: boolean; compactTiles: boolean }
 ```
-`UiPersisted` lives in `SaveFile.ui`, outside `GameState`. Inbox read flags, layouts, stop rules and baselines therefore never change replays or state hashes (D-13.3). Run identity (`runId`, `RunAnchor`) is UI-only as well (D-13.35). The UI owns the `UiPersisted` shape, its defaults and its migration (`ui/store/persisted.ts`): `readUiPersisted` reads a saved block field by field and migrates an older `uiVersion` forward, so a damaged or older block never blocks a load, and save-time pruning runs there too. It needs engine types (`StopRule`, `WeekReport`) and `ui.*` defaults, so it cannot live in `persistence/`, which stays engine-free and receives the engine only through the `SaveCodec` the app builds from the engine's `saveCodec` (§2.9). The engine types `SaveFile.ui` as an opaque `Readonly<Record<string, unknown>>`, and the UI's type is assignable to it (D-13.74). The explain slice holds the one open popover and the element that takes focus back when the drawer closes (D-13.73).
+`UiPersisted` lives in `SaveFile.ui`, outside `GameState`. Inbox read flags, layouts, stop rules and baselines therefore never change replays or state hashes (D-13.3). Run identity (`runId`, `RunAnchor`) is UI-only as well (D-13.35). The UI owns the `UiPersisted` shape, its defaults and its migration (`ui/store/persisted.ts`): `readUiPersisted` reads a saved block field by field and migrates an older `uiVersion` forward, so a damaged or older block never blocks a load, and save-time pruning runs there too. It needs engine types (`StopRule`, `WeekReport`) and `ui.*` defaults, so it cannot live in `persistence/`, which stays engine-free and receives the engine only through the `SaveCodec` the app builds from the engine's `saveCodec` (§2.9). The engine types `SaveFile.ui` as an opaque `Readonly<Record<string, unknown>>`, and the UI's type is assignable to it (D-13.74). The explain slice holds the one open popover and the element that takes focus back when the drawer closes (D-13.73). **Game identity** (D-13.80): `ui/newGame` mints `gameId` from `crypto.getRandomValues` as `g` plus 16 Crockford base32 characters, and it travels in every `SaveFile.ui` through save, load, export and import, never hashed. A save from before game ids (a v1 block, or no `ui` at all) gets a deterministic `l` plus 16 hex digits, two 32-bit FNV-1a hashes of `meta.seed` and the company name (`ui/store/gameId.ts` `legacyGameId`), passed to `readUiPersisted(raw, fallbackGameId)`, so the same old save always loads as the same game.
 
 **Engine client** (`ui/engine/engineClient.ts`):
-- `apply(action)`: synchronous `applyAction`. On success it pushes an undo entry only if the result is `undoable` (the engine sets it false when the action drew from an RNG stream, revealed hidden information, or made a commitment to a counterparty; Needs from §2) and Ironman is off; a non-undoable result clears the undo stack instead, so `ui/undo` refuses with `UNDO_NOT_ALLOWED` until the next advance (D-13.77). It appends to `actionLog` and marks the state dirty. On failure it returns the typed error to the form.
+- `apply(action)`: synchronous `applyAction`. On success it pushes an undo entry only if the result is `undoable` (the engine sets it false when the action drew from an RNG stream, revealed hidden information, or made a commitment to a counterparty; Needs from §2) and Ironman is off; a non-undoable result clears the undo stack instead and seals it until the next advance, a new game or a load: later undoable actions can still be undone back to that point, where `ui/undo` refuses with `UNDO_NOT_ALLOWED` (D-13.77). It appends to `actionLog` and marks the state dirty. On failure it returns the typed error to the form.
 - `validate(action)`: synchronous, used to enable or disable controls with a reason.
-- `advance()`: synchronous `advanceWeek(state, { explain: true })`. Budget: ≤ `ui.advanceBudgetMs` (20 ms) engine with explanations on + ≤ 50 ms render (§2.13). The simulator budget (§2.13: ≤ 3.5 ms mean per week, explanations off) does not apply here; the extra time pays for calc trees and §7's what-if hints (six visible-model runs per claim). It clears the undo stack, runs `captureBaselines(prev, next, persisted)`, and schedules the autosave via `requestIdleCallback`.
+- `advance()`: synchronous `advanceWeek(state, { explain: true })`. Budget: ≤ `ui.advanceBudgetMs` (20 ms) engine with explanations on + ≤ 50 ms render (§2.13). The simulator budget (§2.13: ≤ 3.5 ms mean per week, explanations off) does not apply here; the extra time pays for calc trees and §7's what-if hints (six visible-model runs per claim). It refuses to re-enter while a week resolves (`RUN_IN_PROGRESS`), clears the undo stack and its seal, runs `captureBaselines(prev, next, persisted)`, and schedules the autosave via `requestIdleCallback`.
 - `run(opts)`: posts to the **run worker** (D-13.2).
 - **Invariant:** the explain flag never changes `GameState`. Calc trees and other explanation-only outputs (§7 what-if hints included) live only in the `WeekReport` (D-13.36, test T18).
 
@@ -16901,7 +16953,7 @@ Minimum height is 720 px. Content max width is 1680 px, centered.
 
 **Accessibility (target WCAG 2.2 AA).**
 - Contrast: text tokens ≥ 4.5:1 and UI component and graphic tokens ≥ 3:1 on every surface they are used on, in both themes and over the worst pixel of the header grain, checked by a token test (T20). Hairlines and axis baselines are decorative (values are read from labels, tooltips and table twins) and are exempt. Status fills under 3:1 (warning and serious on Daylight surfaces; good on the Daylight page) are only ever used as chip backgrounds with their `status-*-on` labels. Series colors below 3:1 (Daylight slots 2 and 5, Lamplight slot 4; 13.20) must be direct-labelled or come with the table view.
-- Everything works by keyboard. The focus ring is 2 px `accent` with a 2 px offset on content surfaces and 2 px `brass-on-chrome` on the chrome, where slate accent on slate chrome would vanish. Drag-and-drop always has a keyboard equivalent (13.15).
+- Everything works by keyboard. The focus ring is 2 px `accent` with a 2 px offset on content surfaces and 2 px `brass-on-chrome` on the chrome, where slate accent on slate chrome would vanish. Drag-and-drop always has a keyboard equivalent (13.15). Focus never drops to the page: a control that goes busy stays focusable as `aria-disabled` (inert) rather than `disabled`; a control that opens an input or a confirmation moves focus into it (a confirmation to its safe choice), Esc cancels, and focus returns to the trigger; when a row disappears, focus moves to the next row's first action or to its list (the Saves screen, 13.16; D-13.84).
 - Semantics: tables are real `<table>` elements (`aria-rowcount`/`aria-rowindex` when virtualized); the block grid is `role="grid"`; kanban columns are lists with move buttons; popovers are `role="dialog"` and return focus to the triggering number on close.
 - Never color alone: status = icon + label; deltas = arrow + sign; map = pattern + label; heat map = glyphs, hatching + legend; texture mode available.
 - No real-time limits: all deadlines are in game weeks, and runs stop on anything critical.
@@ -16984,8 +17036,8 @@ Only `decision/answer` is an engine action owned here. The rest are UI store act
 | `ui/inbox.mark` | `msgIds, read? archived? snoozeWeeks?` | `CANNOT_SNOOZE_BLOCKING` | persists | P1 |
 | `ui/saveSearch` | `screen, filter, alert` | `MAX_SAVED_SEARCHES` | persists; enables `listingMatch` | P2 |
 | `ui/rebaseline` | `claimId` | `NO_ACTIVE_PLAN` | new `SeasonBaseline` from the current visible projection | P1 |
-| `ui/save` / `ui/load` / `ui/deleteSlot` | `slotId` | `SLOT_NOT_FOUND`, `IRONMAN_MANUAL_SAVE` | IndexedDB | P0 |
-| `ui/export` / `ui/import` | `slotId` / `file` | `SAVE_CORRUPT`, `SAVE_FORMAT`, `SAVE_TOO_NEW` (+ notice `TUNING_DIFFERS`) | file I/O, migration | P0 |
+| `ui/save` / `ui/load` / `ui/deleteSlot` | `slotId` | `SLOT_NOT_FOUND`, `IRONMAN_MANUAL_SAVE`, `SAVE_READ_FAILED` (browser storage could not be read: blocked, evicted or closed), `SAVE_WRITE_FAILED`; `ui/load` returns the store's or the engine reader's typed error unchanged (`SAVE_CORRUPT`, `SAVE_FORMAT`, `SAVE_TOO_NEW` included) | IndexedDB; `ui/deleteSlot` also takes autosave and year-start slots (13.16) | P0 |
+| `ui/export` / `ui/import` | `slotId` / `file` | `SAVE_CORRUPT`, `SAVE_FORMAT`, `SAVE_TOO_NEW` (+ notice `TUNING_DIFFERS`); `SAVE_READ_FAILED` / `SAVE_WRITE_FAILED` for storage | file I/O, migration | P0 |
 | `ui/setPrefs` | `Partial<Prefs>` (incl. `theme: 'system' \| 'daylight' \| 'lamplight'`, `headerGrain`) | — | localStorage; sets `data-theme` | P0 |
 | `ui/setTableLayout` | `tableId, layout` | — | persists | P1 |
 | `ui/tutorial` | `dismiss stepId` / `disable` / `reset` | — | persists | P1 |
@@ -17063,7 +17115,7 @@ Trade-offs for the player's own UI decisions: Lamplight or Daylight and header g
 | `ui.reportsInMemory` | 13 | weeks | no | summaries |
 | `ui.undoMaxEntries` | 50 | actions | no | within-week only |
 | `ui.advanceBudgetMs` | 20 | ms | no | perf test: engine week with explanations on |
-| `ui.autosaveRotatingSlots` / `autosaveYearlyKeep` / `autosaveEveryRunWeeks` | 3 / 5 / 8 | count / count / weeks | no | |
+| `ui.autosaveRotatingSlots` / `autosaveYearlyKeep` / `autosaveEveryRunWeeks` | 3 / 5 / 8 | count / count / weeks | no | per game (13.16, D-13.25) |
 | `ui.inboxAutoArchiveInfoWeeks` | 8 | weeks | no | |
 | `ui.maxToastsVisible` | 3 | count | no | |
 | `ui.maxSavedSearches` | 20 | count | no | |
@@ -17115,10 +17167,10 @@ Trade-offs for the player's own UI decisions: Lamplight or Daylight and header g
 5. **T5 Stop rules.** Each rule kind fires on a crafted week and not otherwise. `goldMove` uses the anchor, not last week. `deadlineWithin` fires once per item, once per (category, due week) group for obligations, and never for an obligation where `needsAction` is false. `monthStart` fires in exactly weeks 1, 6, 10, 14, 19, 23, 27, 32, 36, 40, 45, 49. `listingMatch` evaluates the filters carried by the rule with no UI state. A muted warning kind does not stop, but its escalation to critical does. `maxWeeks` stops at exactly N. A blocking decision stops even with all rules off. With `everyCleanup` on, a claim whose L1 and L2 both clean up in one week gives one stop reason naming both lines. From P4, `deadlineWithin` fires for a reorganization plan due date and never for a plan installment; a converted case stops with `gameOver` labelled from the liquidation path.
 6. **T6 Worker equivalence.** For 20 seeds × 52 weeks with scripted actions, the worker loop (with yields, explanations on) and `runToNextDecision` (explanations off) produce identical final state hashes and stop reasons.
 7. **T7 Cancel.** Cancelling after k weeks yields a state hash equal to k sequential `advanceWeek` calls.
-8. **T8 Scrambled-truth UI.** Render every screen (jsdom + Testing Library) for an active-run state S and for S' with all hidden fields scrambled (the §2 scrambler used for bots). The DOM text and attribute values must be identical (dev reveal off). Then open every explain popover and drawer and the Tuning viewer on both and compare.
+8. **T8 Scrambled-truth UI.** Render every screen (jsdom + Testing Library) for an active-run state S and for S' with all hidden fields scrambled (the §2 scrambler used for bots, `sim/bots/scramble.ts`, D-2.58). The DOM text and attribute values must be identical (dev reveal off). Then open every explain popover and drawer and the Tuning viewer on both and compare.
 9. **T9 Num coverage.** A Playwright crawler visits every route with a mid-game fixture. Every `[data-num]` opens a popover with ≥ 1 node, or carries `data-num-exempt` with a reason from `NUM_EXEMPTIONS`. The crawler visits only `[data-num]`: rows inside explanation views are not numbers of their own (13.13).
 10. **T10 Undo.** Undo restores a deep-equal previous state and pops the action log. It is refused after a non-`undoable` action (RNG draw, information reveal, counterparty commitment), which also clears the stack so no earlier action can be undone, in Ironman, and after advancing.
-11. **T11 Saves.** Export → import round trip gives byte-identical `state` and `ui`. `SAVE_TOO_NEW` is rejected. v(N−1) fixture migrates. Autosave keeps 3 rotating + yearly snapshots. A corrupt file shows the error and changes nothing. Changing a `ui.*` constant leaves `meta.tuningHash` unchanged.
+11. **T11 Saves.** Export → import round trip gives byte-identical `state` and `ui`. `SAVE_TOO_NEW` is rejected. v(N−1) fixture migrates. Autosave keeps 3 rotating + 5 year-start snapshots per game, and a second game never overwrites or prunes the first's; a blocked or failing store returns `SAVE_READ_FAILED` / `SAVE_WRITE_FAILED`, never rejects, and never leaves the Saves screen busy. A corrupt file shows the error and changes nothing. Changing a `ui.*` constant leaves `meta.tuningHash` unchanged.
 12. **T12 CSV.** RFC 4180 quoting of commas, quotes and newlines in memos. IS export totals equal statement totals to the cent. No thousands separators.
 13. **T13 Performance.** Dashboard render ≤ 50 ms on a year-10 fixture. Ledger with 20,000 rows renders ≤ 60 DOM rows and scrolls without dropped frames (Playwright trace). Live explain ≤ `ui.explainLiveBudgetMs`. A main-thread week with explanations on ≤ `ui.advanceBudgetMs`. A 26-week worker run keeps the main thread free of long tasks > 50 ms.
 14. **T14 Accessibility.** axe-core reports zero serious or critical violations per screen in both themes. A keyboard-only Playwright script completes: setup → watch and site-visit a listing → lease a claim → buy machines → hire → assign the owner as foreman → mobilize → set plan → advance → cleanup → sell gold.
@@ -17169,7 +17221,7 @@ Trade-offs for the player's own UI decisions: Lamplight or Daylight and header g
 - **D-13.22** — Toasts only for critical and blocking messages plus action confirmations; critical toasts never auto-dismiss. — Toasts are interruptive; WCAG timing guidance.
 - **D-13.23** — The tutorial is a state-predicate coach that never blocks, advances time or acts for the player; default on for the first game; its steps follow §1 1.15. — Teaching through real state, without the tutorial distorting the simulation.
 - **D-13.24** — The district map uses ≤ 3 categorical fills (yours / listed / competitor gray) plus patterns and labels. — The map is an all-pairs form; only the first three palette slots validate all-pairs under CVD.
-- **D-13.25** — Autosaves: 3 rotating + 5 yearly snapshots + every 8 weeks during runs, written from the worker during runs. — One corrupted write can't lose a game; yearly snapshots allow long rollbacks.
+- **D-13.25** — Autosaves are kept per game (`UiPersisted.gameId`, D-13.80): each game keeps 3 rotating autosaves and its own last 5 year-start snapshots (one per game and year), plus one every 8 weeks during runs, written from the worker during runs. Writing or pruning one game's autosaves never touches another's; autosave and year-start rows can be deleted; Continue loads the newest autosave of any game. At a new game P0 writes only the first autosave; P1's wizard also saves slot 1. — One corrupted write can't lose a game; yearly snapshots allow long rollbacks. With global slot ids a new game overwrote another game's year-1 snapshot at once and evicted its rotating autosaves within 3 weeks, losing a game that was never saved by hand. Storage grows by at most 8 slots per game; a cross-game cap (a `ui.autosaveGamesKeep` key) can follow if the owner wants one, and until then the Saves screen's Delete clears an abandoned game.
 - **D-13.26** — Phasing: Calendar agenda in P1, year planner and map layers in P2, News in P5 (the base map moved to P1, D-13.49). — P1 already has loan payments, bills, lease obligations and cleanups to schedule; the planner and map layers matter once permits and staking exist.
 - **D-13.27** — Desktop-first, mouse + keyboard; full layout from 1280 px, graceful to 1024 px; no touch-specific interactions. — Matches the brief. Owner ruling 2026-10-05: default confirmed (OQ-13.1; §0 smaller call 7).
 - **D-13.28** — Seeds are generated in the UI with `crypto.getRandomValues` as a 26-char base32 string; the engine receives only the string (alphabet and limits: D-13.76). — The engine stays free of ambient entropy (§2.3).
@@ -17221,9 +17273,14 @@ Trade-offs for the player's own UI decisions: Lamplight or Daylight and header g
 - **D-13.74** — The UI owns `UiPersisted`'s shape, defaults and migration in `ui/store/persisted.ts` (`readUiPersisted` reads field by field and migrates `uiVersion` forward; save-time pruning runs there). `persistence/` stays engine-free and receives the engine only through the injected `SaveCodec`; the engine types `SaveFile.ui` as an opaque record. This replaces the plan for `persistence/` to migrate `SaveFile.ui` (§2.9, 13.23). — The migration needs engine types (`StopRule`, `WeekReport`) and `ui.*` defaults; keeping both out of `persistence/` keeps slot storage testable without the engine, and the opaque engine type keeps presentation out of the engine.
 - **D-13.75** — Exports are gzipped by default (`save.exportGzip` true), and the Saves screen's `Compress exports` checkbox, on by default, writes plain `.gmt.json`. Manual saves, and so their exports, always carry `actionLog`; autosaves never do. The "Include replay log" setting is deferred to P1. — 13.16 and §2.9 disagreed on the default, and §2.9's smaller file wins; the log costs little in a manual save and makes every exported save a replayable bug report.
 - **D-13.76** — The seed alphabet is Crockford's base32 (no I, L, O or U), 26 characters by default. Seeds are free text: trimmed, at most 64 characters, with the UI codes `SEED_EMPTY` and `SEED_TOO_LONG` beside §1's setup codes; the engine receives the trimmed string only. — D-13.28 named no alphabet; Crockford's survives being read aloud or retyped. A player may type or paste any seed; the bound only keeps RNG keys and save summaries tidy.
-- **D-13.77** — A non-undoable action clears the undo stack, and `ui/undo` then refuses with `UNDO_NOT_ALLOWED` until the next advance. — Undoing an earlier action would also roll back the non-undoable one, which is exactly the re-roll or free peek D-13.11 forbids.
+- **D-13.77** — A non-undoable action clears the undo stack and seals it until the next advance, a new game or a load: later undoable actions can still be undone back to that point, where `ui/undo` refuses with `UNDO_NOT_ALLOWED` rather than `NOTHING_TO_UNDO`. — Undoing an earlier action would also roll back the non-undoable one, which is exactly the re-roll or free peek D-13.11 forbids. The P0 client lost the seal when a later undoable action reopened the stack; it now matches this text.
 - **D-13.78** — Display details settled in P0: 13.2 lists the units its table lacked (unlabelled metal oz shown as raw, milli-ounces as weighed raw oz, ft and ac-ft 1 dp, gal integer, bcy/h and lcy/h integer, ratio 2 dp, multiplier `×0.92`, index 1 dp, z-score 2 dp signed, durations with words, turns as `Y1 Wk 29`); the Advance tooltip spells out the year when the next week starts a new game year; the live-region line leads with the year-and-week label and shows the cash change as a delta; font scale is a `--font-scale` variable, and `Prefs.reducedMotion` `on` / `off` overrides the OS setting. — Every displayed unit needs one rule, and §2.4 makes raw the word for metal; an unqualified `Wk 1` is ambiguous at a year boundary; a delta is what a screen-reader user needs from the week; scaling tokens keeps the base sizes the theme tests read.
 - **D-13.79** — Boundaries kept in P0: `sim/` may not import `ui/` (§2.1), so the simulator formats its own console output and 13.23 no longer says it reuses `ui/format`; only code-to-text strings go through `t()` and `data/text/ui.ts`, static labels being inline JSX; a ledger source chip for one transaction opens that transaction's book and week, because `LedgerFilter` has no transaction id (§11 OQ-11.3 proposes `txnIds` for P1); the UI keeps the `HistoryMetric` label and unit table until §2 publishes one (2.5, D-2.54). — The layering rule outranks shared formatting, and console tables are not player screens; the catalog matters where code picks the text; a week's ledger view always contains the transaction, so the chip stays honest until the filter can name it.
+- **D-13.80** — `UiPersisted` gains `gameId: string` and `UI_PERSISTED_VERSION` becomes 2. `ui/newGame` mints the id from `crypto.getRandomValues` as `g` plus 16 Crockford base32 characters; a v1 block, or a save with no `ui`, gets a deterministic `l` plus 16 hex digits from two FNV-1a hashes of `meta.seed` and the company name (`legacyGameId`), which `readUiPersisted(raw, fallbackGameId)` takes. — Per-game autosaves (D-13.25) need a game identity. Neither the seed nor the setup tells games apart (13.14 offers "New game with same seed"), and `GameState` may not take a UI field; `SaveFile.ui` already travels through save, load, export and import and is never hashed (D-13.3), and the derived id loads the same old save as the same game every time.
+- **D-13.81** — Storage failures are typed and always shown. Every `SaveStore` operation, `list()` and `latestAutosave()` included, resolves to a result and never rejects; `SAVE_READ_FAILED` (browser storage could not be read: blocked, evicted or closed) joins `SAVE_WRITE_FAILED`, with its text in `data/text/ui.ts`; `ui/load` returns the store's or the engine reader's typed error unchanged; a failed autosave or quick save raises the critical toast with `Export now`, and the Saves and title screens report an unreadable list. — 13.16 requires every failure to be shown. A rejection nobody caught left the Saves screen on "Reading saves…" and a failed `Ctrl+S` silent, and collapsing every load error to `SAVE_CORRUPT` told the player the wrong thing.
+- **D-13.82** — `Ctrl+Enter` and `Ctrl+S` ignore key auto-repeat; Advance cannot re-enter itself (`RUN_IN_PROGRESS`); `Ctrl+S` opens Saves only with no game, no current slot or Ironman, a failed quick save keeps the player on the current screen with the critical toast, and a slot deleted elsewhere is forgotten so the next `Ctrl+S` opens Saves. — Holding the chord skipped 10–30 weeks and rolled every autosave past the mistake, and a failed `Ctrl+S` was silent.
+- **D-13.83** — Number display rounds the shortest round-trip decimal (what Intl's `halfExpand` rounds) by string arithmetic in `ui/format`: percentages shift × 100 exactly, milli-ounces round from the integer, and the UI's dollars-to-cents rounds the decimal ($1.005 → 101¢), as the engine's tie snap does (D-2.2). Compact USD picks its decimals and its k/M unit after rounding (`$10.0M`, `$100M`) and shows whole millions with grouping from $999.5M. A ledger amount inside an explanation carries `fmt: { money: 'ledger' }` and prints exact cents. — Rounding a float product disagreed with Intl on about 1% of exact half-unit inputs (1.255, 69.835, 10.075, …); choosing the decimals before rounding printed `$10.00M` and `$100.0M`; explanations formatted ledger amounts by the general rule, which hides cents above $1,000, so a popover disagreed with the ledger view it opens.
+- **D-13.84** — Focus is managed, never dropped: a busy control stays focusable (`aria-disabled`, inert) instead of `disabled`; Rename focuses and selects its input; a delete confirmation (`role="group"`, `Delete <slot>?`) focuses Cancel; Esc cancels either and focus returns to the trigger; after a delete focus moves to the next row's first action, or to the list when it is empty; the import input stays enabled while busy, because imports queue. The explain drawer's body is keyed by its top ref, so a new explanation opens at `ui.explainDefaultDepth` and the same ref keeps its disclosure state as weeks pass. — Unmounting or disabling the focused control dropped focus to `<body>` (WCAG 2.4.3, focus order), and React reused the drawer's rows, so a collapsed root carried over to the next explanation.
 
 ### 13.29 Open questions
 
@@ -17846,7 +17903,7 @@ Cross-role cover: operator → `ugMiner` (mucking and trucks only) at −15; `pl
 
 ### 14.12 Finance (a §11 extension)
 
-**Capital projects.** Contracted portals, adits and declines, mills, TSFs, TSF raises and power lines are `CapitalProject`s with a budget, a schedule and an overrun drawn at award on `rng(seed,'hr-capex',projectId)`: `costMult` = LN(`hardrock.capex.overrunMed` 1.10, 0.15), `scheduleMult` = LN(1.15, 0.20). A lump-sum turnkey contract costs +15% and caps `costMult` at 1.05 (`hardrock.capex.lstkPremium`, `lstkCap`). *Trade-off:* pay certainty up front or carry the overrun risk.
+**Capital projects.** Contracted portals, adits and declines, mills, TSFs, TSF raises and power lines are `CapitalProject`s with a budget, a schedule and an overrun drawn at award on `rng(seed,'hr-capex',projectId)`: `costMult` = LN(`hardrock.capex.overrunMed` 1.10, 0.15), `scheduleMult` = LN(`scheduleMed` 1.15, 0.20); both medians are × 1.05 on hard (§1 1.11, D-14.41). A lump-sum turnkey contract costs +15% and caps `costMult` at 1.05 (`hardrock.capex.lstkPremium`, `lstkCap`). *Trade-off:* pay certainty up front or carry the overrun risk.
 
 ```
 weekly progress (step 6) Δp = 1 / (weeksPlanned × scheduleMult); the week's draw = budget × costMult × Δp is billed in step 14
@@ -18095,7 +18152,8 @@ All `hardrock.*`; USD in year-1 dollars × `cpiIndex`. Template fields (`tpl.lod
 | `mill.capexUsd` (gravity 100; CIL 100; CIL 250) / `scaleExp` | 3.5M / 11M / 19M; 0.6 | $ / — | no | [web], [U] |
 | `tsf.usdPerStCapacity` (lined / unlined) / `acresPerSt` | 15 / 5; 2.5e-5 | $ / ac | no | [U] |
 | `power.lineUsdPerMi` / `lineMaxMi` | 150,000 / 10 | $ / mi | no | |
-| `capex.overrunMed`, `Sd` / `scheduleMed`, `Sd` | 1.10, 0.15 / 1.15, 0.20 | × | no | not difficulty-scaled: every difficulty-scaled key must be a §1 1.11 row (D-1.44) |
+| `capex.overrunMed` / `scheduleMed` | 1.10 / 1.15 | × | yes | §1 1.11: × 1.00 / × 1.00 / × 1.05 on both medians (D-14.41) |
+| `capex.overrunSd` / `scheduleSd` | 0.15 / 0.20 | × | no | |
 | `capex.lstkPremium` / `lstkCap` | 0.15 / 0.05 | frac | no | |
 | `capex.standbyShare` / `eacSd` | 0.004 / 0.10 | × budget per stalled week / CV | no | |
 | `rce.<type>` (tsf, millSite, wasteRock, openPit, portal) | table 14.10 | $ | no | §6 method |
@@ -18201,7 +18259,7 @@ All `hardrock.*`; USD in year-1 dollars × `cpiIndex`. Template fields (`tpl.lod
 - **D-14.38** — Mill power is billed on motor draw × hours (a ball mill draws near-constant power); Bond's law sets throughput only. — Makes fine grinding cost power per ton, as it does, and puts small-mill power at the real 40–60 kWh/st.
 - **D-14.39** — Toll mills: settlement at the mill's assay unless the player assays a split; refractory lots lose payable recovery point for point above 15% and pay $40/st above 25%; toll-service recovery carries a 3.5% campaign loss. — Custom-mill practice (splits, umpires, refractory penalties, campaign clean-out) in three closed-form rules.
 - **D-14.40** — Year-round hard-rock sites use 52 expected active weeks in §6's inspection rate. — Otherwise MSHA's 4 underground inspections a year become ≈ 9.5 when divided by a placer district's 22 weeks.
-- **D-14.41** — No `hardrock.*` key is difficulty-scaled. Difficulty reaches the track only through §1 1.11's existing rows (§12 event frequency and severity for blast and ground events, §11 lender patience for project loans, §6 inspections and review times); there is no capex-overrun multiplier on hard. — §1's two-way test (D-1.44) requires every difficulty-scaled key to be a 1.11 row, and an optional P6 track should not add rows to the core difficulty table.
+- **D-14.41** — Of the `hardrock.*` keys only the capital-project medians `hardrock.capex.overrunMed` and `scheduleMed` are difficulty-scaled, × 1.05 on hard, as §1 1.11 lists them. Otherwise difficulty reaches the track only through 1.11's existing rows (§12 event frequency and severity for blast and ground events, §11 lender patience for project loans, §6 inspections and review times). — §1's two-way rule (D-1.44, D-1.67) makes 1.11 the one list of difficulty-scaled keys, and 1.11 has always carried the capex row (the P0 difficulty test reads it), while this decision said no `hardrock.*` key was scaled; the section now follows the canonical table. Amended in P0's design pass; the earlier wording is withdrawn.
 
 ### 14.23 Open questions
 
@@ -18244,16 +18302,18 @@ These shape several systems at once. Changing one means touching every section l
   - Transcendental math goes through our own `dmath`, never `Math.*`.
   - Records are iterated in sorted-key order.
   - Draws made at action time are keyed by subject and a per-subject counter, never by action sequence, so reloading cannot re-roll an inspection, offer, approval or hire.
-  - Decisions: D-2.1, D-2.3, D-2.20, D-2.21, D-2.41, D-2.47, D-2.48, D-1.47, D-1.65, D-4.21, D-6.10, D-6.33, D-8.42, D-12.1.
+  - Every generation stream takes a fixed number of draws, so retuning a probability never shifts a later draw.
+  - Decisions: D-2.1, D-2.3, D-2.20, D-2.21, D-2.41, D-2.47, D-2.48, D-1.47, D-1.65, D-3.57, D-4.21, D-6.10, D-6.33, D-8.42, D-12.1.
 - **Presentation never changes state.**
   - The explain flag, run identity, inbox state, baselines and `ui.*` keys live outside `GameState` and the tuning hash.
   - Undo never becomes a re-roll or a free peek.
-  - Decisions: D-2.22, D-7.25, D-12.45, D-13.3, D-13.11, D-13.32, D-13.35, D-13.36, D-13.69, D-13.74, D-13.77.
+  - Decisions: D-2.22, D-7.25, D-12.45, D-13.3, D-13.11, D-13.32, D-13.35, D-13.36, D-13.69, D-13.74, D-13.77, D-13.80.
 - **Money and gold arithmetic is exact.**
   - Money is integer cents, rounded once at posting.
   - Royalty settlement runs in integer milli-ounces.
   - Every ounce is conserved: samples book their gold, and the scale weighs metal plus dirt.
-  - Decisions: D-2.2, D-5.33, D-3.37, D-4.38, D-7.26, D-10.6.
+  - Converting float dollars and ounces snaps decimal ties, so the posted cents match what the screen shows.
+  - Decisions: D-2.2, D-5.33, D-3.37, D-4.38, D-7.26, D-10.6, D-13.83.
 - **Cash is never negative.**
   - The company and the owner each keep a double-entry book, and there is no overdraft.
   - Sections create bills; §11 pays them in step 14 in a priority order the player can rearrange.
@@ -18289,7 +18349,8 @@ These shape several systems at once. Changing one means touching every section l
   - Breakup and freeze-up dates cannot be decoded.
   - Truth is revealed only in the end-of-run report.
   - Buyers and competitors value the player's own claims from disclosed evidence only.
-  - Decisions: D-1.20, D-1.23, D-1.27, D-1.39, D-10.28, D-13.9, D-13.37, D-13.38, D-13.41, D-5.25, D-12.46.
+  - Visible logs and flags are never an exact function of truth (logged sample intervals, physical disturbance), and bots are tested against a scrambled twin of every hidden field.
+  - Decisions: D-1.20, D-1.23, D-1.27, D-1.39, D-10.28, D-13.9, D-13.37, D-13.38, D-13.41, D-5.25, D-12.46, D-2.58, D-3.59, D-3.60.
 - **One owner per concept.**
   - Each number, function, stream and hook has exactly one owning section; the section that reads a hook owns its name.
   - Every event-modifiable value is read through `effective()` from P1.
@@ -18306,7 +18367,8 @@ These shape several systems at once. Changing one means touching every section l
 - **Difficulty.**
   - One table in §1 lists every difficulty-scaled key.
   - Difficulty scales information honesty, lender patience and event severity. True geology is the same at every difficulty.
-  - Decisions: D-1.19, D-1.32, D-1.44, D-3.18 (OQ-1.3).
+  - The table's cells are read by one convention, and every section's Diff cell says `yes` exactly for 1.11's keys.
+  - Decisions: D-1.19, D-1.32, D-1.44, D-1.67, D-3.18 (OQ-1.3), D-14.41.
 - **Survival is gated both ways** (owner ruling 2026-10-05, §0.3).
   - BALANCE O-01 gates pooled going-concern survival S2 at 60–70% **and** pooled no-bankruptcy B2 at ≥ 75% for the `cautious` bot on standard, with B2 floors of 70% (P1–P2), 73% (P3) and 75% (P4–P6).
   - A bankruptcy filing of either kind fails both measures for every window that contains it; a reorganized run is measured normally afterwards. The reorganization share RS_N and the retreated share B_N − S_N print beside them.
@@ -18342,9 +18404,9 @@ These shape several systems at once. Changing one means touching every section l
 
 ### Index
 
-797 decisions across §1–§14. Every ID is unique, numbering has no gaps, and every `D-x.y` cited anywhere in the document exists.
+812 decisions across §1–§14. Every ID is unique, numbering has no gaps, and every `D-x.y` cited anywhere in the document exists.
 
-#### §1 Vision, Pillars, and Game Structure (D-1.1 – D-1.66)
+#### §1 Vision, Pillars, and Game Structure (D-1.1 – D-1.67)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -18414,18 +18476,19 @@ These shape several systems at once. Changing one means touching every section l
 | D-1.64 | `newGame` posts company cash to the company book and personal cash to the owner book; keys `game.start.bootstrapper.personalCashUsd`, `game.startCompanyCashMult`, `game.startPersonalCashMult` | Scoring NW starts at $520,000; cash changes only through the ledger |
 | D-1.65 | Only §1 draws on `setup`; §1's `inheritorStreams` hands the Inheritor's streams to §3, §8 and §9 | Stream rule (b); same keys, same content |
 | D-1.66 | `weekToDateRange(week)` has no year; `turnDate(turn, startCalendarYear)` carries it | A week has the same dates every year |
+| D-1.67 | 1.11 cells: plain = `{ set }`, `×` = `{ mul }`, `×` on a table = `{ set }` of the scaled table capped at 1 (`tellDetect`); every Diff cell `yes` or `no`; 1.20 gains three missing rows; P0 checks `difficulty.ts` ↔ 1.11, the Diff-cell scan joins in P1 | One reading of the table; a scan that can gate |
 
-#### §2 Architecture and Core Data Model (D-2.1 – D-2.56)
+#### §2 Architecture and Core Data Model (D-2.1 – D-2.59)
 
 | ID | Decision | Rationale |
 |---|---|---|
 | D-2.1 | Stateless keyed RNG: FNV-1a 64 + SplitMix64 into xoshiro128\*\*; no RNG state in `GameState` | Stream isolation; nothing to save |
-| D-2.2 | Money is integer cents, rounded half away from zero at posting | No float drift in the ledger |
+| D-2.2 | Money is integer cents, rounded half away from zero at posting; `usdToCents`, `toMilliOz` and `floorMilliOz` snap decimal ties within 1e-11 (relative) | No float drift in the ledger; ledger and screen agree ($1.005 → 101¢) |
 | D-2.3 | Transcendental math via our own `dmath`, not `Math.*` | Bit-identical replays across browsers |
 | D-2.4 | Immer for immutable updates; auto-freeze off in the simulator | Cheap selectors; fast sim |
 | D-2.5 | Saves in IndexedDB via a thin wrapper; exports are gzipped JSON | Simple, large quota, readable |
 | D-2.6 | Simulator game *i* uses seed `seedBase + i`; results aggregate in index order | Same output for any worker count |
-| D-2.7 | Data files `as const satisfies Schema` plus a zod cross-reference test | Compile-time and runtime checks |
+| D-2.7 | Data files `as const satisfies Schema` plus zod schemas for every data file (`tests/data/schemas.ts`, coverage guard) and cross-reference checks | Compile-time and runtime checks; zod stays out of `data/` |
 | D-2.8 | ID prefixes: §9 `fo`/`aev`/`rct`/`mi`, `ivr`, one `lst` counter | Unique, routable IDs |
 | D-2.9 | RNG stream registry uses owners' adopted names (`finance-lender`, `market-buyers`, …) | One name per stream |
 | D-2.10 | Step 12: §11 deferred-revenue drawdowns run before §4 `recordProduction` | Four owners agree; they commute |
@@ -18453,10 +18516,10 @@ These shape several systems at once. Changing one means touching every section l
 | D-2.32 | Catalog bots keep one line, a foreman on every claim and site mechanics; option bots `smallCrewNoForeman`, `multiLine`, `poolMechanics` | Targets read the game without the options; each option measured once |
 | D-2.33 | Bots never file voluntarily; from P4 they answer the involuntary petition with reorganize and file the first passing plan in a fixed search order | A measurable reorganization share without timed filings; supersedes D-11.64's first recommendation |
 | D-2.34 | Saves from phase N load in N+1, with a migration and fixture from P1; P0 saves unsupported | Owner ruling 2026-10-05: confirmed (OQ-2.1) |
-| D-2.35 | `meta.tuning` in the state; `tuningHash` is its hash, re-checked at load; `TUNING_DIFFERS` compares with this build's tuning for the save's own setup | A game keeps its tuning; no false notice for another difficulty |
+| D-2.35 | `meta.tuning` in the state; `tuningHash` is its hash, re-checked at load; `TUNING_DIFFERS` compares the save's hash directly with this build's hash for the save's own setup; persistence gets the token `TUNING_MATCHES_BUILD` | A game keeps its tuning; no false or missed notice |
 | D-2.36 | Tuning resolution gains a `setup` layer (start year, opening spot) before simulator overrides | One source for dates and the opening price |
 | D-2.37 | `newGame(setup, seed, tuning?, { rulesPhase }?)` with a string seed; `rulesPhase` 0–6, never above the build's phase | `--rules pN` reaches `newGame`; a game records the rules it ran |
-| D-2.38 | `ids` is Partial (absent = 0); `newGame` reserves ids past the generated world's | New prefixes need no migration; no collision with world ids |
+| D-2.38 | `ids` is Partial (absent = 0); `newGame` reserves ids past the generated world's (`reserveIdsFrom` plus §3's `worldIdCounters`) | New prefixes need no migration; no collision with world ids, block ids included |
 | D-2.39 | Decisions only through `createDecision`; closed ones kept in `inbox.closedDecisions` for the inbox retention; a default that fails validation still closes as `defaulted` | `DECISION_CLOSED` vs `DECISION_NOT_FOUND`; every deadline closes its decision |
 | D-2.40 | `ctx.rng` keeps core `rng`'s signature; `applyNested`, `markReveals`, `markCommits`; flat `params` never replace the type; `actionSeq` counts player actions only | Lint still sees stream names; nested flags reach `undoable` |
 | D-2.41 | `effective()` memo scoped to the `events.modifiers` object and keyed with `tuningHash`; keys no modifier targets skip it; plain tuning keys readable | A version counter cannot tell games or undo branches apart |
@@ -18474,9 +18537,12 @@ These shape several systems at once. Changing one means touching every section l
 | D-2.53 | A blocking decision with no default gets the lowest option id; one left open aborts the game as a bot defect (exit 1) | Deterministic answers; no silent short runs |
 | D-2.54 | The simulator observes only through 2.11 selectors (`sim/metrics/observe.ts`); adds `select.runOutcome`, `select.annualHistory`; exports `CASH_ON_HAND_ACCOUNTS`; unwired inputs throw | BALANCE §5: metrics from selectors; never a silent zero |
 | D-2.55 | `sim.bootstrapResamples` 1,000 and `sim.weeklySampleSeeds` 20; timings only on the console and in `timing.json`; `npm run sim` scores nothing; where `save.*` values live in P0 | Keys for BALANCE's numbers; byte-identical JSON |
-| D-2.56 | Scoring conventions BALANCE left open: bootstrap and type-7 quantiles, normal-approximation pooling, games.csv columns, gating-only regression failures, O-13 timing, G-03, O-02, named clauses | Each needed to compute a BALANCE number |
+| D-2.56 | Scoring conventions BALANCE left open: bootstrap and type-7 quantiles, normal-approximation pooling, games.csv columns, gating-only regression failures, O-13 timing, G-03, O-02 on the core block's 13 cells, named clauses | Each needed to compute a BALANCE number |
+| D-2.57 | Early-ending runs measured through their last turn (FSP, partial-year net income); stops per game-year of exposure; journal read until `select.periodNetIncome` (P1); O-16 first-claim rule | No upward FSP bias; an honest stop rate |
+| D-2.58 | Bot scrambled-truth test via `sim/bots/scramble.ts`: registered scramblers, same-grid truth swap, a leaky control bot | The identity test has teeth |
+| D-2.59 | Validation looks up outside ids as own properties only (`engine/actions/own.ts`) | Validation never throws (`'__proto__'` → `DECISION_NOT_FOUND`) |
 
-#### §3 World and Geology (D-3.1 – D-3.56)
+#### §3 World and Geology (D-3.1 – D-3.61)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -18536,8 +18602,13 @@ These shape several systems at once. Changing one means touching every section l
 | D-3.54 | `drawSample` takes a `DrawContext`; fixed draw order; one-draw Poisson inversion; λb passed explicitly | Visible inputs, snapshot constants, stable streams |
 | D-3.55 | Junction boost spans exactly 7 rows; a zero cementation median gives 0 | Pseudo-code off by one; no phantom cementation |
 | D-3.56 | §3's prose constants registered as `geology.*` keys; `churnHistoric` placeholder until §4's table | Tuning lives in data and in the snapshot |
+| D-3.57 | Creek attributes and names drawn for every fixed slot; holder draws for every held parcel, a holder taking its lowest-id parcel's | A `branchP` or `groupRunP` retune shifts no later draw |
+| D-3.58 | Dredge side effects only on the blocks it worked; every block still draws | Unworked fill keeps cover and frost; strip p10 north 1.64 → 1.91 |
+| D-3.59 | `intervalDepthFt` is the logged interval from step 7's factors; §4 reads `[1]` as `depthReachedFt` | One pan no longer reveals true overburden and pay |
+| D-3.60 | `previouslyDisturbed` = pre-game disturbance or `historicAcres > 0` | The flag no longer reveals a hidden kind |
+| D-3.61 | Water right recorded to 0.1 gpm, then capped at the unrounded `lowFlowGpm` | A surface right never exceeds §6's grant cap |
 
-#### §4 Prospecting and Resource Estimation (D-4.1 – D-4.46)
+#### §4 Prospecting and Resource Estimation (D-4.1 – D-4.47)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -18587,6 +18658,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-4.44 | Prior status fixed when the claim first gets player evidence | Buying can't improve estimates overnight |
 | D-4.45 | Verdict line: one plain sentence from the decision context, P10–P90, P(≥ breakeven), biggest unknown | A first-purchase answer |
 | D-4.46 | Planning wash cost carries §3's frozen add (0.40 × frozen share) | Planning agrees with the engine |
+| D-4.47 | Calibration cells gate by what the evidence sees: visible-information cells at every mix; hidden-kind and hidden-deep-muck cells reported to fences, gated from the pit grid | A Bayesian estimator is calibrated over the population sharing its information |
 
 #### §5 Land Acquisition, Tenure, and Negotiation (D-5.1 – D-5.60)
 
@@ -19081,7 +19153,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-12.51 | `seriousIncident` × 1.15 on a small crew without a foreman | Matches §8's injury factor |
 | D-12.52 | Event, news and decision text names agencies only through `agencyFor`, never a real official | One map; real names |
 
-#### §13 Interface (D-13.1 – D-13.79)
+#### §13 Interface (D-13.1 – D-13.84)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -19109,7 +19181,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-13.22 | Toasts only for critical/blocking messages and confirmations | WCAG timing guidance |
 | D-13.23 | The tutorial is a non-blocking state-predicate coach | Doesn't distort the simulation |
 | D-13.24 | District map uses ≤ 3 categorical fills plus patterns and labels | Colour-blind safe |
-| D-13.25 | Autosave after every manual week (3 rotating) + 5 yearly; every 8 weeks during runs | One bad write can't lose a game |
+| D-13.25 | Autosaves per game: 3 rotating + its last 5 year-start snapshots, every 8 weeks during runs; deletable; Continue = newest of any game; P0 new game writes only the autosave | One bad write or a second game can't lose a game |
 | D-13.26 | Calendar agenda in P1, planner and map layers in P2, News in P5 | P1 already has deadlines |
 | D-13.27 | Desktop-first: full layout from 1280 px, graceful to 1024 px, no touch | The brief (OQ-13.1); owner ruling 2026-10-05: confirmed (OQ-13.1) |
 | D-13.28 | Seeds generated in the UI as 26-char base32 strings (alphabet and limits: D-13.76) | Engine free of entropy |
@@ -19161,9 +19233,14 @@ These shape several systems at once. Changing one means touching every section l
 | D-13.74 | `UiPersisted` shape and migration live in `ui/store/persisted.ts`; `persistence/` stays engine-free behind the injected `SaveCodec` | The migration needs engine types and `ui.*` defaults |
 | D-13.75 | Exports gzip by default with a `Compress exports` checkbox; manual saves always carry `actionLog`; "Include replay log" deferred to P1 | §2.9 and 13.16 agree |
 | D-13.76 | Seeds: Crockford base32, 26 characters by default; free text ≤ 64 characters; `SEED_EMPTY`, `SEED_TOO_LONG` | Survives retyping; any seed allowed |
-| D-13.77 | A non-undoable action clears the undo stack; later undo refuses with `UNDO_NOT_ALLOWED` | Undo can never roll back a draw or a reveal |
+| D-13.77 | A non-undoable action clears and seals the undo stack until the next advance, new game or load; undo back to it refuses with `UNDO_NOT_ALLOWED` | Undo can never roll back a draw or a reveal |
 | D-13.78 | Units added to 13.2's table; year-spelling Advance tooltip; live-region line with year-week and cash delta; `--font-scale`; reduced-motion override | One rule per displayed unit; no ambiguous week labels |
 | D-13.79 | `sim/` formats its own output; `t()` covers code-to-text strings in P0; a ledger chip opens its transaction's book and week (OQ-11.3); UI keeps the `HistoryMetric` table until §2 publishes one | Layering outranks shared formatting; honest until the filter can name a transaction |
+| D-13.80 | `UiPersisted.gameId` (v2): minted `g` + 16 base32 at new game; legacy saves get a deterministic `l` id from seed and company name | Per-game autosaves need an identity outside `GameState` |
+| D-13.81 | Every `SaveStore` operation returns a typed result; `SAVE_READ_FAILED` added; `ui/load` keeps the typed error; failures toast with `Export now` | Every storage failure is shown |
+| D-13.82 | `Ctrl+Enter` / `Ctrl+S` ignore auto-repeat; no re-entrant Advance; a failed quick save stays on screen | A held key can't skip weeks; no silent failed save |
+| D-13.83 | Display rounds the shortest decimal; compact USD chooses decimals after rounding; ledger amounts in explanations print exact cents | Screen, Intl and ledger agree |
+| D-13.84 | Busy controls `aria-disabled`; confirmations focus Cancel; focus returns or moves to the next row; the drawer is keyed by its top ref | Focus never drops to the page; a new explanation opens at default depth |
 
 #### §14 Hard-Rock Track (D-14.1 – D-14.41)
 
@@ -19209,13 +19286,13 @@ These shape several systems at once. Changing one means touching every section l
 | D-14.38 | Mill power billed on motor draw × hours | Real kWh per ton |
 | D-14.39 | Toll settlement: player-assayed splits, refractory penalties, 3.5% campaign loss | Custom-mill practice |
 | D-14.40 | Year-round sites use 52 active weeks in the inspection rate | Avoids ≈ 9.5 inspections a year |
-| D-14.41 | No `hardrock.*` key is difficulty-scaled | Keeps the core table small |
+| D-14.41 | Only the capex overrun and schedule medians among `hardrock.*` keys are difficulty-scaled (× 1.05 on hard, §1 1.11) | §14 follows the canonical table *(amended in P0)* |
 
 ### Cross-section conflicts (resolved)
 
 None open. Five groups of cross-section conflicts were resolved as follows.
 
-**ID check.** There are no ID collisions. All 797 IDs are unique, numbered without gaps, and every `D-x.y` the document cites exists. Several decisions restate the same rule in more than one section, and they agree:
+**ID check.** There are no ID collisions. All 812 IDs are unique, numbered without gaps, and every `D-x.y` the document cites exists. Several decisions restate the same rule in more than one section, and they agree:
 - D-1.49 = D-2.16
 - D-6.1 = D-12.52 = D-13.67 (agency names only through `agencyFor`)
 - D-1.62 restates D-8.48–D-8.50 for the owner; D-12.51 applies D-8.48's incident factor
