@@ -5,7 +5,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { startGame, topBarCash, usePrefs } from './helpers';
 
 async function seriousViolations(page: Page): Promise<string[]> {
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  // @axe-core/playwright is typed against its own playwright-core; the page object is the same at run time.
+  const options = { page } as unknown as ConstructorParameters<typeof AxeBuilder>[0];
+  const results = await new AxeBuilder(options)
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
   return results.violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
     .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);

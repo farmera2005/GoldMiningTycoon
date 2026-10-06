@@ -58,7 +58,14 @@ export function redact(node: CalcNode, options: { readonly reveal?: boolean } = 
   const reveal = options.reveal === true;
   if (reveal || node.hidden !== true) return view(node, reveal);
   if (node.knownAlt !== undefined) return { ...redact(node.knownAlt), redacted: 'knownAlt' };
-  return { label: node.label, value: null, valueText: NOT_OBSERVABLE, unit: node.unit, children: [], redacted: 'notObservable' };
+  return {
+    label: node.label,
+    value: null,
+    valueText: NOT_OBSERVABLE,
+    unit: node.unit,
+    children: [],
+    redacted: 'notObservable',
+  };
 }
 
 /** Every node of a view tree, depth first (tests and Copy as text). */

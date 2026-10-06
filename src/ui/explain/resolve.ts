@@ -40,7 +40,11 @@ export type Resolved =
     }
   | { readonly kind: 'input'; readonly root: ViewNode; readonly route: string }
   /** EXPLAIN_EXPIRED (13.21): beyond retention; NO_GAME; NOT_FOUND: the ref names nothing in this game. */
-  | { readonly kind: 'unavailable'; readonly root: ViewNode; readonly reason: 'EXPLAIN_EXPIRED' | 'NO_GAME' | 'NOT_FOUND' };
+  | {
+      readonly kind: 'unavailable';
+      readonly root: ViewNode;
+      readonly reason: 'EXPLAIN_EXPIRED' | 'NO_GAME' | 'NOT_FOUND';
+    };
 
 function message(label: string, text: string): ViewNode {
   return { label, value: null, valueText: text, unit: 'none', children: [] };
@@ -143,7 +147,8 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
   const { state } = ctx;
   // A player input explains itself (its editor) whether or not a game is loaded.
   if (ref.kind === 'input') return { kind: 'input', route: ref.route, root: message(ref.label, 'Set by you') };
-  if (state === null) return { kind: 'unavailable', reason: 'NO_GAME', root: message('Explanation', 'No game is loaded.') };
+  if (state === null)
+    return { kind: 'unavailable', reason: 'NO_GAME', root: message('Explanation', 'No game is loaded.') };
   switch (ref.kind) {
     case 'live':
       return { kind: 'tree', root: redact(runExplainer(state, ref.explainer), { reveal: ctx.reveal }) };
@@ -170,7 +175,11 @@ export function resolveExplain(ref: ExplainRef, ctx: ResolveContext): Resolved {
       const info = historyMetricInfo(ref.metric);
       const value = historyValue(state, ref.metric, ref.turn);
       if (value === null) {
-        return { kind: 'unavailable', reason: 'EXPLAIN_EXPIRED', root: message(info.label, 'This week is outside the kept history.') };
+        return {
+          kind: 'unavailable',
+          reason: 'EXPLAIN_EXPIRED',
+          root: message(info.label, 'This week is outside the kept history.'),
+        };
       }
       return {
         kind: 'tree',

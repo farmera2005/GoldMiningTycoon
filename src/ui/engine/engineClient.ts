@@ -41,7 +41,8 @@ export type AdvanceBlock = 'BLOCKING_DECISION_OPEN' | 'RUN_IN_PROGRESS' | 'GAME_
 /** `ui/undo` refusals (13.21). */
 export type UndoRefusal = 'NOTHING_TO_UNDO' | 'UNDO_NOT_ALLOWED' | 'UNDO_IRONMAN';
 
-export type ClientActionError = ActionError | { readonly code: 'NO_GAME' | 'RUN_IN_PROGRESS'; readonly message: string };
+export type ClientActionError =
+  ActionError | { readonly code: 'NO_GAME' | 'RUN_IN_PROGRESS'; readonly message: string };
 
 export type ApplyOutcome =
   { readonly ok: true; readonly undoable: boolean } | { readonly ok: false; readonly error: ClientActionError };

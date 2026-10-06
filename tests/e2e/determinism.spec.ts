@@ -28,7 +28,12 @@ test('the 52-week golden replay hashes identically in Chromium and in Node', asy
     return { hashes, ms: performance.now() - t0 };
   }, log);
 
-  test.info().annotations.push({ type: 'timing', description: `replay: Node ${nodeMs} ms, Chromium ${Math.round(chromium.ms)} ms` });
+  test
+    .info()
+    .annotations.push({
+      type: 'timing',
+      description: `replay: Node ${nodeMs} ms, Chromium ${Math.round(chromium.ms)} ms`,
+    });
   expect(node).toHaveLength(golden.weeks + 1);
   expect(chromium.hashes).toEqual(node);
   expect(node).toEqual(golden.hashes);

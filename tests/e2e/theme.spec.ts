@@ -34,8 +34,10 @@ async function themeRules(page: Page): Promise<RuleReport> {
         const family = (cs.fontFamily.split(',')[0] ?? '').replace(/["']/g, '').trim();
         if (family.startsWith('Besley')) {
           displayed += 1;
-          if (el.matches(inDisplay) || el.querySelector(inDisplay) !== null) problems.push(`display face on/around ${describe(el)}`);
-          if (ownText(el) && parseFloat(cs.fontSize) < minPx) problems.push(`display face at ${cs.fontSize}: ${describe(el)}`);
+          if (el.matches(inDisplay) || el.querySelector(inDisplay) !== null)
+            problems.push(`display face on/around ${describe(el)}`);
+          if (ownText(el) && parseFloat(cs.fontSize) < minPx)
+            problems.push(`display face at ${cs.fontSize}: ${describe(el)}`);
         }
         if (cs.backgroundImage.includes('data:image/svg+xml')) {
           grained += 1;
@@ -44,7 +46,8 @@ async function themeRules(page: Page): Promise<RuleReport> {
       }
       const nums = document.querySelectorAll('[data-num]');
       for (const el of nums) {
-        if (!getComputedStyle(el).fontVariantNumeric.includes('tabular-nums')) problems.push(`proportional figures: ${describe(el)}`);
+        if (!getComputedStyle(el).fontVariantNumeric.includes('tabular-nums'))
+          problems.push(`proportional figures: ${describe(el)}`);
       }
       return { problems, grained, displayed, nums: nums.length };
     },
@@ -135,7 +138,8 @@ test('data-theme and color-scheme follow Prefs.theme, and System follows the med
   const surface0 = (): Promise<string> =>
     page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--surface-0').trim());
   const scheme = (): Promise<string> => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
-  const dataTheme = (): Promise<string | null> => page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  const dataTheme = (): Promise<string | null> =>
+    page.evaluate(() => document.documentElement.getAttribute('data-theme'));
 
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/#/settings');

@@ -1,13 +1,7 @@
 // Test harness for UI tests (imported by *.test.ts(x) only; nothing in the app imports it, so it never reaches a
 // bundle). It wires the real store, engine client and save store over a memory KV, with an idle scheduler and a
 // wall clock the test controls.
-import {
-  defaultNewGameSetup,
-  newGame,
-  saveCodec,
-  toSaveFile,
-  type GameState,
-} from '../../engine';
+import { defaultNewGameSetup, newGame, saveCodec, toSaveFile, type GameState } from '../../engine';
 import {
   createMemoryKv,
   createSaveStore,

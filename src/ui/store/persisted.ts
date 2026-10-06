@@ -71,7 +71,9 @@ export function uiDefaultStopRules(): StopRule[] {
   });
 }
 
-export function defaultUiPersisted(options: { readonly ironman?: boolean; readonly tutorial?: boolean } = {}): UiPersisted {
+export function defaultUiPersisted(
+  options: { readonly ironman?: boolean; readonly tutorial?: boolean } = {},
+): UiPersisted {
   return {
     inbox: {},
     stopRules: uiDefaultStopRules(),
@@ -177,5 +179,9 @@ export function persistedForSave(
   for (const [id, flags] of Object.entries(persisted.inbox)) {
     if (Object.hasOwn(state.inbox.messages, id)) inbox[id] = flags;
   }
-  return { ...persisted, inbox: inbox as Record<MsgId, InboxFlags>, recentReports: reportsToPersist(calcReportsNewestFirst) };
+  return {
+    ...persisted,
+    inbox: inbox as Record<MsgId, InboxFlags>,
+    recentReports: reportsToPersist(calcReportsNewestFirst),
+  };
 }

@@ -7,7 +7,11 @@ export interface StopRuleRow {
   readonly label: string;
   readonly state: string;
   /** A numeric parameter the player sets (shown as a `<Num>` with an `input` ref). */
-  readonly param?: { readonly value: number; readonly unit: 'cents' | 'pct' | 'weeks' | 'turn'; readonly label: string };
+  readonly param?: {
+    readonly value: number;
+    readonly unit: 'cents' | 'pct' | 'weeks' | 'turn';
+    readonly label: string;
+  };
 }
 
 export const FIXED_STOPS: readonly StopRuleRow[] = [

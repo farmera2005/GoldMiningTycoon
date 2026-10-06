@@ -95,7 +95,12 @@ describe('redact (D-13.9)', () => {
       value: 1,
       unit: 'none',
       hidden: true,
-      knownAlt: { label: 'alt', value: 2, unit: 'none', children: [{ label: 'leak', value: 3, unit: 'none', hidden: true }] },
+      knownAlt: {
+        label: 'alt',
+        value: 2,
+        unit: 'none',
+        children: [{ label: 'leak', value: 3, unit: 'none', hidden: true }],
+      },
     };
     expect(redact(tricky).children[0]).toMatchObject({ label: 'leak', value: null, redacted: 'notObservable' });
   });
@@ -189,7 +194,10 @@ describe('resolveExplain', () => {
     expect(r.kind).toBe('tree');
     expect(r.root).toMatchObject({ label: 'Cash on hand', value: 400_000, op: 'sum' });
     const leaf = r.root.children[0]?.children[0];
-    expect(leaf).toMatchObject({ label: 'Owner capital contribution', source: { kind: 'entity', ref: { kind: 'ledgerTxn' } } });
+    expect(leaf).toMatchObject({
+      label: 'Owner capital contribution',
+      source: { kind: 'entity', ref: { kind: 'ledgerTxn' } },
+    });
     expect(relatedLedger(cashRef)).toEqual({
       kind: 'ledger',
       filter: { book: 'company', accounts: ['cash.operating', 'cash.reserve'] },
@@ -218,8 +226,10 @@ describe('resolveExplain', () => {
     const report = resolveExplain({ kind: 'report', turn: 1, path: ['finance.cashOnHand'] }, ctx(s1, [week.report]));
     expect(report.root).toMatchObject({ label: 'Cash on hand', value: 400_000 });
     expect(
-      resolveExplain({ kind: 'report', turn: 1, path: ['finance.cashOnHand', 'cash.operating'] }, ctx(s1, [week.report]))
-        .root,
+      resolveExplain(
+        { kind: 'report', turn: 1, path: ['finance.cashOnHand', 'cash.operating'] },
+        ctx(s1, [week.report]),
+      ).root,
     ).toMatchObject({ label: 'cash.operating' });
     expect(resolveExplain({ kind: 'report', turn: 1, path: ['finance.cashOnHand'] }, ctx(s1, []))).toMatchObject({
       kind: 'unavailable',

@@ -42,7 +42,14 @@ afterEach(() => {
   cleanup();
   window.location.hash = '';
   const root = document.documentElement;
-  for (const a of ['data-theme', 'data-density', 'data-grain', 'data-font-scale', 'data-reduced-motion', 'data-texture'])
+  for (const a of [
+    'data-theme',
+    'data-density',
+    'data-grain',
+    'data-font-scale',
+    'data-reduced-motion',
+    'data-texture',
+  ])
     root.removeAttribute(a);
   root.style.colorScheme = '';
 });
@@ -160,7 +167,9 @@ describe('dashboard (13.24 P0)', () => {
     expect(within(last).getByText('Cash at the end of Y1 Wk 2')).toBeTruthy();
     expect(within(last).getByRole('button', { name: '$400,000' })).toBeTruthy();
     fireEvent.click(within(last).getByRole('button', { name: '$0.00' }));
-    expect(screen.getByRole('dialog', { name: 'Company ledger · cash.operating, cash.reserve · Y1 Wk 2' })).toBeTruthy();
+    expect(
+      screen.getByRole('dialog', { name: 'Company ledger · cash.operating, cash.reserve · Y1 Wk 2' }),
+    ).toBeTruthy();
   });
 
   it('is the title screen with no game: Continue loads the latest autosave', async () => {

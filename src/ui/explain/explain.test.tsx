@@ -142,7 +142,12 @@ describe('the drawer', () => {
       op: 'sum',
       children: [
         { label: 'True grade', value: 0.0188, unit: 'ozPerBcy', hidden: true },
-        { label: 'Parts resale factor', value: 0.5, unit: 'mult', source: { kind: 'tuning', key: 'game.nw.partsResaleFactor' } },
+        {
+          label: 'Parts resale factor',
+          value: 0.5,
+          unit: 'mult',
+          source: { kind: 'tuning', key: 'game.nw.partsResaleFactor' },
+        },
       ],
     };
     const report: WeekReport = { turn: 0, alerts: [], stopCandidates: [], ops: {}, calc: { 'test.tree': tree } };

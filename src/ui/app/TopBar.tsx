@@ -98,8 +98,7 @@ export function TopBar() {
               disabled={!status.advance.enabled}
               onClick={() => client.advance()}
             >
-              {status.advance.label}{' '}
-              {status.advance.enabled ? <span aria-hidden="true">{'›'}</span> : null}
+              {status.advance.label} {status.advance.enabled ? <span aria-hidden="true">{'›'}</span> : null}
             </button>
           </>
         )}

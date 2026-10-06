@@ -30,7 +30,12 @@ function pick(file: File): void {
 }
 
 const saveText = (over: Record<string, unknown> = {}): string =>
-  JSON.stringify({ ...JSON.parse(serializeSaveFile(toSaveFile(freshState(), { slotName: 'From a friend', savedAt: '2026-10-01T09:30:00.000Z' }))), ...over });
+  JSON.stringify({
+    ...JSON.parse(
+      serializeSaveFile(toSaveFile(freshState(), { slotName: 'From a friend', savedAt: '2026-10-01T09:30:00.000Z' })),
+    ),
+    ...over,
+  });
 
 beforeEach(() => {
   window.location.hash = '';
@@ -66,7 +71,9 @@ describe('slots', () => {
       'Status',
       'Actions',
     ]);
-    const cells = within(row).getAllByRole('cell').map((td) => td.textContent);
+    const cells = within(row)
+      .getAllByRole('cell')
+      .map((td) => td.textContent);
     expect(cells.slice(0, 4)).toEqual(['Ruby Creek Placers', 'Y1 Wk 2', '$400,000', '$520,000']);
     expect(cells[4]).toMatch(/^Oct 6, 2026, \d+:00 (AM|PM)$/);
     expect(cells[7]).toBe('Active');
@@ -90,7 +97,9 @@ describe('slots', () => {
     h.client.advance();
     renderSaves(h);
     fireEvent.click(await screen.findByRole('button', { name: 'Save here: Old name' }));
-    await waitFor(() => expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain('Saved to “Old name”.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain('Saved to “Old name”.'),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Rename Old name' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'New name for Old name' }), { target: { value: 'New name' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
@@ -126,7 +135,9 @@ describe('import (13.16 validation order)', () => {
     renderSaves(h);
     pick(new File([saveText()], 'friend.gmt.json'));
     await screen.findByRole('rowheader', { name: 'From a friend' });
-    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain('Imported friend.gmt.json as “From a friend”.');
+    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain(
+      'Imported friend.gmt.json as “From a friend”.',
+    );
   });
 
   it('imports by drag and drop', async () => {
@@ -163,10 +174,14 @@ describe('import (13.16 validation order)', () => {
   it('notes TUNING_DIFFERS when the file keeps tuning this build would not resolve', async () => {
     const h = createHarness();
     renderSaves(h);
-    const tuned = newGame(defaultNewGameSetup({ companyName: 'Tuned Co' }), 'tuned', { 'game.nw.partsResaleFactor': 0.5 });
+    const tuned = newGame(defaultNewGameSetup({ companyName: 'Tuned Co' }), 'tuned', {
+      'game.nw.partsResaleFactor': 0.5,
+    });
     pick(new File([serializeSaveFile(toSaveFile(tuned, { slotName: 'Tuned', savedAt: 'x' }))], 'tuned.gmt.json'));
     await screen.findByRole('rowheader', { name: 'Tuned' });
-    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain('This game keeps the tuning it was created with.');
+    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain(
+      'This game keeps the tuning it was created with.',
+    );
   });
 
   it('lists the migrations applied to an older file', async () => {
@@ -180,6 +195,8 @@ describe('import (13.16 validation order)', () => {
     renderSaves(h);
     pick(new File([saveText()], 'old.gmt.json'));
     await screen.findByRole('rowheader', { name: 'From a friend' });
-    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain('Updated from save version 1 to 2 (v1→v2 synthetic).');
+    expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain(
+      'Updated from save version 1 to 2 (v1→v2 synthetic).',
+    );
   });
 });

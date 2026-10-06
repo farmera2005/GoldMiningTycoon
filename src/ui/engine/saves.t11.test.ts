@@ -63,7 +63,11 @@ describe('T11: export → import round trip', () => {
     const b = other.store.getState().game.state as GameState;
     expect(hashState(b)).toBe(hashState(a));
     expect(other.store.getState().persisted.tableLayouts).toEqual(h.store.getState().persisted.tableLayouts);
-    expect(other.store.getState().persisted.tutorial).toEqual({ enabled: true, completed: ['dashboard'], dismissed: [] });
+    expect(other.store.getState().persisted.tutorial).toEqual({
+      enabled: true,
+      completed: ['dashboard'],
+      dismissed: [],
+    });
   });
 
   it('keeps SaveFile.ui out of the state hash', () => {
