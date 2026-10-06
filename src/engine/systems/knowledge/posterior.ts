@@ -249,24 +249,11 @@ function normalize(logw: Float64Array): Float64Array {
  * C₀[a][b] = V_m + Σ_e[a][b].
  */
 export function blockCovariance(model: PriorModel, rows: Rows, Vm: number, sol: Solve): Float64Array {
-  return blockCovarianceFactored(model, rows, Vm, sol).CG;
-}
-
-/**
- * blockCovariance with its data term's factor W = L⁻¹ Qᵀ (stored block-major: W[b·R + j]), so that CG = C₀ − WᵀW.
- * The incremental path extends W by the appended rows instead of rebuilding it (a rank-k downdate of CG).
- */
-export function blockCovarianceFactored(
-  model: PriorModel,
-  rows: Rows,
-  Vm: number,
-  sol: Solve,
-): { readonly CG: Float64Array; readonly W: Float64Array } {
   const n = model.n;
   const R = sol.R;
   const C = new Float64Array(n * n);
   for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) C[a * n + b] = Vm + (model.Se[a * n + b] as number);
-  if (R === 0) return { CG: C, W: new Float64Array(0) };
+  if (R === 0) return C;
   const W = new Float64Array(n * R);
   const w = new Float64Array(R);
   for (let b = 0; b < n; b++) {
@@ -286,7 +273,7 @@ export function blockCovarianceFactored(
       C[b * n + a] = v;
     }
   }
-  return { CG: C, W };
+  return C;
 }
 
 /**

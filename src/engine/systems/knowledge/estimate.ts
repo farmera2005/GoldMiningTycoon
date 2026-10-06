@@ -23,6 +23,7 @@ import type { EstimatorParams } from './params';
 import { priorModel } from './prior';
 import { prepareProduction } from './production';
 import {
+  anchorPosterior,
   anchorSolve,
   continuousState,
   solveSummary,
@@ -98,16 +99,13 @@ export function anchoredStatisticalEstimate(
   const appended = prepareProduction(an.model.indexOf, split.appended, params);
   const pKey = appended.length === 0 ? aKey : `${aKey}|P${hashValue(appended.map((p) => itemHash(p.rec)))}`;
   const ap: AppendedSolve =
-    appended.length === 0
-      ? { rows: an.rows, sol: an.sol, CG: an.CG }
-      : appendMemo.getOrCompute(pKey, () => appendProduction(an, appended));
+    appended.length === 0 ? anchorPosterior(an) : appendMemo.getOrCompute(pKey, () => appendProduction(an, appended));
   const sum = summaryMemo.getOrCompute(pKey, () => solveSummary(an, ap.sol, ap.CG));
   const sKey = `${pKey}|S${hashValue({ blockState: canon.blockState, assays: canon.assays })}`;
   const stat = statMemo.getOrCompute(sKey, () =>
     stateLayer(
       an,
-      ap.sol,
-      ap.CG,
+      ap,
       sum,
       continuousState(an.model, canon.blockState),
       canon.assays,

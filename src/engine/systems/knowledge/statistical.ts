@@ -33,7 +33,7 @@ import { geometryPosterior, type GeometryPosterior } from './geometry';
 import { mixtureQuantile, type Mixture } from './mixture';
 import {
   allHypotheses,
-  blockCovarianceFactored,
+  blockCovariance,
   pruneHypotheses,
   refineSites,
   solvePosterior,
@@ -109,18 +109,44 @@ export interface AnchorSolve {
   readonly Vm: number;
   readonly coarse: CoarsePosterior;
   readonly ncShare: Mass4;
+  /**
+   * The final pass's coarse inputs (thinning a_b, R̃, E[w_b] of the final rows, pocket exclusions, pooled sample masses):
+   * the incremental path refreshes the coarse posterior with appended sieved masses on them (incremental.ts).
+   */
+  readonly coarseInputs: {
+    readonly a: Float64Array;
+    readonly rTilde: number;
+    readonly Ew: Float64Array;
+    readonly excluded: Uint8Array;
+    readonly pooled: Mass4;
+  };
   readonly confirmedOz: Float64Array;
   /** Final rows (site refinements applied) and the solve on them; sol.L factors their K. */
   readonly rows: Rows;
   readonly sol: Solve;
   readonly CG: Float64Array;
-  /** L⁻¹ Qᵀ, block-major (n × R): CG = C₀ − WᵀW. */
-  readonly W: Float64Array;
   readonly evaluatedHypotheses: number;
   readonly ground: BlockGround;
   readonly stats: BlockSampleStats;
   /** Stripped feet the geometry was solved with (the anchor's), per block. */
   readonly strippedFt: Float64Array;
+}
+
+/**
+ * A posterior over the anchor's hypotheses: the anchor's own, or the anchor with production rows appended
+ * (incremental.ts), with the coarse posterior and non-coarse shares it carries.
+ */
+export interface PosteriorSolve {
+  readonly rows: Rows;
+  readonly sol: Solve;
+  readonly CG: Float64Array;
+  readonly coarse: CoarsePosterior;
+  readonly ncShare: Mass4;
+}
+
+/** The anchor's own posterior. */
+export function anchorPosterior(an: AnchorSolve): PosteriorSolve {
+  return { rows: an.rows, sol: an.sol, CG: an.CG, coarse: an.coarse, ncShare: an.ncShare };
 }
 
 /** Per-solve summaries that do not depend on the current block state. */
@@ -178,7 +204,7 @@ function mean4(m: SizeRecord): Mass4 {
 }
 
 /** Non-coarse class shares from pooled capture-corrected masses with the prior pseudo-mass (§4.7 Size mix). */
-function ncShares(model: PriorModel, pooled: Mass4): Mass4 {
+export function ncShares(model: PriorModel, pooled: Mass4): Mass4 {
   const prior = mean4(model.sizeMixPrior);
   const ncPrior = (prior[1] as number) + (prior[2] as number) + (prior[3] as number);
   const out: Mass4 = [0, 0, 0, 0];
@@ -214,7 +240,10 @@ export function quantizeBlockState(blockState: EvidenceSet['blockState']): Ancho
   return { minedBlockIds, strippedFt };
 }
 
-function anchorStateArrays(model: PriorModel, st: AnchorBlockState): { minedFrac: Float64Array; strippedFt: Float64Array } {
+function anchorStateArrays(
+  model: PriorModel,
+  st: AnchorBlockState,
+): { minedFrac: Float64Array; strippedFt: Float64Array } {
   const n = model.n;
   const minedFrac = new Float64Array(n);
   const strippedFt = new Float64Array(n);
@@ -325,7 +354,7 @@ function groundAndStats(
 }
 
 /** Pooled capture-corrected masses with production's in-situ non-coarse masses added (size mix only, §4.4.6). */
-function pooledForSizeMix(pooled: Mass4, production: readonly PreparedProduction[]): Mass4 {
+export function pooledForSizeMix(pooled: Mass4, production: readonly PreparedProduction[]): Mass4 {
   if (production.length === 0) return pooled;
   const out: Mass4 = [pooled[0], pooled[1], pooled[2], pooled[3]];
   for (const p of production) {
@@ -404,12 +433,13 @@ export function anchorSolve(model0: PriorModel, ev: AnchorEvidence): AnchorSolve
     ncShare,
   };
   let co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded, prodCoarse);
+  let ct = coarseTerms(a, co.mr, co.vr);
   let sol = null as Solve | null;
   let rows = null as Rows | null;
   const passes = Math.max(1, P.varIterations);
   for (let pass = 0; pass < passes; pass++) {
     co = coarsePosterior(model, samples, a, rTilde, coarseMg, ncShare, pockets.excluded, prodCoarse);
-    const ct = coarseTerms(a, co.mr, co.vr);
+    ct = coarseTerms(a, co.mr, co.vr);
     rows = withProductionRows(buildRows(rowInputs, gt, ct), prodRows);
     sol = solvePosterior(model, rows, muE, Vm, co.vr, hyps);
     for (let sweep = 0; sweep < P.siteRefineSweeps; sweep++) {
@@ -436,7 +466,7 @@ export function anchorSolve(model0: PriorModel, ev: AnchorEvidence): AnchorSolve
     if (pass === 0) hyps = pruneHypotheses(sol.hyps, sol.weights, model.pruneWeight);
   }
   if (sol === null || rows === null) throw new Error('estimator: no pass ran');
-  const { CG, W } = blockCovarianceFactored(model, rows, Vm, sol);
+  const CG = blockCovariance(model, rows, Vm, sol);
   const gs = groundAndStats(model, samples);
   return {
     model,
@@ -450,11 +480,11 @@ export function anchorSolve(model0: PriorModel, ev: AnchorEvidence): AnchorSolve
     Vm,
     coarse: co,
     ncShare,
+    coarseInputs: { a, rTilde, Ew: ct.Ew, excluded: pockets.excluded, pooled: pooled.massByClass },
     confirmedOz: pockets.confirmedOz,
     rows,
     sol,
     CG,
-    W,
     evaluatedHypotheses,
     ground: gs.ground,
     stats: gs.stats,
@@ -541,8 +571,7 @@ export function productionStats(n: number, production: readonly PreparedProducti
  */
 export function stateLayer(
   an: AnchorSolve,
-  sol: Solve,
-  CG: Float64Array,
+  ps: PosteriorSolve,
   sum: SolveSummary,
   state: ContinuousState,
   assays: readonly FinenessAssay[],
@@ -551,6 +580,7 @@ export function stateLayer(
   const model = an.model;
   const P = model.params;
   const n = model.n;
+  const { sol, CG } = ps;
   const H = sol.hyps.count;
   const geo = an.geo;
   const T50 = new Float64Array(n);
@@ -612,11 +642,10 @@ export function stateLayer(
   const A = blockMeans(agg);
   const contained = summarizeSet(agg, A, new Uint8Array(n).fill(1), 1);
 
-  // Size mix (§4.7): paystreak-centre coarse share from R50, non-coarse split from pooled masses (frozen at the
-  // anchor: an appended cleanup's sieved masses wait for the next anchor, §4.5.2).
-  const R50 = exp(an.coarse.mr);
+  // Size mix (§4.7): paystreak-centre coarse share from R50, non-coarse split from pooled masses.
+  const R50 = exp(ps.coarse.mr);
   const pc = R50 / (1 + R50);
-  const ncShare = an.ncShare;
+  const ncShare = ps.ncShare;
   const sizeMixP50: SizeRecord = {
     coarse: pc,
     medium: (1 - pc) * (ncShare[1] as number),
@@ -634,7 +663,7 @@ export function stateLayer(
     geo,
     bed: an.bed,
     depl: an.depl,
-    coarse: an.coarse,
+    coarse: ps.coarse,
     fPost: sum.fPost,
     pStreak: sum.pStreak,
     pBarren: sum.pBarren,
@@ -666,8 +695,7 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
   const sum = solveSummary(an, an.sol, an.CG);
   return stateLayer(
     an,
-    an.sol,
-    an.CG,
+    anchorPosterior(an),
     sum,
     continuousState(an.model, evidence.blockState),
     evidence.assays,
