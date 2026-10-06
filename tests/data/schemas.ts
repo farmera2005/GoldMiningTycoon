@@ -499,7 +499,8 @@ export const uiConfigSchema = z
   });
 
 /** src/data/text/ui.ts (DESIGN §13.19): `group.CODE` keys to non-empty English strings. */
-export const uiTextSchema = z.record(z.string().regex(/^[a-z]+\.[A-Za-z_]+$/), z.string().min(1));
+// Keys are dotted camelCase families (`setup.NAME_EMPTY`, `quickSave.failed`), as CLAUDE.md names alert kinds and tuning keys.
+export const uiTextSchema = z.record(z.string().regex(/^[a-z][A-Za-z]*\.[A-Za-z_]+$/), z.string().min(1));
 
 /** src/data/events/hooks.ts (DESIGN §2.10, §12 12.3): unique, namespaced keys with bounds around neutral. */
 const bounds = range().optional();
