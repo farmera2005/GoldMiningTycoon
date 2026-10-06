@@ -14,8 +14,9 @@ export class AlertSignalError extends Error {
 
 /** Appends a copy of `signal` to the week's report (collated in step 16). Throws on an unknown kind. */
 export function emitAlert(ctx: Pick<StepContext, 'report'>, signal: AlertSignal): void {
-  if (!(ALERT_KINDS as readonly string[]).includes(signal.kind))
+  if (!(ALERT_KINDS as readonly string[]).includes(signal.kind)) {
     throw new AlertSignalError(`emitAlert: unknown alert kind '${signal.kind}'`);
+  }
   if (signal.severity === ('blocking' as AlertSignal['severity'])) {
     throw new AlertSignalError(
       `emitAlert: ${signal.kind} cannot be blocking; a blocking message comes from a decision`,
