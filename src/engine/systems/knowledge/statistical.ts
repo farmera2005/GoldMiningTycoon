@@ -98,7 +98,10 @@ function ncShares(model: PriorModel, pooled: Mass4): Mass4 {
   return out;
 }
 
-function blockStateArrays(model: PriorModel, evidence: EvidenceSet): {
+function blockStateArrays(
+  model: PriorModel,
+  evidence: EvidenceSet,
+): {
   minedFrac: Float64Array;
   sampledBcy: Float64Array;
   strippedFt: Float64Array;
@@ -117,7 +120,10 @@ function blockStateArrays(model: PriorModel, evidence: EvidenceSet): {
   return { minedFrac, sampledBcy, strippedFt };
 }
 
-function groundAndStats(model: PriorModel, samples: readonly PreparedSample[]): { ground: BlockGround; stats: BlockSampleStats } {
+function groundAndStats(
+  model: PriorModel,
+  samples: readonly PreparedSample[],
+): { ground: BlockGround; stats: BlockSampleStats } {
   const n = model.n;
   const P = model.params;
   const tv = P.tercileValue;
@@ -326,7 +332,9 @@ export function statisticalLayer(model0: PriorModel, evidence: EvidenceSet): Sta
       if (alive[b] !== 1) continue;
       const lg = sol.meanLnG[h * n + b] as number;
       muX[h * n + b] =
-        lg + (geo.TbyStreak[s * n + b] as number) + log(BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number));
+        lg +
+        (geo.TbyStreak[s * n + b] as number) +
+        log(BCY_PER_ACRE_FT * (model.acres[b] as number) * (fRem[b] as number));
       const f = model.streakF[s * n + b] as number;
       // A mined-out share holds no pocket either (f_rem; DESIGN §4.7 counts the whole block).
       pocketLambda[h * n + b] = f >= P.streakMinF ? pps * (missP[b] as number) * (fRem[b] as number) : 0;

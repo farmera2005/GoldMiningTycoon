@@ -62,7 +62,10 @@ export function selectionOffsets(q: number, sigma: number, removalLog: number): 
   return { worked: removalLog + d / q, passed: -d / (1 - q) };
 }
 
-function kindParams(kind: DepletionKind | 'recentCat', model: PriorModel): {
+function kindParams(
+  kind: DepletionKind | 'recentCat',
+  model: PriorModel,
+): {
   q: number;
   l: number;
   worked: number;
@@ -112,7 +115,12 @@ function normalized(pKind: Readonly<Partial<Record<OldTimerKind, number>>>): { k
  * a_b (design delta: DESIGN's a_b = 0.5 + 0.5 f̄_b ignores that old-timers took the coarse gold; on dredged ground the
  * coarse share falls from ~25% to ~9%).
  */
-export function workedCoarseMult(model: PriorModel, kind: DepletionKind | 'recentCat', bHat: number, sbHat: number): number {
+export function workedCoarseMult(
+  model: PriorModel,
+  kind: DepletionKind | 'recentCat',
+  bHat: number,
+  sbHat: number,
+): number {
   if (kind === 'recentCat') return 1;
   const D = model.params.deplete;
   let x = D.meanX[kind];
@@ -132,15 +140,25 @@ export function workedCoarseMult(model: PriorModel, kind: DepletionKind | 'recen
   const removed = depletionRemoval(mix, x, kind === 'dredge' ? D.dredgeWeights : D.handWeights, D.cap);
   const after = mix.map((v, k) => Math.max(0, v - (removed[k] as number)));
   const rBefore = (mix[0] as number) / ((mix[1] as number) + (mix[2] as number) + (mix[3] as number));
-  const rAfter = (after[0] as number) / Math.max(1e-12, (after[1] as number) + (after[2] as number) + (after[3] as number));
+  const rAfter =
+    (after[0] as number) / Math.max(1e-12, (after[1] as number) + (after[2] as number) + (after[3] as number));
   return rAfter / rBefore;
 }
 
 /** Per-block multiplier on the coarse thinning a_b from the depletion state (expected over the kind mixture). */
-export function coarseDepletionMult(model: PriorModel, depl: DepletionModel, bHat: number, sbHat: number): Float64Array {
+export function coarseDepletionMult(
+  model: PriorModel,
+  depl: DepletionModel,
+  bHat: number,
+  sbHat: number,
+): Float64Array {
   const n = model.n;
   const out = new Float64Array(n).fill(1);
-  const mults = depl.kinds.map((k) => ({ k, mult: workedCoarseMult(model, k.kind, bHat, sbHat), q: kindParams(k.kind, model).q }));
+  const mults = depl.kinds.map((k) => ({
+    k,
+    mult: workedCoarseMult(model, k.kind, bHat, sbHat),
+    q: kindParams(k.kind, model).q,
+  }));
   for (let b = 0; b < n; b++) {
     const st = depl.state[b];
     if (st === DEPL_WORKED) {
@@ -300,7 +318,8 @@ export function hypothesisPsProb(model: PriorModel, penalty: Float64Array): Floa
   if (!(tot > 0)) return out;
   for (let s = 0; s < S; s++) {
     const ws = (w[s] as number) / tot;
-    for (let b = 0; b < n; b++) if ((model.streakF[s * n + b] as number) >= model.params.streakMinF) out[b] = (out[b] as number) + ws;
+    for (let b = 0; b < n; b++)
+      if ((model.streakF[s * n + b] as number) >= model.params.streakMinF) out[b] = (out[b] as number) + ws;
   }
   return out;
 }
@@ -311,7 +330,8 @@ export function priorStreakProb(model: PriorModel): Float64Array {
   const out = new Float64Array(n);
   for (let s = 0; s < model.S; s++) {
     const w = model.streakPrior[s] as number;
-    for (let b = 0; b < n; b++) if ((model.streakF[s * n + b] as number) >= model.params.streakMinF) out[b] = (out[b] as number) + w;
+    for (let b = 0; b < n; b++)
+      if ((model.streakF[s * n + b] as number) >= model.params.streakMinF) out[b] = (out[b] as number) + w;
   }
   return out;
 }
@@ -329,7 +349,6 @@ export function streakMeans(
 ): { mu: Float64Array; removal: Float64Array; penalty: Float64Array } {
   const n = model.n;
   const S = model.S;
-  const bg = model.priors.streak.bgRatio;
   const mu = new Float64Array(S * n);
   const removal = new Float64Array(S * n);
   const penalty = new Float64Array(S);
@@ -362,7 +381,8 @@ export function streakMeans(
           o += el * k.p * k.passed;
         }
       }
-      mu[s * n + b] = log(f + (1 - f) * bg) + o;
+      // The configuration's expected log share over §3's row misfit (prior.ts), plus the old-timer offset.
+      mu[s * n + b] = (model.streakLogMean[s * n + b] as number) + o;
       removal[s * n + b] = rm;
     }
     let pen = 0;
@@ -399,7 +419,12 @@ export function streakMeans(
  * Without it the worked-block penalty alone favours wide paystreaks (they cover the worked blocks most easily) and the
  * prior overstates the gold on worked ground.
  */
-export function workedCountLogLik(model: PriorModel, depl: DepletionModel, s: number, handCutEligible: Float64Array): number {
+export function workedCountLogLik(
+  model: PriorModel,
+  depl: DepletionModel,
+  s: number,
+  handCutEligible: Float64Array,
+): number {
   const kind = depl.countKind;
   if (kind === null) return 0;
   const n = model.n;
@@ -429,7 +454,7 @@ export function workedCountLogLik(model: PriorModel, depl: DepletionModel, s: nu
   // Which W of the N: 1/C(N, W) under an exchangeable grade ranking, tempered (estWorkedSetTemper).
   const pool = kind === 'handCut' ? Math.max(nEl, W) : N;
   const lnChoose = pool > W ? lgamma(pool + 1) - lgamma(W + 1) - lgamma(pool - W + 1) : 0;
-  return -0.5 * ((W - mu) * (W - mu)) / v - 0.5 * log(v) - P.workedSetTemper * lnChoose;
+  return (-0.5 * ((W - mu) * (W - mu))) / v - 0.5 * log(v) - P.workedSetTemper * lnChoose;
 }
 
 /** Var[Z | Z > Φ⁻¹(1 − q)] for Z ~ N(0, 1): the spread left among the richest share q (upper truncation). */

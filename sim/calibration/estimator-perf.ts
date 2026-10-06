@@ -6,7 +6,14 @@
 import { baseTuning } from '../../src/data/tuning';
 import { clearAllMemos } from '../../src/engine/core/memo';
 import { formatId } from '../../src/engine/core/ids';
-import { claimPriors, claimTruth, drawContextFor, generateWorld, type Claim, type WorldSlice } from '../../src/engine/systems/world';
+import {
+  claimPriors,
+  claimTruth,
+  drawContextFor,
+  generateWorld,
+  type Claim,
+  type WorldSlice,
+} from '../../src/engine/systems/world';
 import { UNTOUCHED_BLOCK } from '../../src/engine/systems/world/sample';
 import {
   emptyEvidence,
@@ -29,7 +36,11 @@ const world = generateWorld('2013', { districtCount: 2, templateIds: ['northernF
 const h = harnessContext(world, baseTuning);
 const exec = executionParams(baseTuning);
 
-function samples(w: WorldSlice, claim: Claim, plan: readonly { idx: number; method: MethodId; volumeBcy?: number }[]): SampleRecord[] {
+function samples(
+  w: WorldSlice,
+  claim: Claim,
+  plan: readonly { idx: number; method: MethodId; volumeBcy?: number }[],
+): SampleRecord[] {
   const truth = claimTruth(w, claim.id);
   const k: Record<string, number> = {};
   return plan.map((p, i) => {
@@ -77,7 +88,11 @@ const large = held.filter((c) => c.acres === 160).slice(0, Math.max(3, Math.ceil
 const tSmall: number[] = [];
 for (const c of small) {
   const n = c.nAlong * c.nAcross;
-  const recs = samples(world, c, [...Array(20).keys()].map((i) => ({ idx: i % n, method: 'excavatorPit', volumeBcy: 5 })));
+  const recs = samples(
+    world,
+    c,
+    [...Array(20).keys()].map((i) => ({ idx: i % n, method: 'excavatorPit', volumeBcy: 5 })),
+  );
   const priors = claimPriors(world, c.id, 'held');
   clearAllMemos();
   const t0 = performance.now();
@@ -107,7 +122,11 @@ for (const c of large) {
 // (2) Economic-layer rerun: the planning price moves past a reprice step; the statistical layer is cached.
 const tEcon: number[] = [];
 for (const c of small) {
-  const recs = samples(world, c, [...Array(20).keys()].map((i) => ({ idx: i % (c.nAlong * c.nAcross), method: 'excavatorPit', volumeBcy: 5 })));
+  const recs = samples(
+    world,
+    c,
+    [...Array(20).keys()].map((i) => ({ idx: i % (c.nAlong * c.nAcross), method: 'excavatorPit', volumeBcy: 5 })),
+  );
   const priors = claimPriors(world, c.id, 'held');
   const ev = evidence(c, recs);
   estimateFromEvidence(priors, ev, planningFor(h, priors), h.ctx);
@@ -123,7 +142,13 @@ for (const c of small) {
 // (3) Amortized per game-week: 8 tracked claims, a batch of 5 pits on two of them each week, weekly price moves.
 clearAllMemos();
 const tracked = small.slice(0, 8);
-const plans = tracked.map((c) => samples(world, c, [...Array(40).keys()].map((i) => ({ idx: i % (c.nAlong * c.nAcross), method: 'excavatorPit', volumeBcy: 5 }))));
+const plans = tracked.map((c) =>
+  samples(
+    world,
+    c,
+    [...Array(40).keys()].map((i) => ({ idx: i % (c.nAlong * c.nAcross), method: 'excavatorPit', volumeBcy: 5 })),
+  ),
+);
 const have = tracked.map(() => 0);
 const weeks = 52;
 let total = 0;
@@ -134,7 +159,12 @@ for (let wk = 0; wk < weeks; wk++) {
   const t0 = performance.now();
   tracked.forEach((c, j) => {
     const priors = claimPriors(world, c.id, 'held');
-    estimateFromEvidence(priors, evidence(c, (plans[j] as SampleRecord[]).slice(0, have[j])), planningFor(h, priors), ctx);
+    estimateFromEvidence(
+      priors,
+      evidence(c, (plans[j] as SampleRecord[]).slice(0, have[j])),
+      planningFor(h, priors),
+      ctx,
+    );
   });
   total += performance.now() - t0;
 }
@@ -145,4 +175,6 @@ console.log(
   `  full solve, 160-acre claim (${largeBlocks} blocks), 60 samples, large-claim mode (${large.length} claims, ${largeHyps} hypotheses): ${stats(tLarge)}   [budget ≤ 60 ms]`,
 );
 console.log(`  economic-layer rerun (price moved, statistical layer cached): ${stats(tEcon)}   [budget ≤ 0.5 ms]`);
-console.log(`  amortized refresh, 8 tracked claims, 2 new pit batches a week, weekly price: ${(total / weeks).toFixed(2)} ms per game-week   [budget ≤ 1.5 ms]`);
+console.log(
+  `  amortized refresh, 8 tracked claims, 2 new pit batches a week, weekly price: ${(total / weeks).toFixed(2)} ms per game-week   [budget ≤ 1.5 ms]`,
+);

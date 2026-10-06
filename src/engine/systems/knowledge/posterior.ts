@@ -92,10 +92,11 @@ function signal(model: PriorModel, rows: Rows, Vm: number, vr: number, j: number
   return s;
 }
 
-/** Shared-group covariance between rows (exposure group, upper-pay profile group). */
+/** Shared-group covariance between rows (exposure group, upper-pay profile group, the claim-level sample error). */
 function groupCov(rows: Rows, j: number, k: number): number {
   const g = rows.group[j] as number;
-  return g !== 0 && rows.group[k] === g ? sqrt((rows.gv[j] as number) * (rows.gv[k] as number)) : 0;
+  const grp = g !== 0 && rows.group[k] === g ? sqrt((rows.gv[j] as number) * (rows.gv[k] as number)) : 0;
+  return grp + ((rows.blk[j] as number) >= 0 && (rows.blk[k] as number) >= 0 ? rows.common : 0);
 }
 
 /** Noise covariance: the row's own variance plus its shared group. */

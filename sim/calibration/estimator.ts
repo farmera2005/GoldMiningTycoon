@@ -28,10 +28,9 @@ function arg(name: string): string | undefined {
 }
 
 function defaultSeedBase(): number {
-  const seeds = JSON.parse(readFileSync(new URL('../../src/data/balance/seeds.json', import.meta.url), 'utf8')) as Record<
-    string,
-    number
-  >;
+  const seeds = JSON.parse(
+    readFileSync(new URL('../../src/data/balance/seeds.json', import.meta.url), 'utf8'),
+  ) as Record<string, number>;
   return seeds['p0'] ?? 1000;
 }
 
@@ -211,11 +210,20 @@ async function main(): Promise<void> {
   for (const r of results) out.push(...report(r));
   const failed = results.filter((r) => !r.pass);
   const short = results.filter((r) => r.claims < target(`${r.population}:${r.cell}`));
-  if (short.length > 0) out.push(`\nShort of quota after ${worldsUsed} worlds: ${short.map((r) => `${r.cell} (${r.claims})`).join(', ')}`);
+  if (short.length > 0)
+    out.push(`\nShort of quota after ${worldsUsed} worlds: ${short.map((r) => `${r.cell} (${r.claims})`).join(', ')}`);
   out.push(
     failed.length === 0
       ? '\nAll gated cell × mix results PASS.'
-      : `\n${failed.length} cell(s) FAIL a gated mix: ${failed.map((r) => `${r.population}:${r.cell} (${r.stages.filter((s) => s.gated && !s.pass).map((s) => s.stage).join(', ')})`).join('; ')}`,
+      : `\n${failed.length} cell(s) FAIL a gated mix: ${failed
+          .map(
+            (r) =>
+              `${r.population}:${r.cell} (${r.stages
+                .filter((s) => s.gated && !s.pass)
+                .map((s) => s.stage)
+                .join(', ')})`,
+          )
+          .join('; ')}`,
   );
   console.log(out.join('\n'));
   const json = arg('json');

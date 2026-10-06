@@ -136,7 +136,8 @@ export function geometryPosterior(
     uT[b] = sqrt((tg * tg * g.paySigClaim * g.paySigClaim + sdB * sdB) / (T50 * T50));
     tbT[b] = (tg * tg * (g.paySigBlock * g.paySigBlock + sf * sf)) / (T50 * T50);
     uD[b] = sqrt((ob * ob * g.obSigClaim * g.obSigClaim + tg * tg * g.paySigClaim * g.paySigClaim) / (D50 * D50));
-    tbD[b] = (ob * ob * g.obSigBlock * g.obSigBlock + tg * tg * (g.paySigBlock * g.paySigBlock + sf * sf)) / (D50 * D50);
+    tbD[b] =
+      (ob * ob * g.obSigBlock * g.obSigBlock + tg * tg * (g.paySigBlock * g.paySigBlock + sf * sf)) / (D50 * D50);
   }
 
   // T observations: bedrock-logged samples log Tg with the method's thickCv (§4.6 table).
@@ -145,7 +146,7 @@ export function geometryPosterior(
     const tgObs = s.rec.observed.payThicknessFt;
     if (s.interval !== 'fullColumn' || tgObs === undefined || !(tgObs > 0)) continue;
     const T = tgObs + bHat;
-    const v = ((tgObs / T) * (tgObs / T)) * log(1 + s.thickCv * s.thickCv) + (sdB / T) * (sdB / T);
+    const v = (tgObs / T) * (tgObs / T) * log(1 + s.thickCv * s.thickCv) + (sdB / T) * (sdB / T);
     addObs(accT, s.b, log(T), v);
   }
   const T = solveField(muT, uT, tbT, accT);
@@ -165,7 +166,7 @@ export function geometryPosterior(
     const tg = Math.max(0.5, Tc - bHat);
     const Dv = ob + tg;
     const vT = T.varDiag[s.b] as number;
-    const v = ((ob * s.geomCv) * (ob * s.geomCv) + tg * tg * vT * ((Tc / tg) * (Tc / tg))) / (Dv * Dv);
+    const v = (ob * s.geomCv * (ob * s.geomCv) + tg * tg * vT * ((Tc / tg) * (Tc / tg))) / (Dv * Dv);
     addObs(accD, s.b, log(Dv), v);
   }
   let D = solveField(muD, uD, tbD, accD);

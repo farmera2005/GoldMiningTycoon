@@ -204,17 +204,27 @@ export function pooledMasses(samples: readonly PreparedSample[]): PooledMasses {
  * split by colours_c × μ_c (§4.4.3) with the estimated coarse particle mass. No colours: all non-coarse, split by
  * the current non-coarse shares.
  */
-export function classMasses(s: PreparedSample, coarseMeanMg: number, ncShare: Mass4, particleMeanMg: readonly number[]): Mass4 {
+export function classMasses(
+  s: PreparedSample,
+  coarseMeanMg: number,
+  ncShare: Mass4,
+  particleMeanMg: readonly number[],
+): Mass4 {
   if (s.massMg !== null) return s.massMg;
   const mu = [coarseMeanMg, particleMeanMg[0] as number, particleMeanMg[1] as number, particleMeanMg[2] as number];
   let den = 0;
   for (let k = 0; k < 4; k++) den += (s.colours[k] as number) * (mu[k] as number);
   const total = s.rec.recoveredMg;
-  if (!(den > 0)) return [0, total * (ncShare[1] as number), total * (ncShare[2] as number), total * (ncShare[3] as number)];
+  if (!(den > 0))
+    return [0, total * (ncShare[1] as number), total * (ncShare[2] as number), total * (ncShare[3] as number)];
   return [0, 1, 2, 3].map((k) => (total * (s.colours[k] as number) * (mu[k] as number)) / den) as Mass4;
 }
 
 /** Capture-corrected non-coarse mass Σ_{c≠coarse} M_c / cap_c (§4.4.3). */
 export function nonCoarseMass(m: Mass4, cap: Mass4): number {
-  return (m[1] as number) / (cap[1] as number) + (m[2] as number) / (cap[2] as number) + (m[3] as number) / (cap[3] as number);
+  return (
+    (m[1] as number) / (cap[1] as number) +
+    (m[2] as number) / (cap[2] as number) +
+    (m[3] as number) / (cap[3] as number)
+  );
 }

@@ -380,8 +380,8 @@ export const geologyTuning = {
 
   // ---- Estimator: prior and paystreak hypotheses (§4.5.1)
   // Calibration valve per template: tune so median ln(P50/truth) at the prior stays within ±0.10. P0 calibration
-  // (1,000 claims per cell, seed base 1000): north 0 → +0.03, arid 0 → −0.02 centre the visible cells.
-  'geology.estPriorMedianAdj': { northernFederal: 0.03, aridFederal: -0.02 },
+  // (1,000 claims per cell, seed base 1000): north 0 → +0.05, arid 0 → −0.02 centre the visible cells.
+  'geology.estPriorMedianAdj': { northernFederal: 0.05, aridFederal: -0.02 },
   'geology.estStreakResidLogSd': 0.35,
   'geology.estStreakNodes': 9,
   'geology.estStreakHwNodes': 3,
@@ -390,6 +390,11 @@ export const geologyTuning = {
   'geology.estHypPruneWeightLarge': 1e-3,
   'geology.estStreakRangeAlongFt': 2000,
   'geology.estHypPruneWeight': 1e-4,
+  // (P0 addition, design delta) §3 draws the paystreak centre and half-width row by row (AR(1), §3.5.2), while a
+  // configuration is a straight centre line and one half-width. The prior takes the expected log grade and its variance
+  // over the rows' misfit (the centre's spread between the end nodes, the half-width's spread about the claim's) from
+  // §3's own constants; this scales that variance (0 turns it off). It matters on long claims (160-acre: 40 rows).
+  'geology.estStreakMisfitScale': 0.5,
   // (P0 addition, design delta) Old-timers worked only paystreak blocks (§3.6), so a hypothesis that puts a known
   // worked block off the paystreak keeps this likelihood factor per such block. Soft, because §3's paystreak wanders
   // and changes width row by row while a configuration is rigid (centre linear along the claim, one half-width): at
@@ -407,6 +412,10 @@ export const geologyTuning = {
   // ---- Estimator: measurement model (§4.4)
   // Calibration floor: tune so P10–P90 coverage stays 0.72–0.88.
   'geology.estModelErrorLogSd': 0.1,
+  // (P0 addition, design delta) Calibration floor shared by every sample row of a claim (a claim-level systematic
+  // error: capture, position profile, lab), so many samples cannot pin a claim tighter than the model is right. Without
+  // it a 160-block pit grid held truth in only 0.66 of P10–P90 bands. Tune with estModelErrorLogSd.
+  'geology.estClaimSharedLogSd': 0.05,
   'geology.estPosFullLogSd': 0.1,
   'geology.estPosUpperExtraLogSd': 0.15,
   'geology.estExposureLambdaLogSd': 0.25,

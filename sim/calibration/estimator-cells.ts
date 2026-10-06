@@ -60,7 +60,11 @@ export function heldCells(world: WorldSlice, claim: Claim): string[] {
   const t = templateShort(d.templateId);
   if (claim.acres === 160) return [`${t}.160ac`];
   if (claim.acres > 40) return [];
-  const cells = [`${t}.${claim.setting}`, `${t}.${visibleWorkingsCell(world, claim)}`, `${t}.ot.${claim.hidden.oldTimerKind}`];
+  const cells = [
+    `${t}.${claim.setting}`,
+    `${t}.${visibleWorkingsCell(world, claim)}`,
+    `${t}.ot.${claim.hidden.oldTimerKind}`,
+  ];
   if (claim.hidden.depositType === 'deepMuck') cells.push(`${t}.deepMuck`);
   return cells;
 }
@@ -213,7 +217,14 @@ export function cellResult(acc: CellAcc, stages: readonly Stage[]): CellResult {
     teeth = { delta, pass: Math.abs(delta - TEETH.target) <= TEETH.tol };
   }
   const pass = rs.every((r) => r.pass || !r.gated) && (teeth === undefined || teeth.pass);
-  return { cell: acc.cell, population: acc.population, claims: acc.claims, stages: rs, ...(teeth !== undefined ? { teeth } : {}), pass };
+  return {
+    cell: acc.cell,
+    population: acc.population,
+    claims: acc.claims,
+    stages: rs,
+    ...(teeth !== undefined ? { teeth } : {}),
+    pass,
+  };
 }
 
 export type { ClaimId };

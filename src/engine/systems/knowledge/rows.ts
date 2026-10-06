@@ -30,7 +30,14 @@ export interface Position {
   readonly shared: number;
 }
 
-export function blockProfile(model: PriorModel, geo: GeometryPosterior, depl: DepletionModel, sbHat: number, b: number, lnT: number): VerticalProfile {
+export function blockProfile(
+  model: PriorModel,
+  geo: GeometryPosterior,
+  depl: DepletionModel,
+  sbHat: number,
+  b: number,
+  lnT: number,
+): VerticalProfile {
   const Tc = exp(lnT);
   const B = geo.bHat;
   return {
@@ -136,6 +143,8 @@ export interface Rows {
   /** Shared error group: 0 none, 1 the claim's exposure group, 2 the claim's upper-pay profile group. */
   readonly group: Int8Array;
   readonly gv: Float64Array;
+  /** Variance of the claim-level error every sample row shares (estClaimSharedLogSd²). */
+  readonly common: number;
   readonly info: readonly (RowInfo | null)[];
 }
 
@@ -233,7 +242,8 @@ export function compositeObservation(
   const lG = log(gt);
   const lgObs = log(ghat);
   const lnLM = log((1 + cvL) * (1 + cvM));
-  const vOther = lnLM + vpos + K.modelErrorLogSd * K.modelErrorLogSd + pb * pb * K.coarseBlockLogSd * K.coarseBlockLogSd;
+  const vOther =
+    lnLM + vpos + K.modelErrorLogSd * K.modelErrorLogSd + pb * pb * K.coarseBlockLogSd * K.coarseBlockLogSd;
   return {
     y: lG + (lgObs - lG - sc.b) / sc.beta + 0.5 * lnLM + Ew,
     v: sc.v / (sc.beta * sc.beta) + vOther,
@@ -325,7 +335,8 @@ export function pocketHits(
 /** The creek-history row on m (§4.5.2): y = ln(histOz/histBcy) − ln historicGradeRatio + (M − ln gMed). */
 function recordsRow(model: PriorModel, records: readonly RecordFinding[]): RowDraft | null {
   let hist: RecordFinding | null = null;
-  for (const r of records) if (r.item === 'creekHistory' && (r.payload.histOz ?? 0) > 0 && (r.payload.histBcy ?? 0) > 0) hist = r;
+  for (const r of records)
+    if (r.item === 'creekHistory' && (r.payload.histOz ?? 0) > 0 && (r.payload.histBcy ?? 0) > 0) hist = r;
   if (hist === null) return null;
   const P = model.params;
   const s = model.priors.sigma;
@@ -366,19 +377,19 @@ export function buildRows(inp: RowInputs, gt: Float64Array, ct: CoarseTerms): Ro
     const pos = inp.positions[k];
     if (pos === null || pos === undefined || inp.excluded[k] === 1 || !s.reachedPay || !(s.V > 0)) return;
     const item = { s, pos, mass: inp.masses[k] as Mass4 };
-    if (s.interval === 'exposure') (exp_[s.b] as typeof nonExp[number]).push(item);
-    else (nonExp[s.b] as typeof nonExp[number]).push(item);
+    if (s.interval === 'exposure') (exp_[s.b] as (typeof nonExp)[number]).push(item);
+    else (nonExp[s.b] as (typeof nonExp)[number]).push(item);
   });
   const drafts: RowDraft[] = [];
   for (let b = 0; b < n; b++) {
-    const list = nonExp[b] as typeof nonExp[number];
+    const list = nonExp[b] as (typeof nonExp)[number];
     if (list.length > 0) {
       const r = composite(inp.model, inp.geo, list, b, gt[b] as number, ct, inp.ncShare);
       if (r !== null) drafts.push(r);
     }
   }
   for (let b = 0; b < n; b++) {
-    const list = exp_[b] as typeof nonExp[number];
+    const list = exp_[b] as (typeof nonExp)[number];
     if (list.length > 0) {
       const r = composite(inp.model, inp.geo, list, b, gt[b] as number, ct, inp.ncShare);
       if (r !== null) drafts.push({ ...r, group: 1 });
@@ -395,6 +406,7 @@ export function buildRows(inp: RowInputs, gt: Float64Array, ct: CoarseTerms): Ro
     v: new Float64Array(R),
     group: new Int8Array(R),
     gv: new Float64Array(R),
+    common: inp.model.params.claimSharedLogSd * inp.model.params.claimSharedLogSd,
     info: drafts.map((d) => d.info),
   };
   drafts.forEach((d, j) => {

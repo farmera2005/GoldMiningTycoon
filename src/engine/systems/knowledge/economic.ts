@@ -45,7 +45,11 @@ export function planningPrice(planning: PlanningAssumptions, ctx: PlanningContex
 }
 
 /** The default planning case of a climate band (§4.7: north wash 12.00 / strip 2.50, arid 14.00 / 2.20), × cpiIndex. */
-export function defaultPlanning(params: EstimatorParams, band: keyof EstimatorParams['planWashUsd'], cpiIndex = 1): PlanningAssumptions {
+export function defaultPlanning(
+  params: EstimatorParams,
+  band: keyof EstimatorParams['planWashUsd'],
+  cpiIndex = 1,
+): PlanningAssumptions {
   const wash = params.planWashUsd[band];
   const strip = params.planStripUsd[band];
   if (wash === undefined || strip === undefined) throw new RangeError(`no planning costs for climate band ${band}`);
@@ -96,8 +100,12 @@ export function economicLayer(stat: StatLayer, planning: PlanningAssumptions, ct
     const fr = stat.ground.frozen[b] as number;
     const groundStrip = 1 + g.stripFrozen * fr + g.stripCement * (stat.ground.cement[b] as number);
     const groundWash =
-      1 + g.washBoulders * (stat.ground.boulders[b] as number) + g.washClay * (stat.ground.clay[b] as number) + g.washFrozen * fr;
-    const cost = planning.mineWashUsdPerPayBcy * groundWash + planning.stripUsdPerBcy * groundStrip * (strip50[b] as number);
+      1 +
+      g.washBoulders * (stat.ground.boulders[b] as number) +
+      g.washClay * (stat.ground.clay[b] as number) +
+      g.washFrozen * fr;
+    const cost =
+      planning.mineWashUsdPerPayBcy * groundWash + planning.stripUsdPerBcy * groundStrip * (strip50[b] as number);
     const rec =
       planning.recovery === 'auto'
         ? recoveryOf(stat.sizeMixP50, ctx.recoveryBySize, stat.ground.clay[b] as number, g.recClay)
@@ -135,7 +143,9 @@ export function economicLayer(stat: StatLayer, planning: PlanningAssumptions, ct
   const rec = payA > 0 ? recW / payA : 0;
   const remPay = (() => {
     let s = 0;
-    for (let b = 0; b < n; b++) if (!any || minable[b] === 1) s += (stat.T50[b] as number) * (model.acres[b] as number) * (stat.fRem[b] as number);
+    for (let b = 0; b < n; b++)
+      if (!any || minable[b] === 1)
+        s += (stat.T50[b] as number) * (model.acres[b] as number) * (stat.fRem[b] as number);
     return s;
   })();
   const minableBcy = bcy * (1 + planning.dilutionFrac) * (1 - loss);

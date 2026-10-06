@@ -373,7 +373,14 @@ export const prospectingMethods = {
     credited: false,
     // Winter drilling: × geology.winterDrillRateMult on rate, × winterDrillCostMult on cost.
     seasonMult: { winter: 0.8, breakup: 0, operating: 1.0, freezeup: 1.0 },
-    contractor: { rateUsdPerUnit: 150, unitsPerDay: 175, mobUsd: 40000, standbyUsdPerDay: 3500, minUnits: 500, bouldersSlow: 0.2 },
+    contractor: {
+      rateUsdPerUnit: 150,
+      unitsPerDay: 175,
+      mobUsd: 40000,
+      standbyUsdPerDay: 3500,
+      minUnits: 500,
+      bouldersSlow: 0.2,
+    },
     disturbanceAcPerUnit: 0.01,
     backfilled: true,
     resultLagWeeks: 2,
@@ -409,7 +416,14 @@ export const prospectingMethods = {
     requiresGeologist: true,
     credited: false,
     seasonMult: { winter: 0.8, breakup: 0, operating: 1.0, freezeup: 1.0 },
-    contractor: { rateUsdPerUnit: 75, unitsPerDay: 400, mobUsd: 30000, standbyUsdPerDay: 2500, minUnits: 500, bouldersSlow: 0.5 },
+    contractor: {
+      rateUsdPerUnit: 75,
+      unitsPerDay: 400,
+      mobUsd: 30000,
+      standbyUsdPerDay: 2500,
+      minUnits: 500,
+      bouldersSlow: 0.5,
+    },
     disturbanceAcPerUnit: 0.01,
     backfilled: true,
     resultLagWeeks: 2,
@@ -458,5 +472,10 @@ export const prospectingMethods = {
 } as const satisfies Record<MethodId, SamplingMethodSpec>;
 
 /** Geophysics measurement (§4.2.B): depth-to-bedrock log-sd by tool. */
-export const geophysicsDepthCv = { seismic: 0.15, gprGood: 0.12, gprPoor: 0.3, gprGoodMaxDepthFt: 30, maxDepthFt: 150 } as const;
-
+export const geophysicsDepthCv = {
+  seismic: 0.15,
+  gprGood: 0.12,
+  gprPoor: 0.3,
+  gprGoodMaxDepthFt: 30,
+  maxDepthFt: 150,
+} as const;

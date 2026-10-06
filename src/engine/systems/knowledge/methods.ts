@@ -32,7 +32,11 @@ export function samplerCaptureMult(kind: LoggedBy['kind'], r: LoggingRules): num
 export function effectiveDrawParams(
   draw: SampleMethodParams,
   nm: number,
-  opts: { readonly maxDepthFt?: number | null; readonly bedrockPenFt?: number; readonly drillerNoiseMult?: number } = {},
+  opts: {
+    readonly maxDepthFt?: number | null;
+    readonly bedrockPenFt?: number;
+    readonly drillerNoiseMult?: number;
+  } = {},
 ): SampleMethodParams {
   const dn = opts.drillerNoiseMult ?? 1;
   return {

@@ -65,6 +65,10 @@ export interface TemplateConsts {
   readonly climateBand: ClimateBand;
   readonly gMed: number;
   readonly stakedFraction: number;
+  /** §3.2 deposit mix, grade multipliers and old-timer odds: the hidden deposit type behind a visible setting. */
+  readonly depositMix: Readonly<Partial<Record<DepositType, number>>>;
+  readonly depositGradeMult: Readonly<Partial<Record<DepositType, number>>>;
+  readonly oldTimerMix: Readonly<Partial<Record<DepositType, Readonly<Partial<Record<OldTimerKind, number>>>>>>;
   readonly clayMed: number;
   readonly boulderMed: number;
   readonly cementMed: Readonly<Partial<Record<DepositType, number>>>;
@@ -120,7 +124,12 @@ export interface EstimatorParams {
   readonly hypPruneWeight: number;
   readonly hypPruneWeightLarge: number;
   readonly streakRangeAlongFt: number;
+  /** §3.5.2 row processes the configurations approximate: centre wander and half-width AR(1) ranges, ft. */
+  readonly wanderRangeFt: number;
+  readonly halfWidthRangeFt: number;
+  readonly streakMisfitScale: number;
   readonly modelErrorLogSd: number;
+  readonly claimSharedLogSd: number;
   readonly posFullLogSd: number;
   readonly posUpperExtraLogSd: number;
   readonly exposureLambdaLogSd: number;
@@ -155,7 +164,10 @@ export interface EstimatorParams {
   readonly workedOffStreakLik: number;
   /** §3.6 worked share of the paystreak blocks by kind: U(lo, hi) × N, each block worked with probability p. */
   readonly workedCount: Readonly<
-    Record<'drift' | 'handCut' | 'dryWash' | 'recentCat', { readonly lo: number; readonly hi: number; readonly p: number }>
+    Record<
+      'drift' | 'handCut' | 'dryWash' | 'recentCat',
+      { readonly lo: number; readonly hi: number; readonly p: number }
+    >
   >;
   readonly workedCountSlackBlocks: number;
   readonly workedSetTemper: number;
@@ -234,6 +246,14 @@ function smallCountRows(t: TuningResolved): SmallCountRow[] {
   return rows;
 }
 
+function gradeMults(
+  dm: Readonly<Record<DepositType, { readonly grade: number }>>,
+): Partial<Record<DepositType, number>> {
+  const out: Partial<Record<DepositType, number>> = {};
+  for (const d of ['creek', 'bench', 'deepMuck', 'dredgedGround', 'desertFan', 'gulch'] as const) out[d] = dm[d].grade;
+  return out;
+}
+
 function mid(r: readonly [number, number]): number {
   return (r[0] + r[1]) / 2;
 }
@@ -250,6 +270,9 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
         climateBand: tpl.climateBand,
         gMed: tpl.gMed,
         stakedFraction: tpl.stakedFraction,
+        depositMix: tpl.depositMix,
+        depositGradeMult: gradeMults(tpl.depositMult),
+        oldTimerMix: tpl.oldTimerMix,
         clayMed: tpl.clayMed,
         boulderMed: tpl.boulderMed,
         cementMed: tpl.cementMed,
@@ -319,7 +342,11 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     hypPruneWeight: num(t, 'geology.estHypPruneWeight'),
     hypPruneWeightLarge: num(t, 'geology.estHypPruneWeightLarge'),
     streakRangeAlongFt: num(t, 'geology.estStreakRangeAlongFt'),
+    wanderRangeFt: gp.grade.wanderRangeFt,
+    halfWidthRangeFt: gp.grade.halfWidthRangeFt,
+    streakMisfitScale: num(t, 'geology.estStreakMisfitScale'),
     modelErrorLogSd: num(t, 'geology.estModelErrorLogSd'),
+    claimSharedLogSd: num(t, 'geology.estClaimSharedLogSd'),
     posFullLogSd: num(t, 'geology.estPosFullLogSd'),
     posUpperExtraLogSd: num(t, 'geology.estPosUpperExtraLogSd'),
     exposureLambdaLogSd: num(t, 'geology.estExposureLambdaLogSd'),
@@ -358,7 +385,11 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     removalLog: kindTable(t, 'geology.recordsRemovalLog'),
     workedOffStreakLik: num(t, 'geology.estWorkedOffStreakLik'),
     workedCount: {
-      drift: { lo: gp.oldTimer.kinds.drift.top[0], hi: gp.oldTimer.kinds.drift.top[1], p: gp.oldTimer.kinds.drift.workP },
+      drift: {
+        lo: gp.oldTimer.kinds.drift.top[0],
+        hi: gp.oldTimer.kinds.drift.top[1],
+        p: gp.oldTimer.kinds.drift.workP,
+      },
       handCut: { lo: gp.oldTimer.kinds.handCut.top, hi: gp.oldTimer.kinds.handCut.top, p: 1 },
       dryWash: { lo: gp.oldTimer.kinds.dryWash.top, hi: gp.oldTimer.kinds.dryWash.top, p: 1 },
       recentCat: { lo: recent[0], hi: recent[1], p: 1 },

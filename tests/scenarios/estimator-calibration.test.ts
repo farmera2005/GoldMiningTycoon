@@ -73,7 +73,10 @@ describe(`estimator calibration on §3's engine generator (${CLAIMS} claims per 
           Math.abs(s.medianBias) <= BANDS.biasAbs &&
           s.zSd >= BANDS.zsdLo &&
           s.zSd <= BANDS.zsdHi;
-        if (!ok) failed.push(`${c} ${s.stage}: cover ${s.coverage.toFixed(3)} bias ${s.medianBias.toFixed(3)} z sd ${s.zSd.toFixed(2)}`);
+        if (!ok)
+          failed.push(
+            `${c} ${s.stage}: cover ${s.coverage.toFixed(3)} bias ${s.medianBias.toFixed(3)} z sd ${s.zSd.toFixed(2)}`,
+          );
       }
     }
     expect(failed).toEqual([]);

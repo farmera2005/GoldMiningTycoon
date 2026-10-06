@@ -50,7 +50,11 @@ const northCreek = claimsWhere(
 interface Sampler {
   readonly claim: Claim;
   readonly records: SampleRecord[];
-  sample(idx: number, methodId: MethodId, extra?: { volumeBcy?: number; machineReachFt?: number; k?: number }): SampleRecord;
+  sample(
+    idx: number,
+    methodId: MethodId,
+    extra?: { volumeBcy?: number; machineReachFt?: number; k?: number },
+  ): SampleRecord;
 }
 
 /** Executes samples on one claim with fresh block states and per-block, per-method draw indices (§4.3). */
@@ -149,21 +153,33 @@ describe('no truth leakage (§4.22)', () => {
   // Rotate every hidden field across claims, creeks and districts: what the estimator sees must not move.
   const rot = <T>(xs: readonly T[], k: number): T[] => xs.map((_, i) => xs[(i + k) % xs.length] as T);
   const ids = world.claimIds;
-  const hiddenRot = rot(ids.map((id) => (world.claims[id] as Claim).hidden), 7);
+  const hiddenRot = rot(
+    ids.map((id) => (world.claims[id] as Claim).hidden),
+    7,
+  );
   const claims = Object.fromEntries(ids.map((id, i) => [id, { ...(world.claims[id] as Claim), hidden: hiddenRot[i] }]));
   const creekIds = Object.keys(world.creeks) as (keyof typeof world.creeks)[];
-  const creekHidden = rot(creekIds.map((id) => world.creeks[id]?.hidden), 3);
+  const creekHidden = rot(
+    creekIds.map((id) => world.creeks[id]?.hidden),
+    3,
+  );
   const creeks = Object.fromEntries(creekIds.map((id, i) => [id, { ...world.creeks[id], hidden: creekHidden[i] }]));
   const districts = Object.fromEntries(
     world.districtIds.map((id, i) => [
       id,
-      { ...world.districts[id], hidden: world.districts[world.districtIds[(i + 1) % world.districtIds.length] as typeof id]?.hidden },
+      {
+        ...world.districts[id],
+        hidden: world.districts[world.districtIds[(i + 1) % world.districtIds.length] as typeof id]?.hidden,
+      },
     ]),
   );
   const scrambled = { ...world, claims, creeks, districts } as unknown as WorldSlice;
 
   it('leaves claimPriors and estimateFromEvidence unchanged', () => {
-    const sample = [...northCreek.slice(0, 3), ...claimsWhere((c) => templateOf(world, c) === 'aridFederal').slice(0, 3)];
+    const sample = [
+      ...northCreek.slice(0, 3),
+      ...claimsWhere((c) => templateOf(world, c) === 'aridFederal').slice(0, 3),
+    ];
     for (const claim of sample) {
       for (const status of ['held', 'listed'] as const) {
         const p0 = claimPriors(world, claim.id, status);
@@ -291,7 +307,8 @@ describe('§4 keys never reach the generator (world hash)', () => {
   it('perturbing every §4 estimator key leaves the generated world bit-identical', () => {
     const perturbed: Record<string, unknown> = { ...baseTuning };
     for (const key of Object.keys(baseTuning)) {
-      if (!key.startsWith('geology.est') && !key.startsWith('geology.records') && !key.startsWith('geology.conf')) continue;
+      if (!key.startsWith('geology.est') && !key.startsWith('geology.records') && !key.startsWith('geology.conf'))
+        continue;
       if (key.startsWith('geology.records.')) continue; // §3's public-record keys (dotted) belong to the generator
       const v = (baseTuning as Record<string, unknown>)[key];
       if (typeof v === 'number') perturbed[key] = v * 1.37 + 0.011;

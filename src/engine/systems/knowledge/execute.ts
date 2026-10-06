@@ -234,9 +234,7 @@ export function executeSample(
   const volumeBcy = round(result.volumeMeasuredBcy, 3);
   const cap = draw.captureBySize;
   const nc =
-    massMg === null
-      ? 0
-      : massMg.medium / cap.medium + massMg.fine / cap.fine + massMg.ultrafine / cap.ultrafine;
+    massMg === null ? 0 : massMg.medium / cap.medium + massMg.fine / cap.fine + massMg.ultrafine / cap.ultrafine;
   const flags: SampleFlag[] = [];
   if (inSitu && !bedrockLogged && interval !== 'exposure') flags.push('shortOfBedrock');
   if (!(recoveredMg > 0)) flags.push('blank');

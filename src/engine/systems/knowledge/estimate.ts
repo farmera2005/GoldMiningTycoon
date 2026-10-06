@@ -30,7 +30,11 @@ const statMemo = createMemo<string, StatLayer>('knowledge.statLayer', 256);
 const estimateMemo = createMemo<string, EstimateResult>('knowledge.estimate', 512);
 
 /** The statistical layer, memoized by content (no prices or planning in it). */
-export function statisticalEstimate(priors: ClaimPriors, evidence: EvidenceSet, params: EstimatorParams): {
+export function statisticalEstimate(
+  priors: ClaimPriors,
+  evidence: EvidenceSet,
+  params: EstimatorParams,
+): {
   key: string;
   evidenceHash: string;
   stat: StatLayer;
@@ -56,7 +60,12 @@ export function estimateFromEvidence(
   return estimateMemo.getOrCompute(ekey, () => buildEstimate(stat, eh, planning, ctx));
 }
 
-function buildEstimate(stat: StatLayer, eh: string, planning: PlanningAssumptions, ctx: EstimateContext): EstimateResult {
+function buildEstimate(
+  stat: StatLayer,
+  eh: string,
+  planning: PlanningAssumptions,
+  ctx: EstimateContext,
+): EstimateResult {
   const econ = economicLayer(stat, planning, ctx);
   const conf = confidence(stat, econ);
   const m = stat.model;

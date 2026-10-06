@@ -37,7 +37,8 @@ export function tuningFrom(file: string | undefined): TuningResolved {
   if (file !== undefined) {
     const overrides = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
     for (const key of Object.keys(overrides)) {
-      if (!Object.prototype.hasOwnProperty.call(baseTuning, key)) throw new Error(`--tuning: unknown tuning key ${key}`);
+      if (!Object.prototype.hasOwnProperty.call(baseTuning, key))
+        throw new Error(`--tuning: unknown tuning key ${key}`);
     }
     tuning = { ...baseTuning, ...overrides } as TuningResolved;
   }
@@ -59,7 +60,8 @@ export function runWorld(task: WorldTask): WorldResult {
     if (claim.status !== 'heldNpc') continue;
     if (task.populations.includes('held')) {
       const cells = heldCells(world, claim).filter((c) => open.has(`held:${c}`));
-      if (cells.length > 0) results.push({ population: 'held', cells, run: runClaim(world, id, seed, h, 'held', task.stages) });
+      if (cells.length > 0)
+        results.push({ population: 'held', cells, run: runClaim(world, id, seed, h, 'held', task.stages) });
     }
     if (task.populations.includes('listed')) {
       const cell = listedCell(world, claim);

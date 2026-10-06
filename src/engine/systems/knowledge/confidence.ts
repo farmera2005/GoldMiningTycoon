@@ -52,7 +52,10 @@ function failingGates(g: GateValues, c: Conf): { cls: ConfidenceClass; gate: str
 }
 
 /** classify(gates): the highest class whose gates and every lower class's gates pass. */
-export function classifyConfidence(g: GateValues, c: Conf): { cls: ConfidenceClass; failing: { cls: ConfidenceClass; gate: string }[] } {
+export function classifyConfidence(
+  g: GateValues,
+  c: Conf,
+): { cls: ConfidenceClass; failing: { cls: ConfidenceClass; gate: string }[] } {
   const failing = failingGates(g, c);
   const fails = (cls: ConfidenceClass): boolean => failing.some((f) => f.cls === cls);
   let cls: ConfidenceClass = 'speculative';
@@ -106,7 +109,8 @@ export function confidence(stat: StatLayer, econ: EconLayer): ConfidenceResult {
   for (let b = 0; b < n; b++) if (econ.blocks.minable[b] === 1) F.push(b);
   let belowCutoff = false;
   if (F.length === 0) {
-    for (let b = 0; b < n; b++) if ((stat.gradeQ.p90[b] as number) >= (econ.blocks.cutoff[b] as number) && stat.agg.alive[b] === 1) F.push(b);
+    for (let b = 0; b < n; b++)
+      if ((stat.gradeQ.p90[b] as number) >= (econ.blocks.cutoff[b] as number) && stat.agg.alive[b] === 1) F.push(b);
   }
   if (F.length === 0) {
     belowCutoff = true;

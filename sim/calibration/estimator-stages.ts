@@ -173,7 +173,11 @@ class ClaimSim {
     return b.state.minedBcy >= pay - 1e-6;
   }
 
-  sample(idx: number, methodId: MethodId, extra: { volumeBcy?: number; machineReachFt?: number; bedrockPenFt?: number } = {}): SampleRecord {
+  sample(
+    idx: number,
+    methodId: MethodId,
+    extra: { volumeBcy?: number; machineReachFt?: number; bedrockPenFt?: number } = {},
+  ): SampleRecord {
     const b = this.blocks[idx] as BlockSim;
     const key = `${b.blockId}|${methodId}`;
     const k = this.drawIndex[key] ?? 0;
@@ -222,7 +226,8 @@ function pitZ(stat: ReturnType<typeof statisticalEstimate>['stat'], b: number, x
   const H = stat.hyps.count;
   const sd = Math.sqrt(Math.max(stat.CG[b * n + b] as number, 1e-12));
   let F = 0;
-  for (let h = 0; h < H; h++) F += (stat.weights[h] as number) * normCdf((x - (stat.meanLnG[h * n + b] as number)) / sd);
+  for (let h = 0; h < H; h++)
+    F += (stat.weights[h] as number) * normCdf((x - (stat.meanLnG[h * n + b] as number)) / sd);
   const p = Math.min(1 - 1e-12, Math.max(1e-12, F));
   return normInv(p);
 }
@@ -335,16 +340,21 @@ export function runClaim(
   const channel: number[] = [];
   for (let i = 0; i < n; i++) if (claim.env.surfaceCodes[i] === 'c' && !sim.mined(i)) channel.push(i);
   const panTargets = channel.length > 0 ? channel : [...Array(n).keys()].filter((i) => !sim.mined(i));
-  for (let k = 0; k < PAN_STATIONS && panTargets.length > 0; k++) sim.sample(panTargets[k % panTargets.length] as number, 'pan');
+  for (let k = 0; k < PAN_STATIONS && panTargets.length > 0; k++)
+    sim.sample(panTargets[k % panTargets.length] as number, 'pan');
   const pans = sim.samples.slice();
   maybe('pans', [...recSamples, ...pans], records);
   const afterPans = sim.snapshot();
 
   // Pit fences on every other row, then the rest of the grid (5-bcy pits, 22-ft reach).
   const rowOf = (i: number): number => Math.floor(i / claim.nAcross);
-  for (let i = 0; i < n; i++) if (rowOf(i) % 2 === 1 && !sim.mined(i)) sim.sample(i, 'excavatorPit', { volumeBcy: PIT_BCY, machineReachFt: CAL_REACH_FT });
+  for (let i = 0; i < n; i++)
+    if (rowOf(i) % 2 === 1 && !sim.mined(i))
+      sim.sample(i, 'excavatorPit', { volumeBcy: PIT_BCY, machineReachFt: CAL_REACH_FT });
   maybe('pitFences', [...recSamples, ...sim.samples], records);
-  for (let i = 0; i < n; i++) if (rowOf(i) % 2 === 0 && !sim.mined(i)) sim.sample(i, 'excavatorPit', { volumeBcy: PIT_BCY, machineReachFt: CAL_REACH_FT });
+  for (let i = 0; i < n; i++)
+    if (rowOf(i) % 2 === 0 && !sim.mined(i))
+      sim.sample(i, 'excavatorPit', { volumeBcy: PIT_BCY, machineReachFt: CAL_REACH_FT });
   const grid = maybe('pitGrid', [...recSamples, ...sim.samples], records, want('bulk'));
   if (grid !== null) {
     sim.sample(grid.bestBlock, 'bulkSample', { volumeBcy: BULK_BCY, bedrockPenFt: BULK_PEN_FT });

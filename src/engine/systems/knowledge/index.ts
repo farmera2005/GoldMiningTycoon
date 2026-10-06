@@ -7,7 +7,14 @@ export { estimateFromEvidence, statisticalEstimate, type EstimateContext } from 
 export { defaultPlanning, planningPrice } from './economic';
 export { classifyConfidence, type GateValues } from './confidence';
 export { canonicalEvidence, emptyEvidence, evidenceHash } from './evidence';
-export { executeSample, executionParams, type ExecuteRequest, type ExecuteResult, type ExecutionParams, type Logger } from './execute';
+export {
+  executeSample,
+  executionParams,
+  type ExecuteRequest,
+  type ExecuteResult,
+  type ExecutionParams,
+  type Logger,
+} from './execute';
 export { findProbability, recordsParams, recordsReview, reviewerMult, type RecordsParams } from './records';
 export { effectiveDrawParams, methodSpec, noiseMult } from './methods';
 export { coarseRatioPrior, overlapShare, priorModel, type PriorModel } from './prior';

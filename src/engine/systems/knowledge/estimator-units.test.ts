@@ -8,7 +8,7 @@ import { classifyConfidence, type GateValues } from './confidence';
 import { lowerTruncVar, selectionOffsets, upperTruncVar } from './depletion';
 import { methodSpec } from './methods';
 import { estimatorParams } from './params';
-import { coarseRatioPrior } from './prior';
+import { centreMisfitVar, coarseRatioPrior, halfWidthClaimVar, halfWidthMisfitVar } from './prior';
 import { compositeObservation, type CompositePart } from './rows';
 import type { Mass4 } from './samples';
 import type { MethodId } from './types';
@@ -34,9 +34,16 @@ describe('measurement formulas: three samples of the same ground (§4.4.7)', () 
   const obs = (id: MethodId, V: number) => {
     const d = methodSpec(id).draw;
     if (d === null) throw new Error(`no draw row for ${id}`);
-    const cap: Mass4 = [d.captureBySize.coarse, d.captureBySize.medium, d.captureBySize.fine, d.captureBySize.ultrafine];
+    const cap: Mass4 = [
+      d.captureBySize.coarse,
+      d.captureBySize.medium,
+      d.captureBySize.fine,
+      d.captureBySize.ultrafine,
+    ];
     // The expected recovered class masses (no draw noise): Gnc × share × V × capture.
-    const mass: Mass4 = [0, 1, 2, 3].map((c) => (c === 0 ? 0 : gnc * (ncShare[c] as number) * MG_PER_OZ * V * (cap[c] as number))) as Mass4;
+    const mass: Mass4 = [0, 1, 2, 3].map((c) =>
+      c === 0 ? 0 : gnc * (ncShare[c] as number) * MG_PER_OZ * V * (cap[c] as number),
+    ) as Mass4;
     const part: CompositePart = {
       V,
       pm: 1,
@@ -169,5 +176,31 @@ describe('coarse-ratio prior (§4.5.3)', () => {
     const r = coarseRatioPrior({ coarse: 0.25, medium: 0.4, fine: 0.27, ultrafine: 0.08 }, 0.25);
     expect(Math.exp(r.meanLnR)).toBeCloseTo(0.327, 3);
     expect(Math.sqrt(r.varLnR)).toBeCloseTo(0.3, 2);
+  });
+});
+
+describe('paystreak row misfit (§3.5.2 processes against rigid configurations)', () => {
+  const R = 2000;
+  it('pins the centre at the end rows and frees it mid-claim on long claims', () => {
+    const L5 = 4 * 209;
+    const L40 = 39 * 209;
+    expect(centreMisfitVar(0, L5, R)).toBeCloseTo(0, 12);
+    expect(centreMisfitVar(L5, L5, R)).toBeCloseTo(0, 12);
+    expect(centreMisfitVar(L5 / 2, L5, R)).toBeCloseTo(0.206, 2);
+    expect(centreMisfitVar(L40 / 2, L40, R)).toBeGreaterThan(0.95);
+    expect(centreMisfitVar(0, 0, R)).toBe(0);
+  });
+
+  it('splits the half-width variance into a claim part and a row part', () => {
+    expect(halfWidthClaimVar(1, 1500)).toBeCloseTo(1, 12);
+    expect(halfWidthMisfitVar(0, 1, 1500)).toBeCloseTo(0, 12);
+    expect(halfWidthClaimVar(40, 1500)).toBeLessThan(halfWidthClaimVar(5, 1500));
+    for (const nAlong of [2, 5, 10, 40]) {
+      for (let i = 0; i < nAlong; i++) {
+        const v = halfWidthMisfitVar(i, nAlong, 1500);
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThan(1);
+      }
+    }
   });
 });
