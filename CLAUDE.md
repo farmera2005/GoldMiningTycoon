@@ -44,6 +44,7 @@ Single-player browser business simulation: the player founds and runs a small **
 | `npm run test:engine` | Engine, data and sim tests only (fast; no DOM) |
 | `npm run test:e2e` | Playwright: explain-coverage crawler, axe-core accessibility, keyboard path, Node-vs-Chromium replay hash |
 | `npm run test:perf` | DESIGN §2.13 time and year-10 save-size budgets on fixed fixtures (separate CI job; a miss fails it, not the unit suite) |
+| `npm run test:long` | Vitest `long` project (from P1): the statistical tests over thousands of seeds or district-years; nightly and at phase exit, and the phase-exit gate requires it. `npm test` keeps fixed-seed versions with tolerances for their sample size (DESIGN D-2.81) |
 | `npm run lint` / `typecheck` / `format` | ESLint (incl. engine purity and determinism rules) / `tsc --noEmit` / Prettier write |
 | `npm run check` | lint + typecheck + test — **must pass before every commit** |
 | `npm run sim -- [opts]` | Headless simulator (below) |
