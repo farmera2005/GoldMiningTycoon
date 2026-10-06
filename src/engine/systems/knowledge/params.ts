@@ -80,6 +80,8 @@ export interface EstimatorParams {
   /** §3 generator structure the prior mirrors (D-4.16). */
   readonly streakMinF: number;
   readonly dredgeMinF: number;
+  readonly handCutMaxObFt: number;
+  readonly richRangeFt: Readonly<Partial<Record<RegionTemplateId, number>>>;
   readonly coarseStreakThin: number;
   readonly payStreakWeight: number;
   readonly obAxisBoost: number;
@@ -90,6 +92,16 @@ export interface EstimatorParams {
   readonly dredgeMinBedrockShare: number;
   readonly sluiceCapture: SizeRecord;
   readonly recentWorkedShare: number;
+  /** §3.6 deplete(): expected extraction per kind, size weights, class cap, drift's bottom interval. */
+  readonly deplete: {
+    readonly meanX: Readonly<Record<DepletionKind, number>>;
+    readonly handWeights: readonly number[];
+    readonly dredgeWeights: readonly number[];
+    readonly cap: number;
+    readonly maxX: number;
+    readonly driftTopFt: number;
+    readonly driftBedrockFt: number;
+  };
   // §4 keys
   readonly priorMedianAdj: Readonly<Partial<Record<RegionTemplateId, number>>>;
   readonly streakResidLogSd: number;
@@ -208,10 +220,15 @@ function smallCountRows(t: TuningResolved): SmallCountRow[] {
   return rows;
 }
 
+function mid(r: readonly [number, number]): number {
+  return (r[0] + r[1]) / 2;
+}
+
 function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
   const templates: Partial<Record<RegionTemplateId, TemplateConsts>> = {};
   const adjTable = table(t, 'geology.estPriorMedianAdj');
   const priorMedianAdj: Partial<Record<RegionTemplateId, number>> = {};
+  const richRangeFt: Partial<Record<RegionTemplateId, number>> = {};
   for (const id of ['northernFederal', 'aridFederal', 'temperateFederal', 'alaskaState', 'yukon'] as const) {
     const tpl = gp.templates[id];
     if (tpl !== undefined) {
@@ -223,6 +240,7 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
         cementMed: tpl.cementMed,
         permafrostP: tpl.permafrostP,
       };
+      richRangeFt[id] = tpl.richRangeFt;
     }
     const a = adjTable[id];
     if (typeof a === 'number') priorMedianAdj[id] = a;
@@ -239,6 +257,8 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     statusMult: gp.prior.statusMult,
     streakMinF: gp.grade.pocketStreakMinF,
     dredgeMinF: gp.oldTimer.kinds.dredge.minF,
+    handCutMaxObFt: gp.oldTimer.kinds.handCut.maxObFt,
+    richRangeFt,
     coarseStreakThin: gp.grade.claim.coarseStreakThin,
     payStreakWeight: gp.grade.claim.payStreakWeight,
     obAxisBoost: gp.grade.obAxisBoost,
@@ -255,6 +275,20 @@ function buildParams(t: TuningResolved, gp: GeoGenParams): EstimatorParams {
     },
     // Recent operators mined the top U(15%, 50%) of the paystreak (§3.6): the mean share.
     recentWorkedShare: (recent[0] + recent[1]) / 2,
+    deplete: {
+      meanX: {
+        drift: mid(gp.oldTimer.kinds.drift.extract),
+        handCut: mid(gp.oldTimer.kinds.handCut.extract),
+        dredge: mid(gp.oldTimer.kinds.dredge.extract),
+        dryWash: mid(gp.oldTimer.kinds.dryWash.extract),
+      },
+      handWeights: gp.oldTimer.depleteWeights.hand,
+      dredgeWeights: gp.oldTimer.depleteWeights.dredge,
+      cap: gp.oldTimer.depleteCap,
+      maxX: gp.oldTimer.maxExtraction,
+      driftTopFt: gp.oldTimer.driftBottom.topFt,
+      driftBedrockFt: gp.oldTimer.driftBottom.bedrockFt,
+    },
     priorMedianAdj,
     streakResidLogSd: num(t, 'geology.estStreakResidLogSd'),
     streakNodes: num(t, 'geology.estStreakNodes'),

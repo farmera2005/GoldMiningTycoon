@@ -38,7 +38,11 @@ export interface PriorModel {
   readonly indexOf: Readonly<Partial<Record<BlockId, number>>>;
   /** ln of the prior median grade, with the calibration valve (§4.5.1 M). */
   readonly M: number;
-  /** σ_district² + σ_creek² + σ_rich² + σ_claim² (v_depl is added per estimate). */
+  /**
+   * σ_district² + σ_creek² + σ_claim² (v_depl is added per estimate). §3 draws the rich/poor stretch term as an AR(1)
+   * along the creek (range tpl.richRangeFt), so it sits in Σ_e with that correlation instead of in V_m (design delta:
+   * DESIGN §4.5.1 puts σ_rich² in V_m, identical for short claims and wrong for 160-acre ones).
+   */
   readonly VmBase: number;
   readonly sigmaBlock: number;
   /** Σ_e (n × n): σ_block² exp(−|Δalong|/R_a − |Δacross|/R_c) + resid² on the diagonal. */
@@ -125,7 +129,9 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
   });
 
   const s = priors.sigma;
-  const VmBase = s.district * s.district + s.creek * s.creek + s.rich * s.rich + s.claim * s.claim;
+  const VmBase = s.district * s.district + s.creek * s.creek + s.claim * s.claim;
+  const rich2 = s.rich * s.rich;
+  const richRange = params.richRangeFt[priors.templateId] ?? priors.rangeAlongFt;
   const M = priors.logGradeMedian + (params.priorMedianAdj[priors.templateId] ?? 0);
 
   // Block field covariance (§4.5.1, D-4.3): §3's separable exponential plus the iid streak residual.
@@ -136,7 +142,8 @@ function buildPriorModel(priors: ClaimPriors, params: EstimatorParams): PriorMod
     for (let b = 0; b < n; b++) {
       const da = Math.abs((bi[a] as number) - (bi[b] as number)) * BLOCK_FT;
       const dc = Math.abs((bj[a] as number) - (bj[b] as number)) * BLOCK_FT;
-      Se[a * n + b] = sb2 * exp(-da / priors.rangeAlongFt - dc / priors.rangeAcrossFt) + (a === b ? resid2 : 0);
+      Se[a * n + b] =
+        sb2 * exp(-da / priors.rangeAlongFt - dc / priors.rangeAcrossFt) + rich2 * exp(-da / richRange) + (a === b ? resid2 : 0);
     }
   }
 

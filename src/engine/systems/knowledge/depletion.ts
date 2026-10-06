@@ -10,6 +10,8 @@
 // feature-free claim P(drift) is updated by every bedrock sample that did not hit workings.
 import { exp, log, normInv } from '../../core/dmath';
 import type { BlockId } from '../../core/ids';
+import { depletionRemoval } from '../world/oldTimers';
+import { cumulativeGoldShare } from '../world/vertical';
 import type { OldTimerKind } from '../world/types';
 import { depletionKindOf, type DepletionKind, type EstimatorParams } from './params';
 import type { PriorModel } from './prior';
@@ -96,6 +98,55 @@ function normalized(pKind: Readonly<Partial<Record<OldTimerKind, number>>>): { k
   }
   if (!(total > 0)) return { kinds: [], pNone: 1 };
   return { kinds: kinds.map((k) => ({ kind: k.kind, p: k.p / total })), pNone: pNone / total };
+}
+
+/**
+ * Coarse-ratio change of a worked block (§3.6 deplete removes size classes by weights, coarse first for hand
+ * methods), as R_after / R_before on the prior mix at the kind's mean extraction. Feeds the block's coarse thinning
+ * a_b (design delta: DESIGN's a_b = 0.5 + 0.5 f̄_b ignores that old-timers took the coarse gold; on dredged ground the
+ * coarse share falls from ~25% to ~9%).
+ */
+export function workedCoarseMult(model: PriorModel, kind: DepletionKind | 'recentCat', bHat: number, sbHat: number): number {
+  if (kind === 'recentCat') return 1;
+  const D = model.params.deplete;
+  let x = D.meanX[kind];
+  if (kind === 'drift') {
+    const prof = {
+      Tg: model.priors.geometry.payMedFt,
+      B: bHat,
+      sb: sbHat,
+      lambdaG: model.priors.verticalDecayFt,
+      lambdaB: model.params.phys.bedrockDecayFt,
+    };
+    x *= cumulativeGoldShare(prof, D.driftTopFt) - cumulativeGoldShare(prof, -D.driftBedrockFt);
+  }
+  x = Math.min(D.maxX, x);
+  const m = model.sizeMixPrior;
+  const mix = [m.coarse, m.medium, m.fine, m.ultrafine];
+  const removed = depletionRemoval(mix, x, kind === 'dredge' ? D.dredgeWeights : D.handWeights, D.cap);
+  const after = mix.map((v, k) => Math.max(0, v - (removed[k] as number)));
+  const rBefore = (mix[0] as number) / ((mix[1] as number) + (mix[2] as number) + (mix[3] as number));
+  const rAfter = (after[0] as number) / Math.max(1e-12, (after[1] as number) + (after[2] as number) + (after[3] as number));
+  return rAfter / rBefore;
+}
+
+/** Per-block multiplier on the coarse thinning a_b from the depletion state (expected over the kind mixture). */
+export function coarseDepletionMult(model: PriorModel, depl: DepletionModel, bHat: number, sbHat: number): Float64Array {
+  const n = model.n;
+  const out = new Float64Array(n).fill(1);
+  const mults = depl.kinds.map((k) => ({ k, mult: workedCoarseMult(model, k.kind, bHat, sbHat), q: kindParams(k.kind, model).q }));
+  for (let b = 0; b < n; b++) {
+    const st = depl.state[b];
+    if (st === DEPL_WORKED) {
+      const m = mults.find((x) => x.k.kind === depl.workedKind[b]);
+      if (m !== undefined) out[b] = m.mult;
+    } else if (st === DEPL_UNKNOWN) {
+      let v = 1;
+      for (const m of mults) v += m.k.p * m.q * (m.mult - 1);
+      out[b] = v;
+    }
+  }
+  return out;
 }
 
 export function depletionModel(
@@ -224,14 +275,21 @@ export function priorStreakProb(model: PriorModel): Float64Array {
 }
 
 /**
- * μ_e per paystreak configuration (S × n): ln(f + (1 − f)·bgRatio) + o_depl, and the per-configuration log
- * likelihood penalty for known worked blocks off the paystreak.
+ * μ_e per paystreak configuration (S × n): ln(f + (1 − f)·bgRatio) + o_depl; the removal part of the offset (pocket
+ * grades scale by it after §3's floor, §3.6 deplete); and the per-configuration log likelihood penalty for known
+ * worked blocks off the paystreak. `handCutEligible[b]` is P(the block's cover is thin enough for hand-cutters): they
+ * worked only ground under geology.oldTimer.kinds.handCut.maxObFt (§3.6), so their selection applies only there.
  */
-export function streakMeans(model: PriorModel, depl: DepletionModel): { mu: Float64Array; penalty: Float64Array } {
+export function streakMeans(
+  model: PriorModel,
+  depl: DepletionModel,
+  handCutEligible: Float64Array,
+): { mu: Float64Array; removal: Float64Array; penalty: Float64Array } {
   const n = model.n;
   const S = model.S;
   const bg = model.priors.streak.bgRatio;
   const mu = new Float64Array(S * n);
+  const removal = new Float64Array(S * n);
   const penalty = new Float64Array(S);
   const kp = depl.kinds.map((k) => ({ ...kindParams(k.kind, model), kind: k.kind, p: k.p }));
   const lnPen = log(model.params.workedOffStreakLik);
@@ -239,17 +297,31 @@ export function streakMeans(model: PriorModel, depl: DepletionModel): { mu: Floa
     for (let b = 0; b < n; b++) {
       const f = model.streakF[s * n + b] as number;
       let o = 0;
+      let rm = 0;
       const st = depl.state[b];
       if (st === DEPL_UNKNOWN) {
-        for (const k of kp) if (qualifies(k.kind, f, k.minF)) o += k.p * k.q * k.l;
+        for (const k of kp) {
+          if (!qualifies(k.kind, f, k.minF)) continue;
+          const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
+          o += el * k.p * k.q * k.l;
+          rm += el * k.p * k.q * k.l;
+        }
       } else if (st === DEPL_WORKED) {
         const wk = depl.workedKind[b];
         const k = kp.find((x) => x.kind === wk) ?? kp[0];
-        if (k !== undefined) o = k.worked;
+        if (k !== undefined) {
+          o = k.worked;
+          rm = k.l;
+        }
       } else if (st === DEPL_PASSED) {
-        for (const k of kp) if (qualifies(k.kind, f, k.minF)) o += k.p * k.passed;
+        for (const k of kp) {
+          if (!qualifies(k.kind, f, k.minF)) continue;
+          const el = k.kind === 'handCut' ? (handCutEligible[b] as number) : 1;
+          o += el * k.p * k.passed;
+        }
       }
       mu[s * n + b] = log(f + (1 - f) * bg) + o;
+      removal[s * n + b] = rm;
     }
     let pen = 0;
     for (const b of depl.workedBlocks) {
@@ -259,8 +331,15 @@ export function streakMeans(model: PriorModel, depl: DepletionModel): { mu: Floa
       const f = model.streakF[s * n + b] as number;
       if (!(wk === 'dredge' ? f > minF : f >= minF)) pen += lnPen;
     }
+    // A dredge worked every block of its stretch with any paystreak (q = 1, §3.6): an unworked block that a
+    // hypothesis puts on the streak would have been dredged too.
+    const dredge = kp.find((k) => k.kind === 'dredge' && k.p >= 1);
+    if (dredge !== undefined) {
+      for (let b = 0; b < n; b++) {
+        if (depl.state[b] === DEPL_PASSED && (model.streakF[s * n + b] as number) > dredge.minF) pen += lnPen;
+      }
+    }
     penalty[s] = pen;
   }
-  return { mu, penalty };
+  return { mu, removal, penalty };
 }
-

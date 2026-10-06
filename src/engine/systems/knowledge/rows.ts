@@ -22,7 +22,11 @@ export interface Position {
   readonly pm: number;
   /** Position log-variance of this sample (independent). */
   readonly v: number;
-  /** Shared exposure variance (the claim's exposure error group), 0 for other intervals. */
+  /**
+   * Shared position variance: the claim's exposure error group for exposures (§4.4.2), and for upper-pay samples the
+   * profile term estPosUpperExtraLogSd² (design delta: §3 draws λg once per claim, so every short pit on a claim
+   * shares its error; DESIGN treats it as independent per sample, which over-trusts many short pits).
+   */
   readonly shared: number;
 }
 
@@ -35,6 +39,40 @@ export function blockProfile(model: PriorModel, geo: GeometryPosterior, depl: De
     sb: Math.max(depl.sbFloor[b] as number, sbHat * (depl.sbMult[b] as number)),
     lambdaG: model.priors.verticalDecayFt * (depl.lambdaMult[b] as number),
     lambdaB: model.params.phys.bedrockDecayFt,
+  };
+}
+
+/**
+ * Upper-pay position (§4.4.2, D-4.32): 5-point Gauss–Hermite average of ln positionMult(Tg_q − p, Tg_q) over the
+ * pay-column posterior, where p is the gravel actually penetrated (observed) and Tg_q = exp(ln T̂ + √2·sd·z_q) − B̂.
+ */
+export function upperPayPosition(
+  prof: VerticalProfile,
+  lnT: number,
+  sdT: number,
+  penetratedFt: number,
+  P: { readonly posFullLogSd: number; readonly posUpperExtraLogSd: number },
+): Position {
+  const pen = Math.max(0.1, penetratedFt);
+  let sw = 0;
+  let e1 = 0;
+  let e2 = 0;
+  for (let q = 0; q < 5; q++) {
+    const tq = Math.max(0.5, exp(lnT + SQRT2 * sdT * (GH_X[q] as number)) - prof.B);
+    const h1 = Math.min(Math.max(0.02 * tq, tq - pen), 0.98 * tq);
+    const pmq = positionMultProfile({ ...prof, Tg: tq }, h1, tq);
+    const lp = log(Math.max(pmq, 1e-12));
+    const wq = GH_W[q] as number;
+    sw += wq;
+    e1 += wq * lp;
+    e2 += wq * lp * lp;
+  }
+  e1 /= sw;
+  e2 /= sw;
+  return {
+    pm: exp(e1),
+    v: Math.max(0, e2 - e1 * e1) + P.posFullLogSd * P.posFullLogSd,
+    shared: P.posUpperExtraLogSd * P.posUpperExtraLogSd,
   };
 }
 
@@ -56,30 +94,8 @@ export function positionOf(
       return pm > 0 ? { pm, v: P.posFullLogSd * P.posFullLogSd, shared: 0 } : null;
     }
     case 'upperPay': {
-      // Quadrature over the pay-column posterior given the gravel actually penetrated p (observed).
-      const sdT = sqrt(geo.T.varDiag[b] as number);
       const obObs = s.rec.observed.overburdenFt ?? exp(geo.D.mean[b] as number) - prof.Tg;
-      const pen = Math.max(0.1, s.rec.depthReachedFt - obObs);
-      let sw = 0;
-      let e1 = 0;
-      let e2 = 0;
-      for (let q = 0; q < 5; q++) {
-        const tq = Math.max(0.5, exp(lnT + SQRT2 * sdT * (GH_X[q] as number)) - prof.B);
-        const h1 = Math.min(Math.max(0.02 * tq, tq - pen), 0.98 * tq);
-        const pmq = positionMultProfile({ ...prof, Tg: tq }, h1, tq);
-        const lp = log(Math.max(pmq, 1e-12));
-        const wq = GH_W[q] as number;
-        sw += wq;
-        e1 += wq * lp;
-        e2 += wq * lp * lp;
-      }
-      e1 /= sw;
-      e2 /= sw;
-      return {
-        pm: exp(e1),
-        v: Math.max(0, e2 - e1 * e1) + P.posFullLogSd * P.posFullLogSd + P.posUpperExtraLogSd * P.posUpperExtraLogSd,
-        shared: 0,
-      };
+      return upperPayPosition(prof, lnT, sqrt(geo.T.varDiag[b] as number), s.rec.depthReachedFt - obObs, P);
     }
     case 'exposure': {
       const frac = s.draw.exposureDepthFrac ?? P.phys.exposureDepthFrac;
@@ -117,7 +133,7 @@ export interface Rows {
   readonly pr: Float64Array;
   readonly y: Float64Array;
   readonly v: Float64Array;
-  /** 1 = the claim's exposure error group. */
+  /** Shared error group: 0 none, 1 the claim's exposure group, 2 the claim's upper-pay profile group. */
   readonly group: Int8Array;
   readonly gv: Float64Array;
   readonly info: readonly (RowInfo | null)[];
@@ -133,10 +149,103 @@ interface RowDraft {
   info: RowInfo | null;
 }
 
+/** One sample's part in a composite (§4.4.3). */
+export interface CompositePart {
+  readonly V: number;
+  readonly pm: number;
+  readonly vPos: number;
+  readonly shared: number;
+  readonly cap: Mass4;
+  readonly volumeCv: number;
+  readonly weighCv: number;
+  /** Class masses as read (sieved, or the colour split), mg. */
+  readonly mass: Mass4;
+}
+
+export interface CompositeObservation {
+  /** y_nc + E[w_b]: the observation of m + e_b − p_b·r. */
+  readonly y: number;
+  readonly v: number;
+  readonly shared: number;
+  readonly nEff: number;
+  readonly muStar: number;
+  readonly cvL: number;
+  readonly cvM: number;
+  readonly info: RowInfo;
+}
+
+export interface CompositeConstants {
+  readonly particleMeanMg: readonly number[];
+  readonly massCv: readonly number[];
+  readonly deWijsAlpha: number;
+  readonly smallCount: Parameters<typeof smallCount>[0];
+  readonly modelErrorLogSd: number;
+  readonly coarseBlockLogSd: number;
+}
+
 /**
- * The non-coarse composite of samples on one block (§4.4.3) with the small-count correction (§4.4.4). `gt` is the
- * working non-coarse grade G̃nc of the pass.
+ * The non-coarse composite of samples on one block (§4.4.3) with the small-count correction (§4.4.4): `gt` is the
+ * working non-coarse grade G̃nc of the pass, Vb the block's pay-column volume, Ew and p the block's coarse terms.
  */
+export function compositeObservation(
+  parts: readonly CompositePart[],
+  Vb: number,
+  gt: number,
+  Ew: number,
+  pb: number,
+  ncShare: Mass4,
+  K: CompositeConstants,
+): CompositeObservation | null {
+  const mu = K.particleMeanMg;
+  const cv = K.massCv;
+  let mncTotal = 0;
+  let Veff = 0;
+  let Pm = 0;
+  for (const q of parts) {
+    const ve = q.V * q.pm;
+    mncTotal += nonCoarseMass(q.mass, q.cap);
+    Veff += ve;
+    let muK = 0;
+    for (let c = 1; c < 4; c++) {
+      const cc = cv[c] as number;
+      muK += ((ncShare[c] as number) * (mu[c - 1] as number) * (1 + cc * cc)) / (q.cap[c] as number);
+    }
+    Pm += ve * muK;
+  }
+  if (!(Veff > 0)) return null;
+  let cvL = 0;
+  let cvM = 0;
+  let vpos = 0;
+  let load = 0;
+  for (const q of parts) {
+    const w = (q.V * q.pm) / Veff;
+    if (q.V < Vb) cvL += w * w * (pow(Vb / q.V, K.deWijsAlpha) - 1);
+    cvM += w * w * ((1 + q.volumeCv * q.volumeCv) * (1 + q.weighCv * q.weighCv) - 1);
+    vpos += w * w * q.vPos;
+    load += w * sqrt(q.shared);
+  }
+  // A common position factor with loading √shared per sample: the composite's loading is Σ w_k √shared_k.
+  const shared = load * load;
+  const muStar = Pm / Veff;
+  const nEff = (gt * MG_PER_OZ * Veff) / muStar;
+  const ghat = Math.max(mncTotal, 0.5 * muStar) / (Veff * MG_PER_OZ);
+  const sc = smallCount(K.smallCount, nEff);
+  const lG = log(gt);
+  const lgObs = log(ghat);
+  const lnLM = log((1 + cvL) * (1 + cvM));
+  const vOther = lnLM + vpos + K.modelErrorLogSd * K.modelErrorLogSd + pb * pb * K.coarseBlockLogSd * K.coarseBlockLogSd;
+  return {
+    y: lG + (lgObs - lG - sc.b) / sc.beta + 0.5 * lnLM + Ew,
+    v: sc.v / (sc.beta * sc.beta) + vOther,
+    shared,
+    nEff,
+    muStar,
+    cvL,
+    cvM,
+    info: { nEff, lgObs, Ew, Veff, muStar, corr: 0.5 * lnLM, vOther },
+  };
+}
+
 function composite(
   model: PriorModel,
   geo: GeometryPosterior,
@@ -147,55 +256,27 @@ function composite(
   ncShare: Mass4,
 ): RowDraft | null {
   const P = model.params;
-  const mu = P.phys.particleMeanMg;
-  const cv = P.phys.massCv;
-  let mncTotal = 0;
-  let Veff = 0;
-  let Pm = 0;
-  for (const q of list) {
-    const ve = q.s.V * q.pos.pm;
-    mncTotal += nonCoarseMass(q.mass, q.s.cap);
-    Veff += ve;
-    let muK = 0;
-    for (let c = 1; c < 4; c++) {
-      const cc = cv[c] as number;
-      muK += ((ncShare[c] as number) * (mu[c - 1] as number) * (1 + cc * cc)) / (q.s.cap[c] as number);
-    }
-    Pm += ve * muK;
-  }
-  if (!(Veff > 0)) return null;
   const Vb = exp(geo.T.mean[b] as number) * BCY_PER_ACRE_FT * (model.acres[b] as number);
-  let cvL = 0;
-  let cvM = 0;
-  let vpos = 0;
-  let shared = 0;
-  for (const q of list) {
-    const w = (q.s.V * q.pos.pm) / Veff;
-    if (q.s.V < Vb) cvL += w * w * (pow(Vb / q.s.V, P.phys.deWijsAlpha) - 1);
-    cvM += w * w * ((1 + q.s.volumeCv * q.s.volumeCv) * (1 + q.s.weighCv * q.s.weighCv) - 1);
-    vpos += w * w * q.pos.v;
-    shared += w * q.pos.shared;
-  }
-  const muStar = Pm / Veff;
-  const nEff = (gt * MG_PER_OZ * Veff) / muStar;
-  const ghat = Math.max(mncTotal, 0.5 * muStar) / (Veff * MG_PER_OZ);
-  const sc = smallCount(P.smallCount, nEff);
-  const lG = log(gt);
-  const lgObs = log(ghat);
-  const lnLM = log((1 + cvL) * (1 + cvM));
-  const pb = ct.p[b] as number;
-  const Ew = ct.Ew[b] as number;
-  const vOther =
-    lnLM + vpos + P.modelErrorLogSd * P.modelErrorLogSd + pb * pb * P.coarseBlockLogSd * P.coarseBlockLogSd;
-  return {
-    blk: b,
-    pr: pb,
-    y: lG + (lgObs - lG - sc.b) / sc.beta + 0.5 * lnLM + Ew,
-    v: sc.v / (sc.beta * sc.beta) + vOther,
-    group: shared > 0 ? 1 : 0,
-    gv: shared,
-    info: { nEff, lgObs, Ew, Veff, muStar, corr: 0.5 * lnLM, vOther },
-  };
+  const parts: CompositePart[] = list.map((q) => ({
+    V: q.s.V,
+    pm: q.pos.pm,
+    vPos: q.pos.v,
+    shared: q.pos.shared,
+    cap: q.s.cap,
+    volumeCv: q.s.volumeCv,
+    weighCv: q.s.weighCv,
+    mass: q.mass,
+  }));
+  const o = compositeObservation(parts, Vb, gt, ct.Ew[b] as number, ct.p[b] as number, ncShare, {
+    particleMeanMg: P.phys.particleMeanMg,
+    massCv: P.phys.massCv,
+    deWijsAlpha: P.phys.deWijsAlpha,
+    smallCount: P.smallCount,
+    modelErrorLogSd: P.modelErrorLogSd,
+    coarseBlockLogSd: P.coarseBlockLogSd,
+  });
+  if (o === null) return null;
+  return { blk: b, pr: ct.p[b] as number, y: o.y, v: o.v, group: o.shared > 0 ? 2 : 0, gv: o.shared, info: o.info };
 }
 
 export interface PocketHits {
@@ -248,13 +329,15 @@ function recordsRow(model: PriorModel, records: readonly RecordFinding[]): RowDr
   if (hist === null) return null;
   const P = model.params;
   const s = model.priors.sigma;
-  // The history observes the creek median (district × creek factors). The claim mean m also carries the deposit,
-  // status and valve offsets the prior applies (M − ln gMed) and the rich and claim deviations (in the variance).
+  // The history observes the creek median gMed × district × creek factors (§3.6). The claim mean m also carries the
+  // visible deposit and status multipliers of the prior (logGradeMedian − ln gMed; design delta: DESIGN §4.5.2 omits
+  // them, which reads benches 0.8× and deep muck 1.3× off) and the claim deviation (in the variance); the rich stretch
+  // term lives in the block field. The calibration valve estPriorMedianAdj moves the prior only, not this observation.
   const y =
     log((hist.payload.histOz as number) / (hist.payload.histBcy as number)) -
     log(P.historicGradeRatio) +
-    (model.M - log(model.tpl.gMed));
-  const v = P.creekProdLogSd * P.creekProdLogSd + s.rich * s.rich + s.claim * s.claim;
+    (model.priors.logGradeMedian - log(model.tpl.gMed));
+  const v = P.creekProdLogSd * P.creekProdLogSd + s.claim * s.claim;
   return { blk: -1, pr: 0, y, v, group: 0, gv: 0, info: null };
 }
 

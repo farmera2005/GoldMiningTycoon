@@ -82,11 +82,15 @@ function signal(model: PriorModel, rows: Rows, Vm: number, vr: number, j: number
   return s;
 }
 
-/** Noise covariance: the row's own variance plus the shared exposure group. */
+/** Shared-group covariance between rows (exposure group, upper-pay profile group). */
+function groupCov(rows: Rows, j: number, k: number): number {
+  const g = rows.group[j] as number;
+  return g !== 0 && rows.group[k] === g ? sqrt((rows.gv[j] as number) * (rows.gv[k] as number)) : 0;
+}
+
+/** Noise covariance: the row's own variance plus its shared group. */
 function noise(rows: Rows, j: number, k: number): number {
-  let s = j === k ? (rows.v[j] as number) : 0;
-  if (rows.group[j] === 1 && rows.group[k] === 1) s += sqrt((rows.gv[j] as number) * (rows.gv[k] as number));
-  return s;
+  return (j === k ? (rows.v[j] as number) : 0) + groupCov(rows, j, k);
 }
 
 export function solvePosterior(
@@ -251,8 +255,8 @@ export function blockCovariance(model: PriorModel, rows: Rows, Vm: number, sol: 
 }
 
 /**
- * Low-count site refinement (§4.4.4): for rows with N_eff below the threshold (and outside the shared exposure
- * group), refit the Gaussian site to the small-count likelihood by moment matching on a fixed grid. Returns true if
+ * Low-count site refinement (§4.4.4): for rows with N_eff below the threshold, refit the Gaussian site to the
+ * small-count likelihood by moment matching on a fixed grid. Returns true if
  * any row changed (the caller re-solves). Rows are refit from the same posterior (one sweep).
  */
 export function refineSites(model: PriorModel, rows: Rows, Vm: number, vr: number, sol: Solve): boolean {
@@ -266,7 +270,7 @@ export function refineSites(model: PriorModel, rows: Rows, Vm: number, vr: numbe
   const G = P.siteRefineGrid;
   for (let j = 0; j < R; j++) {
     const info = rows.info[j];
-    if (info === null || info === undefined || !(info.nEff < P.siteRefineMaxNeff) || rows.group[j] === 1) continue;
+    if (info === null || info === undefined || !(info.nEff < P.siteRefineMaxNeff)) continue;
     // Predictive moments of the row latent over the hypothesis mixture.
     let mm = 0;
     let m2 = 0;
@@ -277,7 +281,9 @@ export function refineSites(model: PriorModel, rows: Rows, Vm: number, vr: numbe
       mm += w * mean;
       m2 += w * mean * mean;
     }
-    for (let k = 0; k < R; k++) sj[k] = signal(model, rows, Vm, vr, j, k);
+    // The shared position error is part of what the row measures (it shifts the effective grade), so it counts as
+    // signal here: the site is only the row's own (y_j, v_j).
+    for (let k = 0; k < R; k++) sj[k] = signal(model, rows, Vm, vr, j, k) + groupCov(rows, j, k);
     const sjj = sj[j] as number;
     forwardSolveInPlace(sol.L, R, sj);
     let q = 0;

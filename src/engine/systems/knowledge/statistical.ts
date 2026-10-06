@@ -2,13 +2,13 @@
 // not on prices or planning. Two fixed passes (D-4.18): pass 1 evaluates N_eff and the coarse factor at the prior
 // working grade, pass 2 at the pass-1 posterior; each pass ends with the site-refinement sweeps; hypotheses below
 // the prune weight after pass 1 are dropped.
-import { exp, log, sqrt } from '../../core/dmath';
+import { exp, log, normCdf, sqrt } from '../../core/dmath';
 import type { BlockId } from '../../core/ids';
 import { BCY_PER_ACRE_FT } from '../world/constants';
 import type { SizeRecord } from '../world/types';
 import { blockMeans, summarizeSet, type AggregateInputs, type SetSummary } from './aggregate';
 import { coarseMeanMass, coarsePosterior, coarseTerms, type CoarsePosterior } from './coarse';
-import { depletionModel, streakMeans, type DepletionModel } from './depletion';
+import { coarseDepletionMult, depletionModel, streakMeans, type DepletionModel } from './depletion';
 import { geometryPosterior, type GeometryPosterior } from './geometry';
 import { mixtureQuantile, type Mixture } from './mixture';
 import { allHypotheses, blockCovariance, pruneHypotheses, refineSites, solvePosterior, type Hyps } from './posterior';
@@ -194,8 +194,16 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
   const bs = blockStateArrays(model, evidence);
   const bed = bedrockPosterior(samples, model);
   const depl = depletionModel(model, evidence, samples, bs.minedFrac, bs.strippedFt);
-  const { mu: muE, penalty } = streakMeans(model, depl);
   const geo = geometryPosterior(model, samples, bed, bs.strippedFt);
+  const handCutEligible = new Float64Array(n);
+  for (let b = 0; b < n; b++) {
+    const D50 = exp(geo.D.mean[b] as number);
+    const T50b = exp(geo.T.mean[b] as number);
+    const ob = Math.max(0, D50 - T50b + geo.bHat);
+    const sd = sqrt(D50 * D50 * (geo.D.varDiag[b] as number) + T50b * T50b * (geo.T.varDiag[b] as number));
+    handCutEligible[b] = normCdf((P.handCutMaxObFt - ob) / Math.max(sd, 1e-6));
+  }
+  const { mu: muE, removal, penalty } = streakMeans(model, depl, handCutEligible);
   const Vm = model.VmBase + depl.vDepl;
 
   const positions: (Position | null)[] = samples.map((s) => positionOf(model, geo, depl, bed.sbHat, s));
@@ -207,10 +215,11 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
 
   // Working grades for pass 1: the prior non-coarse grade exp(M + E[μ_e] − E[w]) at R0 (gold-bearing hypotheses).
   const thin = P.coarseStreakThin;
+  const cMult = coarseDepletionMult(model, depl, bed.bHat, bed.sbHat);
   let a = new Float64Array(n);
   const gt = new Float64Array(n);
   for (let b = 0; b < n; b++) {
-    a[b] = thin + (1 - thin) * (model.fbar[b] as number);
+    a[b] = (thin + (1 - thin) * (model.fbar[b] as number)) * (cMult[b] as number);
     let m = 0;
     for (let s = 0; s < model.S; s++) m += (model.streakPrior[s] as number) * (muE[s * n + b] as number);
     gt[b] = exp(model.M + m - log(1 + (a[b] as number) * model.coarse.R0));
@@ -255,7 +264,7 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
         fp += w * (model.streakF[(sol.hyps.streak[h] as number) * n + b] as number);
       }
       gt[b] = exp(mm - (ct.Ew[b] as number));
-      nextA[b] = thin + (1 - thin) * fp;
+      nextA[b] = (thin + (1 - thin) * fp) * (cMult[b] as number);
     }
     if (pass === passes - 1) break;
     a = nextA;
@@ -311,7 +320,9 @@ export function statisticalLayer(model: PriorModel, evidence: EvidenceSet): Stat
       const f = model.streakF[s * n + b] as number;
       // A mined-out share holds no pocket either (f_rem; DESIGN §4.7 counts the whole block).
       pocketLambda[h * n + b] = f >= P.streakMinF ? pps * (missP[b] as number) * (fRem[b] as number) : 0;
-      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg));
+      // §3's pocket law clamps the VIRGIN pocket grade to ≥ gradeMin; old-timer removal then scales it (§3.6 deplete).
+      const rm = removal[s * n + b] as number;
+      pocketGrade[h * n + b] = Math.max(P.pocketGradeMin, P.pocketGradeMult * exp(lg - rm)) * exp(rm);
     }
   }
   const CT = geo.T.cov;

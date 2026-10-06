@@ -1,7 +1,14 @@
 // Claim aggregation (DESIGN §4.7): contained ounces per hypothesis by Fenton–Wilkinson over a block set, plus the
 // independent compound-Poisson pocket term (undetected pockets and confirmed hits), then mixture quantiles over the
 // hypotheses. exp(C_ab) is computed once and reused for every hypothesis; only the vector A changes.
-import { exp, log, sqrt } from '../../core/dmath';
+//
+// Pockets (design delta): DESIGN folds the pocket term into each hypothesis's lognormal by moments. A pocket is a
+// rare, large, all-or-nothing addition (Λ ≈ 0.1 per claim, each worth hundreds of ounces), and one moment-matched
+// lognormal spreads that jump over the whole distribution: on ground where the base is small (arid fans, dredged and
+// mined-out claims) it pulled P10 far below the base and put 93–98% of truths inside P10–P90. Each hypothesis is
+// therefore split into "no undetected pocket" (weight e^{−Λ}) and "at least one" (1 − e^{−Λ}, with the compound
+// Poisson's conditional moments); confirmed hits stay in both.
+import { exp, expm1, log, sqrt } from '../../core/dmath';
 import { mixtureQuantile, type Mixture } from './mixture';
 
 export interface AggregateInputs {
@@ -40,6 +47,7 @@ export interface SetSummary {
 }
 
 const MIN_COMPONENT_WEIGHT = 1e-9;
+const MIN_LAMBDA = 1e-12;
 
 /** A_b(h) = exp(μ_b(h) + C_bb/2) for every hypothesis (H × n). */
 export function blockMeans(inp: AggregateInputs): Float64Array {
@@ -54,28 +62,37 @@ export function blockMeans(inp: AggregateInputs): Float64Array {
   return A;
 }
 
+function lognormalOf(mean: number, variance: number): { mu: number; sd: number } {
+  const s2 = log(1 + Math.max(0, variance) / (mean * mean));
+  return { mu: log(mean) - s2 / 2, sd: sqrt(Math.max(s2, 1e-12)) };
+}
+
 /**
- * Contained ounces over the block set `sel` (§4.7): per hypothesis ES = Σ A_b, E[S²] = Σ_ab A_a A_b exp(C_ab), plus
- * pockets Ep = Σ λ_b bcyMean g_p, Vp = Σ λ_b bcy2Mean g_p² (1 + cv²) and confirmed hits; σ² = ln(1 + Var/ES²).
+ * Contained ounces over the block set `sel` (§4.7): per hypothesis ES = Σ A_b, E[S²] = Σ_ab A_a A_b exp(C_ab); pockets
+ * λ_b, g_p with E[X] = bcyMean·g_p, E[X²] = bcy2Mean·g_p²(1 + cv²); confirmed hits add oz and oz²(bcy2/bcy² − 1).
  * `scale` multiplies the ounces (minable: 1 − miningLossFrac).
  */
 export function summarizeSet(inp: AggregateInputs, A: Float64Array, sel: Uint8Array, scale: number): SetSummary {
   const { n, H } = inp;
   const idx: number[] = [];
   for (let b = 0; b < n; b++) if (sel[b] === 1 && inp.alive[b] === 1) idx.push(b);
-  const muW = new Float64Array(H);
-  const sdW = new Float64Array(H);
   const baseMu = new Float64Array(H);
   const baseS2 = new Float64Array(H);
+  if (idx.length === 0) {
+    return { p10: 0, p50: 0, p90: 0, mean: 0, baseP10: 0, baseP50: 0, baseP90: 0, baseMean: 0, baseMu, baseS2 };
+  }
   const baseSd = new Float64Array(H);
-  const wts = new Float64Array(H);
+  const wBase = new Float64Array(H);
+  const wFull = new Float64Array(2 * H);
+  const muFull = new Float64Array(2 * H);
+  const sdFull = new Float64Array(2 * H);
   let mean = 0;
   let baseMean = 0;
   const lnScale = log(scale);
   const confirmed2 = inp.pocketBcy2Mean / (inp.pocketBcyMean * inp.pocketBcyMean) - 1;
   for (let h = 0; h < H; h++) {
     const w = inp.weights[h] as number;
-    wts[h] = w >= MIN_COMPONENT_WEIGHT ? w : 0;
+    const wk = w >= MIN_COMPONENT_WEIGHT ? w : 0;
     let ES = 0;
     let ES2 = 0;
     for (let ia = 0; ia < idx.length; ia++) {
@@ -90,55 +107,54 @@ export function summarizeSet(inp: AggregateInputs, A: Float64Array, sel: Uint8Ar
       }
       ES2 += Aa * row;
     }
-    let Ep = 0;
-    let Vp = 0;
+    let Ec = 0;
+    let Vc = 0;
+    let lam = 0;
+    let Eu = 0;
+    let Vu = 0;
     for (const b of idx) {
       const conf = inp.confirmedOz[b] as number;
       if (conf > 0) {
-        Ep += conf;
-        Vp += conf * conf * confirmed2;
+        Ec += conf;
+        Vc += conf * conf * confirmed2;
         continue;
       }
-      const lam = inp.pocketLambda[h * n + b] as number;
-      if (!(lam > 0)) continue;
+      const l = inp.pocketLambda[h * n + b] as number;
+      if (!(l > 0)) continue;
       const g = inp.pocketGrade[h * n + b] as number;
-      Ep += lam * inp.pocketBcyMean * g;
-      Vp += lam * inp.pocketBcy2Mean * g * g * (1 + inp.pocketGradeCv2);
-    }
-    if (!(ES > 0)) {
-      baseMu[h] = -Infinity;
-      baseS2[h] = 0;
-      muW[h] = -Infinity;
-      continue;
+      lam += l;
+      Eu += l * inp.pocketBcyMean * g;
+      Vu += l * inp.pocketBcy2Mean * g * g * (1 + inp.pocketGradeCv2);
     }
     const vS = Math.max(0, ES2 - ES * ES);
-    const s2b = log(1 + vS / (ES * ES));
-    baseS2[h] = s2b;
-    baseMu[h] = log(ES) - s2b / 2 + lnScale;
-    baseSd[h] = sqrt(Math.max(s2b, 1e-12));
-    const ET = ES + Ep;
-    const s2 = log(1 + (vS + Vp) / (ET * ET));
-    muW[h] = log(ET) - s2 / 2 + lnScale;
-    sdW[h] = sqrt(Math.max(s2, 1e-12));
-    mean += w * ET * scale;
+    const b0 = lognormalOf(ES, vS);
+    baseMu[h] = b0.mu + lnScale;
+    baseS2[h] = b0.sd * b0.sd;
+    baseSd[h] = b0.sd;
+    wBase[h] = wk;
+    mean += w * (ES + Ec + Eu) * scale;
     baseMean += w * ES * scale;
+    const pNone = lam > MIN_LAMBDA ? exp(-lam) : 1;
+    const c0 = lognormalOf(ES + Ec, vS + Vc);
+    wFull[2 * h] = wk * pNone;
+    muFull[2 * h] = c0.mu + lnScale;
+    sdFull[2 * h] = c0.sd;
+    if (lam > MIN_LAMBDA) {
+      const pSome = -expm1(-lam);
+      const m1 = Eu / pSome;
+      const v1 = Math.max(0, (Vu + Eu * Eu) / pSome - m1 * m1);
+      const c1 = lognormalOf(ES + Ec + m1, vS + Vc + v1);
+      wFull[2 * h + 1] = wk * pSome;
+      muFull[2 * h + 1] = c1.mu + lnScale;
+      sdFull[2 * h + 1] = c1.sd;
+    } else {
+      wFull[2 * h + 1] = 0;
+      muFull[2 * h + 1] = c0.mu + lnScale;
+      sdFull[2 * h + 1] = c0.sd;
+    }
   }
-  if (idx.length === 0) {
-    return {
-      p10: 0,
-      p50: 0,
-      p90: 0,
-      mean: 0,
-      baseP10: 0,
-      baseP50: 0,
-      baseP90: 0,
-      baseMean: 0,
-      baseMu,
-      baseS2,
-    };
-  }
-  const full: Mixture = { count: H, w: wts, mu: muW, sd: sdW };
-  const base: Mixture = { count: H, w: wts, mu: baseMu, sd: baseSd };
+  const full: Mixture = { count: 2 * H, w: wFull, mu: muFull, sd: sdFull };
+  const base: Mixture = { count: H, w: wBase, mu: baseMu, sd: baseSd };
   return {
     p10: exp(mixtureQuantile(full, 0.1)),
     p50: exp(mixtureQuantile(full, 0.5)),
