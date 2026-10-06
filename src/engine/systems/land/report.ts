@@ -3,9 +3,9 @@
 // settlements of production interests taken off the top at each weighing (milli-ounces, exact).
 import type { ClaimId, ClaimListingId, ClosingId, LineId } from '../../core/ids';
 import type { MilliOz } from '../../core/money';
+import type { ListingEvent } from './types';
 
-/** A listing opened, re-priced, expired or sold. Placeholder until §5's `ListingEvent` (contract §4.5) replaces it. */
-export type ListingEvent = Readonly<Record<string, unknown>>;
+export type { ListingEvent } from './types';
 
 export interface LandWeekScratch {
   listingEvents: ListingEvent[];

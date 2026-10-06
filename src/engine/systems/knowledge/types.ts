@@ -2,7 +2,18 @@
 // it into estimates. Estimates are never stored in GameState: they are rebuilt on demand by the pure estimator and
 // cached in engine/core/memo.ts (D-4.24). P0 ships the estimator and a minimal slice; programs, reports, contractors,
 // engagements, seller checks and snapshots arrive with their phases (§4.19).
-import type { BlockId, ClaimId, CreekId, EmployeeId, ProgramId, RecordFindingId, SampleId } from '../../core/ids';
+import type {
+  BlockId,
+  ClaimId,
+  ContractorId,
+  CreekId,
+  EmployeeId,
+  EngagementId,
+  ProgramId,
+  RecordFindingId,
+  ReportId,
+  SampleId,
+} from '../../core/ids';
 import type {
   BedrockType,
   ClaimPriors,
@@ -12,10 +23,23 @@ import type {
   SizeClass,
   SizeRecord,
   Tercile,
+  FamilyRecords,
 } from '../world/types';
 import type { SeasonPhase } from '../climate/types';
 
 export type { ClaimPriors, PriorStatus };
+export * from './programTypes';
+import type {
+  DecisionContext,
+  Engagement,
+  EstimateAnchorRecord,
+  EstimateSnapshot,
+  ProspectContractor,
+  ProspectProgram,
+  ProspectReport,
+  SampleConcentrate,
+  SellerCheck,
+} from './programTypes';
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Method catalog (DESIGN §4.2; rows live in src/data/prospecting/methods.ts)
@@ -369,10 +393,10 @@ export interface EstimateResult {
 // ---------------------------------------------------------------------------------------------------------------------
 
 /**
- * P0 holds the evidence stores only, empty in every new game: no P0 action or pipeline step writes them (programs,
- * records reviews and recordProduction arrive in P1). The rest of §4.1's shape (programs, reports, contractors,
- * engagements, seller checks, planning overrides, decision contexts, sample concentrate, snapshot history, last class)
- * joins with its phase, behind a save migration.
+ * §4.1 `KnowledgeSlice` (P1 contract §4.4): the P0 evidence stores plus programs, reports, engagements, contractors,
+ * seller checks, planning overrides, decision contexts, the pooled sample concentrate and its assays, snapshot history,
+ * last class, the incremental path's anchors and the Inheritor's family records. Every P1 store starts empty (N8b fills
+ * the contractors). `sampleConc[*].hidden` is the only hidden field (scrambler s04).
  */
 export interface KnowledgeSlice {
   samples: Record<SampleId, SampleRecord>;
@@ -383,10 +407,66 @@ export interface KnowledgeSlice {
   recordIds: RecordFindingId[];
   /** Fixed when the claim first gets player evidence (D-4.44). */
   priorStatus: Record<ClaimId, PriorStatus>;
+  programs: Record<ProgramId, ProspectProgram>;
+  programIds: ProgramId[];
+  reports: Record<ReportId, ProspectReport>;
+  reportIds: ReportId[];
+  /** Records reviews and consultants (s04 #5). */
+  engagements: Record<EngagementId, Engagement>;
+  engagementIds: EngagementId[];
+  /** Filled at N8b from data/prospecting/contractors.ts. */
+  contractors: Record<ContractorId, ProspectContractor>;
+  contractorIds: ContractorId[];
+  /** Keyed by ClaimListingId, or ClaimId for the Inheritor's family records. */
+  sellerChecks: Record<string, SellerCheck>;
+  /** Per-claim overrides of planningDefault (s04 #6). */
+  planning: Record<ClaimId, PlanningAssumptions>;
+  planningDefault: PlanningAssumptions | null;
+  /** Player overrides only; defaults are derived (4.11). Empty in P1. */
+  decisionContext: Record<ClaimId, DecisionContext>;
+  /** s04 #19. */
+  sampleConc: Record<ClaimId, SampleConcentrate>;
+  /** Sample-gold assays and the per-claim counter that keys `rng(seed,'prospect',claimId,'assay',n)` (s04 #4, Q1). */
+  assays: Record<ClaimId, FinenessAssay[]>;
+  assayCount: Record<ClaimId, number>;
+  /** Fan-chart points, ≤ 52 per claim. */
+  history: Record<ClaimId, EstimateSnapshot[]>;
+  /** For "class changed" alerts. */
+  lastClass: Record<ClaimId, ConfidenceClass>;
+  /** The incremental path's anchors (s04 #1). */
+  anchors: Record<ClaimId, EstimateAnchorRecord>;
+  /** §3.6.1 Inheritor records (shown, never admitted). */
+  familyRecords: Record<ClaimId, FamilyRecords>;
 }
 
 export function emptyKnowledgeSlice(): KnowledgeSlice {
-  return { samples: {}, sampleIds: [], drawIndex: {}, records: {}, recordIds: [], priorStatus: {} };
+  return {
+    samples: {},
+    sampleIds: [],
+    drawIndex: {},
+    records: {},
+    recordIds: [],
+    priorStatus: {},
+    programs: {},
+    programIds: [],
+    reports: {},
+    reportIds: [],
+    engagements: {},
+    engagementIds: [],
+    contractors: {},
+    contractorIds: [],
+    sellerChecks: {},
+    planning: {},
+    planningDefault: null,
+    decisionContext: {},
+    sampleConc: {},
+    assays: {},
+    assayCount: {},
+    history: {},
+    lastClass: {},
+    anchors: {},
+    familyRecords: {},
+  };
 }
 
 export type { SizeClass, SizeRecord };

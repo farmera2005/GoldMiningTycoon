@@ -19,6 +19,10 @@ import type { OpsSlice } from '../systems/ops/types';
 import type { PermitSlice } from '../systems/permits/types';
 import type { StaffSlice } from '../systems/staff/types';
 import type { WorldSlice } from '../systems/world/types';
+import type { InheritorStreams } from '../systems/company/types';
+import type { ListingCandidate } from '../systems/world/types';
+import type { CalendarMode } from '../systems/climate/types';
+import type { FixtureSpec } from './fixture';
 import type { NewGameSetup } from './setup';
 
 /**
@@ -43,6 +47,13 @@ export interface GameMeta {
   /** Engine rules version at creation. */
   rulesVersion: string;
   rulesPhase: RulesPhase;
+  /**
+   * §1's season calendar (s02 #3): 'drawn' rolls seasons and weather from their streams; 'mean' (fixture games only,
+   * set by `newFixtureGame` before the init parts run) uses the climatological calendar and draws nothing.
+   */
+  calendarMode: CalendarMode;
+  /** BALANCE §2.1 fixture id of a fixture game (absent otherwise), so a replay can rebuild it. */
+  fixtureId?: string;
 }
 
 export interface Clock {
@@ -97,3 +108,36 @@ export const SLICE_KEYS = [
   'inbox',
   'history',
 ] as const satisfies readonly (keyof GameState)[];
+
+/**
+ * newGame's per-game scratch (P1 contract §1.5): handoffs between init parts, never stored in state. `candidates` are
+ * §3's initial listing candidates for §5 (N3 → N5), `inheritor` §1's setup streams (N4 → N9), `fixture` the spec of a
+ * fixture game (N10).
+ */
+export interface InitScratch {
+  candidates: ListingCandidate[];
+  inheritor: InheritorStreams | null;
+  fixture: FixtureSpec | null;
+}
+
+export interface InitCtx {
+  readonly seed: string;
+  readonly setup: NewGameSetup;
+  readonly tuning: TuningResolved;
+  readonly scratch: InitScratch;
+}
+
+/**
+ * One week-1 initialization of newGame (D-2.13; P1 contract §1.5): N1 … N11 in a fixed order, because ids mint in this
+ * order (`lst` goes §5 then §9, D-9.43). A part runs only when the game's rules phase is at least `fromPhase`. It mutates
+ * the new game's shell in place (the shell is not shared until newGame freezes it).
+ */
+export interface InitPart {
+  /** '<folder>.<name>', unique. */
+  readonly id: string;
+  /** N1 = 1 … N11 = 11 (N8b = 8.5). */
+  readonly order: number;
+  readonly section: number;
+  readonly fromPhase: RulesPhase;
+  run(draft: GameState, init: InitCtx): void;
+}
