@@ -93,7 +93,7 @@ Every row below was confirmed or decided by the owner's rulings of 2026-10-05.
 | "Autosave each turn" | Every manually advanced week; during multi-week runs every 8 weeks and at the stop | D-13.25 | Low | Listed only |
 | "$1.5M+ for a new large dozer or wash plant" | Single plants top out at $950k; $1.58M is a turnkey 300 bcy/hr package | D-9.44 | Low | Listed only |
 | Starter operation washes 30–75 yd/hr | Northern starter about 36 bcy/hr. The arid wet starter is water-limited: about 28–29 at the median well, 36.6 at 150 gpm | D-7.37 | Low | Listed only |
-| Grades "mostly 0.005–0.03 oz/yd" | Inside the range: paystreak `gMed` 0.0095 north / 0.0062 arid; mined-block median about 0.016 | D-3.6 | None | Listed only |
+| Grades "mostly 0.005–0.03 oz/yd" | Inside the range: paystreak `gMed` 0.0095 north / 0.0056 arid (P0 calibration, D-3.51); mined-block median about 0.016 | D-3.6 | None | Listed only |
 | Hard rock as an optional late-game track | A sketch-level §14 (P6) under federal and private regimes only; no AI competitor mines hard rock | D-14.1, D-14.22, D-14.28 | Low | Smaller calls 8–9, confirmed |
 
 ### Smaller calls
@@ -130,7 +130,7 @@ The owner confirmed every call below on 2026-10-05 except item 3, which the ruli
 
 ### Still open
 
-None.
+- **OQ-3.3 (P6): world generation time and slice size at five districts.** A five-district world takes ≈ 151 ms to generate (target < 60 ms) and its `world` slice is 1,252 kB at generation against §2.13's 1,000 kB; the P1 world fits the budget. Default until the owner answers: when P6 fixes the district count, trim per-claim visible fields or raise the budget, and speed up generation or relax the targets (§3 3.20).
 
 ---
 
@@ -1289,7 +1289,7 @@ Not repeated here: difficulty values (1.11), climatology tables (1.5.1), forecas
 | Forecast gaming | Forecasts are calibrated; shifts are short-notice |
 | Probing hidden season dates through validators or planning tools | `accessOpen` and `seasonPhase` answer for the current week only; planning uses `accessOutlook` / `phaseOutlook` from forecasts (1.4.5) |
 
-- **Arid as easy mode.** Without heat and fire hour effects, an arid day-shift plan would lose only ≈ 0.9 effective weeks a year (≈ 4.1 with a flat heat factor). With the graded curve and recalibrated fire it loses ≈ 5.0 in P1 and ≈ 5.9 once precipitation hours ship in P5, concentrated in summer. The rest of the balance comes from economics: lower `gMed` (0.0062 vs 0.0095), finer gold, lower fineness (0.78 vs 0.86) and costly water (§3, §7). Hence §7 ships both hour effects in P1 (D-1.25). Watch the simulator's district-choice split for the `cautious` bot: if more than 70% of seeds pick arid, steepen the heat curve before touching grades.
+- **Arid as easy mode.** Without heat and fire hour effects, an arid day-shift plan would lose only ≈ 0.9 effective weeks a year (≈ 4.1 with a flat heat factor). With the graded curve and recalibrated fire it loses ≈ 5.0 in P1 and ≈ 5.9 once precipitation hours ship in P5, concentrated in summer. The rest of the balance comes from economics: lower `gMed` (0.0056 vs 0.0095, §3 D-3.51), finer gold, lower fineness (0.78 vs 0.86) and costly water (§3, §7). Hence §7 ships both hour effects in P1 (D-1.25). Watch the simulator's district-choice split for the `cautious` bot: if more than 70% of seeds pick arid, steepen the heat curve before touching grades.
 - **Reorganization and the bankruptcy rate.** A reorganization keeps runs alive that would otherwise end, so it can lift late-window net worth for aggressive play without moving the survival gates (a filing fails B_N and S_N for its window, D-1.49). Watch BALANCE O-04: if `aggressive`'s year-5 p90 NW rises mainly through reorganized runs, the levers are §11's `finance.reorg.filingCostUsd`, the trustee rate and the plan length, then §1's `game.investor.reorgFilingPenalty`. The reorganization share is printed beside every survival figure (§2.12).
 - **Entity choice.** The sole prop trades the shield for cheaper early credit (the owner's file as company payment history for 104 weeks, ≈ +15 U; D-1.36); gate: its `cautious`-bot S2 within 5 pp of the LLC's (1.22). If it dominates, shorten `finance.credit.solePropOwnerFileWeeks`; if it still trails, add the time-in-business stand-in (timePts uses `max(weeksInBusiness, 104)`, ≈ +30 U more). C-corp vs LLC is the live tax choice, driven by how much profit the player reinvests.
 
@@ -1978,7 +1978,7 @@ If the measured simulator mean misses 3.5 ms, the phase report states the figure
 
 | Slice | Budget | Owner and basis |
 |---|---|---|
-| `world` | 1,000 kB | §3: packed truth ≈ 0.7 MB at 300 claims |
+| `world` | 1,000 kB | §3: packed truth ≈ 0.7 MB at 300 claims (P0: 621 kB at 315) plus ≈ 2 kB of visible data per claim; measured at generation, the P1 world is 561 kB and a five-district world 1,252 kB, over budget until §3 OQ-3.3 is settled in P6 |
 | `finance` | 600 kB | §11: 52 weeks of detail ≈ 0.35 MB + monthly summaries ≈ 0.15 MB + rings |
 | `knowledge` | 300 kB | §4 (the `heavyProspector` bot's year-10 state) |
 | `history` | 300 kB | §2: 157 weekly snapshots + annual rollups |
@@ -2160,7 +2160,7 @@ None open.
 
 ### 3.1 World structure, generation order, storage
 
-**Hierarchy.** World → `District` (2–6) → `Creek` (a tree of 5–12 per district) → `Claim` parcel (60–80 per district, hard cap 320 per world, 3.4) → `Block` (1 acre = 209 × 209 ft; 1 ft of thickness = 1,613 bcy). A claim is an `nAlong × nAcross` grid, with the along axis following the valley downstream→upstream.
+**Hierarchy.** World → `District` (2–6) → `Creek` (a tree of 6–17 per district, ≈ 11 on average) → `Claim` parcel (60–80 per district, hard cap 320 per world, 3.4) → `Block` (1 acre = 209 × 209 ft; 1 ft of thickness = 1,613 bcy). A claim is an `nAlong × nAcross` grid, with the along axis following the valley downstream→upstream.
 
 | Claim acres | Grid (along × across) | Notes |
 |---|---|---|
@@ -2190,7 +2190,7 @@ verticalDecayFt                               uint16 = round(ft × 1000)
 bedrockType                                   uint8 enum; pockets and old tailings: sparse list appended per claim
 ```
 
-Size: ≈ 36 bytes per block, about 0.5 MB raw and 0.7 MB base64 at 300 claims (≈ 0.3 MB for a P1 world). Decoding one claim takes < 0.2 ms. The decode cache holds ≈ 3 MB for a full world; it is a pure memo cache under §2.3's rule (keyed by content hash, never serialized or hashed). Seller evidence is *not* stored in full (3.10.2): holders keep a ≈ 100-byte summary per claim, and the public-record extras (creek histories, ≈ 30 old drill logs) add < 15 kB, so the whole world slice stays ≈ 0.9 MB at 320 claims, inside §2.13's 1.0 MB `world` budget.
+Size: ≈ 36 bytes per block, about 0.5 MB raw and 0.7 MB base64 at 300 claims (≈ 0.3 MB for a P1 world); the P0 engine measures 621 kB of packed truth for a five-district, 315-claim world. Decoding one claim takes ≈ 0.2 ms (0.22 ms measured for a 160-block claim). The decode cache holds ≈ 3 MB for a full world; it is a pure memo cache under §2.3's rule (keyed by content hash, never serialized or hashed). Seller evidence is *not* stored in full (3.10.2): holders keep a ≈ 100-byte summary per claim, and the public-record extras (creek histories, ≈ 30 old drill logs) add < 15 kB. The visible per-claim data (environment, water, geometry, public record, pre-game block states, names) adds ≈ 2 kB per claim, which the design-time estimate of ≈ 0.9 MB left out. Measured at generation, the P1 two-district world slice is 561 kB, inside §2.13's 1.0 MB `world` budget, but the five-district, 315-claim slice is 1,252 kB, over it; OQ-3.3 holds the P6 fix.
 
 **Data shapes** (the `world` slice; hidden fields are marked and are read only by engine physics, never by UI or bot selectors):
 
@@ -2205,6 +2205,7 @@ interface WorldSlice {
   siteVisits: Record<ClaimId, SiteVisitReport[]>;   // player-visible
   watch: { districtIds: DistrictId[]; claimIds: ClaimId[] };   // player-visible inbox preferences (world/setWatch); claimIds ≤ geology.maxTrackedClaims
   supplyQueue: { claimId: ClaimId; situation: SellerSituation; queuedTurn: number }[];   // relistClaim requests for the next step-3 supplyTick
+  familyRunClaimIds: ClaimId[];                     // the reserved Inheritor run (3.4, 3.6.1): three 20-ac valley parcels, or [] (D-3.53)
 }
 interface District {
   id: DistrictId; name: string; templateId: RegionTemplateId; regime: Regime;
@@ -2225,7 +2226,8 @@ interface LandOverlay { kind: 'withdrawn' | 'specialStatus'; label: string;   //
   creekId: CreekId; rowFrom: number; rowTo: number }
 interface Creek {
   id: CreekId; districtId: DistrictId; name: string; order: 1 | 2 | 3; parentId: CreekId | null; junctionRow: number | null;
-  polylineMi: PointMi[]; rows: number; valleyHalfWidthFt: number; upstreamMiAtRow: number[];   // for water and map
+  polylineMi: PointMi[]; lengthMi: number; rows: number; valleyHalfWidthFt: number; upstreamMiAtRow: number[];   // for water and map
+  mouthMiFromOutlet: number;       // channel miles from the district outlet to this creek's mouth (trail distance before tortuosity; 3.3.3, 3.4 fan zone)
   noTrail: boolean; fishBearing: boolean; anadromous: boolean;                                  // visible (3.4.1)
   hidden: { goldBearing: boolean; gradeFactor: number; obFactor: number; payFactor: number;
             history: CreekHistory | null };                                                    // public record, found by §4 (3.6)
@@ -2237,10 +2239,12 @@ interface Claim {
   geometry: { rowStart: number; axisOffsetFt: number; centerMi: PointMi; headingDeg: number; lengthFt: number; widthFt: number };
   setting: ListingInfo['setting']; titleKind: 'unpatented' | 'patented' | 'state'; regime: Regime;   // the parcel's legal type; patented → 'private'
                                                                             // (the player's holding is §5 Tenure.kind)
+  sizeSetting: SizeSetting;        // visible: the size-mix prior key, derived from layout geometry only (3.4; D-3.53)
   status: 'open' | 'heldNpc' | 'listed' | 'player' | 'competitor' | 'withdrawn';
   holderId: HolderId | CompetitorId | 'player' | null;
   access: Access; trailMi: number; distanceToTownMi: number;
   visibleFeatures: ListingInfo['visibleFeatures']; improvementsUsd: number;   // cabin, pad, access road left by a recent operator
+  visibleWorkings: number[];       // block indices carrying an aerial-visible feature (3.9; ClaimPriors.blocks.visibleWorkings)
   env: ClaimEnv;                                                            // visible (3.4.1); read by §6
   water: { sourceKind: WaterSourceKind; baseGpm: number; benchLiftFt: number; nearestFillMi: number;   // 3.3.4
            rightStub?: { priority: 'senior'; gpm: number; source: 'surface' | 'groundwater' };       // recorded right (§6 6.4); shown from P2
@@ -2279,7 +2283,8 @@ generateWorld(seed, opts: WorldGenOptions, tuning) -> WorldSlice      // opts.te
                                                     //   min(U{tpl.parcelsPerDistrict}, floor(geology.world.maxClaims / districtCount))
     N  = genCreekNetwork(D, rng(seed,'world','creeks',D.id))                          // 3.3.1: creeks, overlays, fish
     for C in N.creeks (ID order): C.profile = genCreekProfile(C, D, rng(seed,'world','creek',C.id))   // 3.5.2, transient
-    P  = layParcels(D, N, D.nTarget, rng(seed,'world','layout',D.id))                 // 3.4 (+ reserved family run, 3.6.1)
+    P  = layParcels(D, N, D.nTarget, rng(seed,'world','layout',D.id))                 // 3.4 (+ reserved family run, 3.6.1;
+                                                    //   deposit types, then each parcel's visible sizeSetting, no draws)
     for K in P (ID order):
       T = genClaimTruth(K, D, rng(seed,'world',D.id,K.id))                            // 3.5
       applyOldTimers(K, T, rng(seed,'world','oldtimers',K.id))                        // 3.6
@@ -2313,13 +2318,16 @@ A region template is data (`data/regions/*.ts`) that sets a district's climate, 
 | Jurisdiction / wage region (§8 payroll, §9 sales tax, §11 tax) | `akStyle` / `northern` | `nvStyle` / `arid` |
 | Records quality (§4 records review) | 0.8 (BLM case files, ADGGS reports); claims with `flyIn` access × 0.5 | 0.7 (BLM case files; dry-wash era thinly recorded); same fly-in rule |
 | District road class / winter-maintained | highway 0.40, seasonalRoad 0.60 / seasonal roads plowed in winter w.p. 0.5 (Steese-style) else unmaintained Oct–May (Taylor-style) | highway 0.45, seasonalRoad 0.55 / always |
+| Trail degrade distances (3.3.3; `trailDegradeMi`) | the global `geology.access.trailDegrade1Mi` / `2Mi`, 6 / 18 mi | 12 / 30 mi (desert roads run further up the washes; D-3.50) |
 | Resulting claim access mix (target) | highway 15%, seasonalRoad 50%, winterTrail 25%, flyIn 10% | highway 35%, seasonalRoad 65% |
 | Town (road mi from district outlet) | `serviceTown` 0.6 / `outpost` 0.4, 20–80 mi; hub 120–300 mi beyond | `serviceTown` 0.7 / `hubCity` 0.3, 8–40 mi; hub 60–200 mi |
-| Parcels per district / staking intercept (realized held share) | 60–80 / 0.82 (≈ 0.70) | 60–80 / 0.70 (≈ 0.57) |
-| Land overlays (3.3.1) | withdrawn W&S-corridor stretch w.p. 0.5; special-status (NCA/ACEC) stretch w.p. 0.4 | special-status (tortoise ACEC) w.p. 0.5; withdrawn w.p. 0.3 |
+| Parcels per district / staking intercept (realized held share) | 60–80 / 0.82 (≈ 0.69) | 60–80 / 0.70 (≈ 0.575) |
+| Land overlays (3.3.1) | withdrawn W&S-corridor stretch w.p. 0.5; special-status (NCA/ACEC) stretch w.p. 0.4 | special-status (tortoise ACEC) w.p. 0.5, on 20–40% (`valley.specialFanFrac`) of the lower 30% of main-stem rows (`valley.overlayFanMainFrac`); withdrawn w.p. 0.3 |
+| Valley rule (`valley`, 3.4) | `creek`: valley parcels are creek, deep muck or dredged ground | `wash`: valley parcels nearest the outlet are fan, the rest gulch (D-3.52) |
+| Bench side probability (`benchSideP`, 3.4) | 0.5 | 0.25 (D-3.50) |
 | Fish and wetlands (3.4.1) | fish-bearing by creek order 0.85 / 0.45 / 0.10; anadromous main stem 0.15; wetland share of non-channel valley blocks: creek 0.35, deepMuck 0.60, dredged 0.05 | none (washes are dry); one wetland block at a spring |
 | Deposit mix (parcels) | creek 0.60, bench 0.20, deepMuck 0.10, dredgedGround 0.10 | desertFan 0.45, gulch 0.35, bench (Tertiary) 0.10, dredgedGround 0.10 (dry-land dredge and dry-wash plant fields) |
-| `gMed` (raw oz/bcy) | 0.0095 (+5% steps if the P0 run puts the listing pool over 72% uneconomic; D-3.36) | 0.0062 (→ 0.0056 if the P0 run confirms arid good > 10% with §7's D-7.37 water change in place; D-3.36) |
+| `gMed` (raw oz/bcy) | 0.0095 (unchanged by the P0 engine run: pool 65.7% uneconomic, under the 72% ceiling; D-3.36, D-3.51) | 0.0056 (from 0.0062 on the P0 engine run, which put pool good at 10.5–10.9%; D-3.36, D-3.51) |
 | σ log: district / creek / creek-richness AR / claim / block | 0.25 / 0.38 / 0.28 / 0.20 / 0.50 | 0.25 / 0.38 / 0.40 / 0.25 / 0.65 |
 | Richness correlation range (along valley) / block-field range along (overrides `geology.grade.blockRangeAlongFt`) | 3,000 ft / 700 ft | 2,000 ft / 500 ft (more erratic) |
 | Paystreak half-width median (σ log 0.40) / centre wander SD | 110 ft / 140 ft | 130 ft (σ 0.45) / 180 ft |
@@ -2363,32 +2371,48 @@ type ClimateTemplateId = 'northernInterior' | 'aridDesert' | 'northernYukon' | '
 type WaterSourceKind = 'creek' | 'spring' | 'well' | 'ephemeralWash' | 'none';                       // §1 1.5.4 source scaling
 type JurisdictionId = 'akStyle' | 'nvStyle' | 'temperateStyle' | 'yukon';      // = §11 TaxJurisdictionId; §8 and §9 key on it too
 type WageRegion = 'northern' | 'arid' | 'temperate' | 'alaskaState' | 'yukon';   // §8 wage tables
+type SizeSetting = 'proximal' | 'midReach' | 'bench' | 'fan' | 'gulch';           // size-mix prior and coarse-mass keys (3.4)
+type ValleyRule = { kind: 'creek' }                                                // northern creeks
+  | { kind: 'wash'; overlayFanMainFrac: number;            // lower share of main-stem rows that holds the special-status stretch (0.30)
+      specialFanFrac: [number, number] };                 // the stretch covers this share of those rows (0.20–0.40)
 
 interface RegionTemplate {
-  id: RegionTemplateId; phase: number; climateBand: ClimateBand; climateTemplateId: ClimateTemplateId;
+  id: RegionTemplateId; phase: number; displayName: string; climateBand: ClimateBand; climateTemplateId: ClimateTemplateId;
   fireRestrictionRegime: 'none' | 'stage' | 'ifpl'; regime: Regime; stateOverlayId: string;
   jurisdictionId: JurisdictionId; wageRegion: WageRegion; recordsQuality: number;   // copied onto District
   districtRoadMix: Partial<Record<Access, number>>; roadWinterMaintainedP: number; townTierMix: Partial<Record<TownTier, number>>;
   townRoadMi: [number, number]; hubRoadMi: [number, number];
+  aquifer?: { wellGpm: [number, number]; depthFt: [number, number] };            // arid: the visible regional range, copied onto District
   parcelsPerDistrict: [number, number]; stakedFraction: number /* logistic intercept */; patentedShare: number;
   overlayP: { withdrawn: number; specialStatus: number };
-  env: { fishByOrder: [number, number, number]; anadromousP: number; wetlandP: Partial<Record<DepositType, number>> };
-  claimSizeMix: Record<number, number>; depositMix: Partial<Record<DepositType, number>>;
+  overlayLabels: { withdrawn: string; specialStatus: string };                    // map and listing text
+  env: { fishByOrder: [number, number, number]; anadromousP: number; wetlandP: Partial<Record<DepositType, number>>;
+         springWetland: boolean };                                               // arid: one wetland block at a spring
+  valley: ValleyRule;                                                             // 3.4 valleyType
+  benchSideP?: number;                     // overrides geology.world.benchSideP (3.4; north 0.5, arid 0.25)
+  trailDegradeMi?: [number, number];       // overrides geology.access.trailDegrade1Mi / 2Mi (3.3.3; arid [12, 30])
+  claimSizeMix: Partial<Record<'20' | '40' | '80' | '160', number>>; depositMix: Partial<Record<DepositType, number>>;
   gMed: number; sigma: { district: number; creek: number; rich: number; claim: number; block: number };
-  richRangeFt: number; halfWidthMedFt: number; sigHalfWidth: number; wanderSdFt: number; bgRatio: number;
+  richRangeFt: number; blockRangeAlongFt: number;   // blockRangeAlongFt overrides geology.grade.blockRangeAlongFt (north 700, arid 500)
+  halfWidthMedFt: number; sigHalfWidth: number; wanderSdFt: number; bgRatio: number;
   overburden: { medFt: number; sig: [number, number, number, number, number] };
   pay: { medFt: number; sig: [number, number, number] };
   depositMult: Record<DepositType, { grade: number; ob: number; pay: number; halfWidth: number }>;
   bedrockMix: Partial<Record<BedrockType, number>>; permafrostP: Partial<Record<DepositType, number>>;
-  clayMed: number; boulderMed: number; cementMed: number;
+  clayMed: number; boulderMed: number; cementMed: Partial<Record<DepositType, number>>;   // north { bench 0.15 }; arid 0.30, bench 0.45
   fineness: { mean: number; districtSd: number; claimSd: number; lo: number; hi: number };
-  sizeMixPriors: Record<string, [number, number, number, number]>; coarseMg: Record<string, number>;
+  sizeMixPriors: Partial<Record<SizeSetting, [number, number, number, number]>>; coarseMg: Partial<Record<SizeSetting, number>>;
   verticalDecayFt: Partial<Record<DepositType, number>>; pocketP: number;
   oldTimerMix: Partial<Record<DepositType, Partial<Record<OldTimerKind, number>>>>;
   water: { kind: 'creek'; gpmPerUpstreamMi: number; sig: number }
-       | { kind: 'arid'; springP: number; springMedGpm: number; springSig: number; wellMedGpm: number; wellSig: number; depthMedFt: number };
+       | { kind: 'arid'; springP: number; springMedGpm: number; springSig: number; wellMedGpm: number; wellSig: number;
+           depthMedFt: number; depthSig: number;                                  // LN(180 ft, 0.5) (3.3.4)
+           wellClampGpm: [number, number]; depthClampFt: [number, number] };     // [5, 1500] gpm, [30, 800] ft
+  names: { districts: string[]; towns: string[]; hubs: string[]; creeks: string[] };   // fictional name pools (3.2 ruling)
 }
 ```
+
+The northern template's `verticalDecayFt` also gives `deepMuck` the creek value (2.0 ft): the gravels under the muck are creek gravels.
 
 ### 3.3 Districts: map, creek network, town, access, water
 
@@ -2404,10 +2428,14 @@ genDistrict(tpl, r):   gradeFactor = LN(1, σdistrict); obFactor = LN(1, σobDis
 genCreekNetwork(D, r):
   main: order 1, starts at D.outlet, heading into the map ± 30°, length U(6, 9) mi
         polyline in 0.25-mi steps, heading += N(0, 12°) per step, reflected 1 mi inside the map edge
-  nTrib = U{3..6} order-2 tributaries at U(0.10, 0.90) of main length (min spacing 0.6 mi), sides alternate,
-        angle U(35°, 70°) off the local main heading, length U(1.5, 4) mi
-  each tributary: w.p. 0.4 one order-3 branch at U(0.3, 0.8) of its length, length U(0.75, 2) mi
-        (≈ 565 valley rows per district → ≈ 56 valley parcels + ≈ 15 bench parcels ≈ nTarget; D-3.33)
+  nTrib = U{5..8} order-2 tributaries at U(0.10, 0.90) of main length (min spacing 0.6 mi), sides alternate,
+        angle U(35°, 70°) off the local main heading, length U(2.5, 5) mi
+  each tributary: w.p. 0.5 one order-3 branch at U(0.3, 0.8) of its length, length U(0.75, 2) mi
+        (≈ 920 valley rows per district on average; a valley parcel uses ≈ 11.6 rows once gaps and the unusable rows
+        at each creek head are counted, so the network can lay more than nTarget and nTarget caps most districts; D-3.33, D-3.49)
+  fixed draw count: polyline jitters are drawn for the longest possible creek, and all 8 tributary slots (nTrib's maximum),
+        each with its branch draws, are drawn even when unused, so the draw count never depends on the realized
+        tributary count, lengths or branch rolls
   valleyHalfWidthFt: order 1 U(500, 900); order 2 U(250, 500); order 3 U(150, 300)
   goldBearing = r.u() >= geology.world.barrenCreekP (0.20); creek.gradeFactor = goldBearing ? LN(1, σcreek) : barrenCreekFactor (0.15)
   noTrail = order >= 2 and r.u() < geology.world.noTrailCreekP (0.15)
@@ -2418,7 +2446,7 @@ genCreekNetwork(D, r):
             w.p. overlayP.specialStatus one 'specialStatus' stretch covering 15–30% of a random tributary and its branch (NCA, ACEC)
 ```
 
-In the arid template the "creeks" are dry washes draining to a fan at the outlet. The lower 30% of main-stem rows is `desertFan`; tributaries are `gulch`. The arid special-status overlay covers 20–40% of the fan rows (tortoise-habitat ACEC).
+In the arid template the "creeks" are dry washes draining to a fan at the outlet. The fan spreads across the lower reach of every wash, so fan ground is the valley parcels nearest the outlet by channel miles, and the rest are `gulch` (3.4 valleyType, D-3.52). The arid special-status overlay (tortoise-habitat ACEC) covers 20–40% (`valley.specialFanFrac`) of the lower 30% of main-stem rows (`valley.overlayFanMainFrac`); that fraction now only places the overlay.
 
 **Overlays follow valid existing rights.** A withdrawal closes *open* ground to new location; claims already held inside it stay valid but are `specialStatus` (§6: no Notice tier, plan plus validity examination). A special-status stretch stays open to staking, but every parcel in it is `specialStatus`. §12's "land opened to entry" event (`landOpened`) calls `openWithdrawnOverlay(state, districtId)`, the single entry point for this effect (R1: the 2025 Alaska d-1 revocations):
 
@@ -2434,26 +2462,29 @@ openWithdrawnOverlay(state, districtId): ClaimId[]
 
 ```ts
 interface TownServices { fuel: boolean; partsCounter: boolean; weldingShop: boolean; goldBuyer: boolean;
-  airstrip: boolean; clinic: boolean; motel: boolean; laborPoolMult: number }
+  airstrip: boolean; clinic: boolean; motel: boolean; equipmentDealers: boolean; laborPoolMult: number }   // data/regions/towns.ts
 ```
 
 | Tier | Services | `laborPoolMult` (§8) |
 |---|---|---|
 | outpost | fuel, airstrip, seasonal gold buyer | 0.3 |
 | serviceTown | fuel, parts counter (filters, hoses, GET), welding shop, gold buyer, clinic, motel, airstrip | 0.7 |
-| hubCity (or adjacent) | all, plus equipment dealers (§9 uses `hub.roadMiFromTown`) | 1.0 |
+| hubCity (or adjacent) | all, plus equipment dealers (`equipmentDealers`; §9 uses `hub.roadMiFromTown`) | 1.0 |
 
 #### 3.3.3 Claim access and the access factors
 
-Trail distance is the in-district distance from the outlet to the claim along the network: `trailMi = channelMi × geology.world.trailTortuosity (1.2)`. The claim's distance to town is `distanceToTownMi = D.town.roadMiFromOutlet + trailMi`. Access degrades with trail distance:
+Trail distance is the in-district distance from the outlet to the claim along the network: `trailMi = channelMi × geology.world.trailTortuosity (1.2)`, where `channelMi = creek.mouthMiFromOutlet + (rowStart + nAlong/2) × 209 / 5280` (the claim's middle row). The claim's distance to town is `distanceToTownMi = D.town.roadMiFromOutlet + trailMi`. Access degrades with trail distance:
 
 ```
+[d1, d2] = tpl.trailDegradeMi ?? [geology.access.trailDegrade1Mi (6), geology.access.trailDegrade2Mi (18)]   // arid [12, 30] (D-3.50)
 a = D.roadClass
-if trailMi > geology.access.trailDegrade1Mi (6):  a = degrade(a)
-if trailMi > geology.access.trailDegrade2Mi (18): a = degrade(a)
+if trailMi > d1: a = degrade(a)
+if trailMi > d2: a = degrade(a)
 if creek.noTrail: a = 'flyIn'
 degrade: highway → seasonalRoad → winterTrail → flyIn   (arid: capped at seasonalRoad; no winter trail or fly-in)
 ```
+
+Desert district roads stay passable much further up the washes than northern trails, so the arid template sets its own distances: at 6 / 18 mi only 21.7% of arid claims kept highway access against the 35% ± 10 target; at 12 / 30 mi the P0 engine gives 39.3% / 36.5% (two seed bases).
 
 The district access anchors are owned here and apply at a reference distance. They scale with distance by a square root:
 
@@ -2502,10 +2533,11 @@ Water truth is fixed per claim: one source kind and one baseline gpm for an **av
 
 ```
 north:  sourceKind = 'creek'; baseGpm = usableFrac (0.8) × 150 × upstreamMi(claim mid-row) × LN(1, 0.35)   // benches pump from the creek
-        benchLiftFt = bench ? U(30, 300) : 0                                             // §7 pump head
+        benchLiftFt = bench ? U(geology.water.benchLiftFt (30, 300)) : 0                 // §7 pump head
 arid:   r.u() < 0.20 ? (sourceKind = 'spring', baseGpm = usableFrac × LN(40, 0.5)) : (sourceKind = 'none', baseGpm = 0)
-        hidden: wellYieldGpm = clamp(LN(120, 0.8), 5, 1500); depthToWaterFt = clamp(LN(180, 0.5), 30, 800)
-        nearestFillMi = distanceToTownMi × U(0.3, 1.0)                                   // §7 water trucking
+        hidden: wellYieldGpm = clamp(LN(120, 0.8), tpl wellClampGpm [5, 1500]); depthToWaterFt = clamp(LN(180, depthSig 0.5), depthClampFt [30, 800])
+        nearestFillMi = distanceToTownMi × U(geology.water.nearestFillFrac (0.3, 1.0))   // §7 water trucking
+each branch takes all its draws on every claim (north also draws a fill fraction it does not use, arid a bench lift)
 rightStub (recorded senior water right; the last draws on this stream, recentCat claims only):
         if r.u() < geology.water.rightStubP (north 0.10, arid 0.30):
           creek or spring source: { priority 'senior', gpm: min(lowFlowGpm, U(50, 300)), source 'surface' }
@@ -2535,22 +2567,39 @@ layParcels(D, N, nTarget, r):
            consecutive 20-ac valley parcels there first (the Inheritor's family run, 3.6.1; ordinary parcels in other games);
            the main-stem loop below steps over the reserved rows
   for creek in N (order: main stem, then tributaries by junction row, then branches), stopping once nTarget parcels exist:
-    row = U{0..5}
+    row = U{0..geology.world.valleyFirstRowMax (5)}
     while row < creek.rows − 4:
-      acres = pick(tpl.claimSizeMix); (nAlong, nAcross) = dims(acres, creek.valleyHalfWidthFt)
-      emit {creek, rowStart: row, nAlong, nAcross, axisOffsetFt: 0, depositType: valleyType(creek, row)}
-      row += nAlong + (r.u() < 0.2 ? U{1..5} : 0)
-    if creek.order == 1 or creek.valleyHalfWidthFt >= 400:              // benches
-      for side in [−1, +1]: if r.u() < geology.world.benchSideP (0.6):
-        on a random stretch covering 30–70% of the creek: 20/40-ac bench parcels, nAcross = 2,
-        axisOffsetFt = side × (valleyHalfWidthFt + U(100, 600)), depositType 'bench'
-  the 3.3.1 network lays ≈ 71 parcels on average; once nTarget is reached, the remaining creeks in the order above (branches
-  first) stay "unlocated" valley (drawn on the map, not stakeable). If all creeks are done and fewer than tpl.parcelsPerDistrict.lo
-  exist, bench stretches are added on creek sides that rolled none (main stem first) until the floor is met or sides run out.
-valleyType: dredgedGround = contiguous stretches (each 1–3 mi) in the lower 60% of the main stem and the largest tributary, added until
-            the dredged share of valley parcels reaches tpl.depositMix.dredgedGround ± 0.05; deepMuck w.p. tpl.depositMix.deepMuck
-            (renormalized over valley parcels) per parcel; else creek (arid: desertFan in the lower 30% of main-stem rows, else gulch)
-// depositMix shares are targets: benchSideP and bench stretch length are tuned so benches reach their share ± 0.05
+      acres = pick(tpl.claimSizeMix); gapU = r.u(); gapRows = U{geology.world.valleyGapRows (1..5)}   // all three drawn every pass
+      (nAlong, nAcross) = dims(acres, creek.valleyHalfWidthFt); stop this creek if row + nAlong > creek.rows
+      emit {creek, rowStart: row, nAlong, nAcross, axisOffsetFt: 0}             // deposit type assigned below
+      row += nAlong + (gapU < geology.world.valleyGapP (0.2) ? gapRows : 0)
+    if creek.order == 1 or creek.valleyHalfWidthFt >= geology.world.benchMinHalfWidthFt (400):   // benches
+      for side in [−1, +1]: sideU = r.u(); span = U(geology.world.benchStretchFrac (0.3, 0.7)); startU = r.u();
+                            offset = U(geology.world.benchOffsetFt (100, 600))                    // all drawn for every side
+        if sideU < (tpl.benchSideP ?? geology.world.benchSideP) (north 0.5, arid 0.25; global fallback 0.6; D-3.50):
+          on the stretch (span × creek.rows rows from startU): 20/40-ac bench parcels, nAcross = 2,
+          axisOffsetFt = side × (valleyHalfWidthFt + offset), depositType 'bench'
+  the 3.3.1 network can lay more than nTarget in most districts, so nTarget usually binds; once it is reached, the remaining
+  creeks in the order above (branches first) stay "unlocated" valley (drawn on the map, not stakeable). If all creeks are done
+  and fewer than tpl.parcelsPerDistrict.lo exist, bench stretches are added on creek sides that rolled none (main stem first)
+  until the floor is met or sides run out.
+valleyType (valley parcels; the family run is always creek and takes no part in the dredged and fan rules):
+  dredged:  geology.world.dredgedMaxStretches (6) stretch slots, each drawn every time (creek u: the main stem if < 0.5, else the
+            largest tributary; length U(geology.world.dredgedStretchMi (1, 3)) mi; start u) inside the lower
+            geology.world.dredgedZoneFrac (60%) of that creek's rows. A slot is applied only while the dredged share of valley parcels
+            is below tpl.depositMix.dredgedGround − geology.world.dredgedShareTol (0.05); a parcel whose middle row lies in an
+            applied stretch is dredgedGround
+  creek:    each other valley parcel is deepMuck w.p. depositMix.deepMuck / (creek + deepMuck + dredgedGround), else creek
+  wash:     the fan zone is the non-dredged valley parcels nearest the outlet by channel miles (creek.mouthMiFromOutlet + middle
+            row × 209 / 5280; ties by emission order), the first round(fanShare × their count) of them, with fanShare =
+            depositMix.desertFan / (desertFan + gulch) = 0.45 / 0.80. They are desertFan and the rest gulch. A dredged parcel no
+            further from the outlet than the last fan parcel also lies in the fan zone (it stays dredgedGround). No draws (D-3.52)
+  one deep-muck u is drawn per valley parcel in emission order on every template, used or not
+sizeSetting (visible; no draws; D-3.53): bench → bench; wash templates → fan in the fan zone, else gulch; creek templates →
+  proximal if the parcel's middle row lies in the top geology.world.proximalTopFrac (30%) of the creek's rows or the creek is
+  order 3, else midReach (dredged and deep-muck parcels included)
+// depositMix shares are targets: benchSideP is set per template so benches reach their share ± 0.05 (P0 engine: north 18.5%,
+// arid 10.3% of parcels; D-3.50)
 ```
 
 **Status by selection.** Good ground was staked long ago, so open ground is worse because of *which* parcels stayed open, not because of a flat penalty. Ground whose quality is hard to see (benches, deep muck) is claimed almost at random, which leaves overlooked good ground open.
@@ -2558,7 +2607,7 @@ valleyType: dredgedGround = contiguous stretches (each 1–3 mi) in the lower 60
 ```
 assignStatus(K, T, r):
   PS = blocks with f >= 0.4
-  zq = PS empty ? geology.world.zqNoPaystreak (−3) : ln(mean virgin gStreak over PS / tpl.gMed) / 0.5   // "reputation" vs the region
+  zq = PS empty ? geology.world.zqNoPaystreak (−3) : ln(mean virgin gStreak over PS / tpl.gMed) / geology.world.zqLnScale (0.5)   // "reputation" vs the region
   b  = K.depositType ∈ {bench, deepMuck} ? geology.world.selSlopeOverlooked (0.3) : geology.world.selSlope (1.2)
   pHeld = logistic(logit(tpl.stakedFraction) + b × zq)     // virgin grade already encodes the old-timers' footprint
   status = r.u() < pHeld ? 'heldNpc' : 'open'
@@ -2567,7 +2616,7 @@ assignStatus(K, T, r):
   if status ≠ 'heldNpc': K.water.rightStub = undefined                            // no recorded right on unclaimed ground
 ```
 
-`stakedFraction` is the logistic intercept, not the realized share: barren creeks (zq ≈ −3.8) stay open almost entirely, so the realized held share is ≈ 0.70 north and ≈ 0.57 arid. Held parcels are later split between NPC holders (3.10) and AI competitors (§12 picks 15–25% at newGame, P5).
+`stakedFraction` is the logistic intercept, not the realized share: barren creeks (zq ≈ −3.8) stay open almost entirely, so the realized held share is ≈ 0.70 north and ≈ 0.57 arid (P0 engine: 0.688 and 0.575). Held parcels are later split between NPC holders (3.10) and AI competitors (§12 picks 15–25% at newGame, P5).
 
 #### 3.4.1 Environmental attributes (visible; read by §6 and §7)
 
@@ -2629,9 +2678,10 @@ centerFt[row] = AR1(rows, 2,000 ft, tpl.wanderSdFt (140)), clamped to ±max(0, v
 hwLog[row]    = AR1(rows, 1,500 ft, tpl.sigHalfWidth (0.40));  halfWidthFt = tpl.halfWidthMedFt × depositMult.halfWidth × exp(hwLog)
 obLog[row]    = AR1(rows, 2,500 ft, σobAR (0.25))
 payLog[row]   = AR1(rows, 1,500 ft, σpayAR (0.15))
-junction boost: for each gold-bearing tributary joining at parent row k: richLog[k−7 .. k] += geology.world.junctionBoostLog (0.25)
-                (the 7 rows ≈ 1,500 ft just downstream of the junction)
+junction boost: for each gold-bearing tributary joining at parent row k: richLog[max(0, k−6) .. k] += geology.world.junctionBoostLog (0.25)
+                (geology.world.junctionBoostRows = 7 rows: the junction row and the 6 below it, ≈ 1,500 ft just downstream; D-3.55)
 proximal flag: rows in the top 30% of a creek, and all order-3 creeks → proximal size-mix prior; otherwise mid-reach
+               (a parcel is proximal by its middle row; its stored sizeSetting carries the result, 3.4)
 ```
 
 #### 3.5.3 Block grade: hierarchy, paystreak, correlation, pockets
@@ -2642,11 +2692,11 @@ Per claim K (rng(seed,'world',D.id,K.id)), draws in this order:
   claimOb    = LN(1, σobClaim) × depositMult.ob           // bench 2.5, deepMuck 2.8, others 1.0
   // depositMult.pay = 1.0 for every P1 type; depositMult.halfWidth: bench 2.0, others 1.0 (values as calibrated in 3.7)
   bedrockType = pick(tpl.bedrockMix); B0, s0 = BEDROCK[bedrockType]
-  sizeMixK = normalize(prior_k × LN(1, 0.25)) per class; coarseMeanMg = tpl.coarseMg[setting] × LN(1, 0.3)
+  sizeMixK = normalize(prior_k × LN(1, 0.25)) per class, prior = tpl.sizeMixPriors[K.sizeSetting]; coarseMeanMg = tpl.coarseMg[K.sizeSetting] × LN(1, 0.3)
   finenessK = clamp(D.finenessMean + N(0, tpl.fineness.claimSd), lo, hi); λg = tpl.verticalDecayFt[dep] × U(0.75, 1.25)
   frozenDegree = r.u() < clamp(tpl.permafrostP[dep] × (bench ? 1 + 0.6 × northness : 1), 0, 0.95) ? U(0.6, 1.0) : 0   // 3.4.1
-  clayK = min(1, LN(tpl.clayMed, 0.6)); bouldersK = min(1, LN(tpl.boulderMed × settingMult, 0.6)); cementK = min(1, LN(cementMed, 0.5))
-      settingMult: proximal 1.5, gulch 1.4, desertFan 0.6, bench 0.8, else 1.0
+  clayK = min(1, LN(tpl.clayMed, 0.6)); bouldersK = min(1, LN(tpl.boulderMed × settingMult, 0.6)); cementK = min(1, LN(tpl.cementMed[dep] ?? 0, 0.5))
+      settingMult = geology.grade.boulderSettingMult[K.sizeSetting]: proximal 1.5, gulch 1.4, fan 0.6, bench 0.8, midReach 1.0
   field z[i][j] (separable AR, unit variance):
       ρa = exp(−209 / geology.grade.blockRangeAlongFt (700)) = 0.742;  ρc = exp(−209 / geology.grade.blockRangeAcrossFt (120)) = 0.175
       for each row i: u[j] = AR(1) across j with ρc;  z[i][j] = (i == 0) ? u[j] : ρa·z[i−1][j] + √(1−ρa²)·u[j]
@@ -2664,14 +2714,14 @@ Per claim K (rng(seed,'world',D.id,K.id)), draws in this order:
     T  = clamp(tpl.pay.medFt × C.payFactor × exp(payLog[row]) × depositMult.pay × (0.7 + 0.3 f) × LN(1, σpayBlock), 1, 15)
     Bc = B0 × U(0.8, 1.2);  bedrockGoldShare = s0 × U(0.8, 1.2)
     payBcy = (T + Bc) × 1613
-    if f >= 0.4 and r.u() < pocketP:                                   // rare rich pocket
+    if f >= 0.4 and r.u() < pocketP:                                   // rare rich pocket (the u, U and LN are drawn on every block)
       pocket = { bcy: min(U(300, 3000), 0.5 × payBcy), grade: clamp(gStreak × LN(15, 0.5), 0.15, 2.0) }
       g = (g × (payBcy − pocket.bcy) + pocket.grade × pocket.bcy) / payBcy
     sizeMix = normalize(sizeMixK with coarse × (0.5 + 0.5 f), each class × LN(1, 0.10))   // coarse gold stays in the channel
     fineness = clamp(finenessK + N(0, 0.006), lo, hi)
     permafrost = frozenDegree > 0 ? clamp(frozenDegree + N(0, 0.08), 0, 1) : (climate subarctic ? 0.15 × r.u() : 0)
     clay = clamp(clayK + N(0, 0.05), 0, 1) (clayFalse bedrock: ≥ 0.4); boulders = clamp(bouldersK + N(0, 0.05), 0, 1)
-    cementation = clamp(cementK + N(0, 0.05), 0, 1)
+    cementation = cementK > 0 ? clamp(cementK + N(0, 0.05), 0, 1) : 0   // the N is drawn either way; a zero median stays 0 (D-3.55)
     virginGrade = g; minedOutFraction = 0
 ```
 
@@ -2693,11 +2743,12 @@ G(h) = s_b + (1 − s_b) × (1 − e^(−min(h,T)/λg)) / (1 − e^(−T/λg))  
 G(h) = s_b − s_b × (1 − e^(−min(B,−h)/λb)) / (1 − e^(−B/λb))                       for −B ≤ h < 0
        s_b = bedrockGoldShare, λg = verticalDecayFt, λb = geology.vertical.bedrockDecayFt (0.6 ft)
 interface VerticalProfile { Tg: number; B: number; sb: number; lambdaG: number; lambdaB: number }   // T = Tg in G(h) above
-profileOf(bt) = { Tg: payThicknessFt, B: bedrockCleanupFt, sb: bedrockGoldShare, lambdaG: verticalDecayFt,
-                  lambdaB: geology.vertical.bedrockDecayFt }
-verticalGoldShareProfile(p, h1, h2) = G_p(h2) − G_p(h1);        verticalGoldShare(bt, h1, h2) = verticalGoldShareProfile(profileOf(bt), h1, h2)
+profileOf(bt, λb) = { Tg: payThicknessFt, B: bedrockCleanupFt, sb: bedrockGoldShare, lambdaG: verticalDecayFt, lambdaB: λb }
+                    // λb is passed explicitly: the world's snapshot genParams.sample.bedrockDecayFt (D-3.2, D-3.54)
+cumulativeGoldShare(p, h) = G_p(h)
+verticalGoldShareProfile(p, h1, h2) = G_p(h2) − G_p(h1);   verticalGoldShare(bt, h1, h2, λb) = verticalGoldShareProfile(profileOf(bt, λb), h1, h2)
 positionMultProfile(p, h1, h2) = verticalGoldShareProfile(p, h1, h2) / ((h2 − h1) / (Tg + B))   // grade of an interval ÷ block mean
-positionMult(bt, h1, h2) = positionMultProfile(profileOf(bt), h1, h2)
+positionMult(bt, h1, h2, λb) = positionMultProfile(profileOf(bt, λb), h1, h2)
 // §4 evaluates positionMultProfile on its expected profiles; drawSample and §7 use the BlockTruth forms. One implementation.
 trace gold in overburden: obGrade = geology.vertical.obGradeRatio (0.03) × gradeOzPerBcy   // sampling only: lets an overburden
                           // pan show the odd colour; not counted in contained gold or in §7's accounting (overburden is barren there)
@@ -2812,7 +2863,7 @@ Check against the reference northern operation: 60,000 bcy washed at a 3.3:1 str
 
 Worked block (north): OB 15 ft, T 5 ft, B 1.5 ft → payBcy 10,485, obBcy 24,195 (strip 2.3:1). g = 0.012, mix 25/40/27/8 → R = 0.777 × 0.978 = 0.760; fineness 0.86; permafrost 0.8, clay 0.15, boulders 0.2. Revenue = 10,485 × 0.012 × 0.760 × 0.86 × 4,200 × 0.95 = **$328k**. Cost = 24,195 × 2.50 × 1.48 + 10,485 × 12.00 × (1 + 0.06 + 0.045 + 0.32) = $89.5k + $179.3k = **$268.8k**. Margin $59k (18%); the block breaks even at 0.0098 oz/bcy (0.0084 before the frozen wash term). The same block thawed breaks even at 0.0073.
 
-**Calibrated results.** These are 40 generated districts per template (≈ 4,000 parcels each), with the selection of 3.4 and the steady-state listing pool of 3.11 (pool weight ∝ held count × inflowMult × mean listing life; `listingPoolWeights` exposes it for §4's listing-pool calibration). The calibration harness implements the pseudo-code above, including barren creeks (0.20 at ×0.15) and junction boosts; it simplifies the network to independent creeks (3.21). The north rows include the frozen wash term: they are the harness values shifted by the change the term makes in the preflight generator (an independent implementation of the same pseudo-code, same 40 districts per template). The term does not touch arid ground (no permafrost).
+**Design-time calibration (harness).** These are 40 generated districts per template (≈ 4,000 parcels each), with the selection of 3.4 and the steady-state listing pool of 3.11 (pool weight ∝ held count × inflowMult × mean listing life; `listingPoolWeights` exposes it for §4's listing-pool calibration). The calibration harness implements the pseudo-code above, including barren creeks (0.20 at ×0.15) and junction boosts; it simplifies the network to independent creeks (3.21). The north rows include the frozen wash term: they are the harness values shifted by the change the term makes in the preflight generator (an independent implementation of the same pseudo-code, same 40 districts per template). The term does not touch arid ground (no permafrost). Both runs used the pre-P0 arid `gMed` 0.0062; the engine figures below supersede them.
 
 | Population | Uneconomic | Marginal | Good | Excellent | Target (listing pool) |
 |---|---|---|---|---|---|
@@ -2827,25 +2878,47 @@ Worked block (north): OB 15 ft, T 5 ft, B 1.5 ft → payBcy 10,485, obBcy 24,195
 | **Arid, listing pool** | **64.8%** | **26.1%** | **8.3%** | **0.8%** | same |
 | Arid, listing pool, preflight generator (cross-check) | 63.1% | 26.5% | 9.5% | 1.0% | same |
 
-The two implementations sit either side of the 72% uneconomic ceiling. The frozen wash term moved the north pool by +3.1 / −1.6 / −1.1 / −0.3 points, which puts this harness one point over the ceiling while the preflight generator sits at 64%. Neither grade median changes now (D-3.36): `gMed` feeds §4's worked prior examples, and the P0 full-generator run (BALANCE T-02, 3.18) decides. If the north pool's uneconomic share exceeds 72% there, north `gMed` rises in 5% steps (≈ −1.1 points each). If arid good exceeds 10% with §7's arid water change (D-7.37) in place, arid `gMed` 0.0062 → 0.0056 (preflight at × 0.9: 66.6% uneconomic; BALANCE §9.2).
+The two implementations sat either side of the 72% uneconomic ceiling. The frozen wash term moved the north pool by +3.1 / −1.6 / −1.1 / −0.3 points, which put this harness one point over the ceiling while the preflight generator sat at 64%. So D-3.36 left both grade medians to the P0 run on the engine's own generator (BALANCE T-02, 3.18), below.
 
-| Statistic (held claims) | North | Arid | Anchor or research |
+**Engine calibration (P0).** The P0 harness (`sim/calibration/world.ts`, `npm run calibrate:world`) runs the engine's `generateWorld` on the full creek network with the yardstick above, the selection of 3.4 and the 3.11 pool weights: 400 two-district worlds (400 districts per template, ≈ 28,000 parcels each) on each of two seed bases, 1000 and 90000. That run fixed six values (D-3.49–D-3.51): the network sizing (`nTrib`, `tribLengthMi`, `branchP`), the per-template bench-side probability, the arid trail-degrade distances and the arid `gMed` step to 0.0056; north `gMed` stays 0.0095. With them, and with the arid fan rule of 3.4 (D-3.52), every gating band of this section and of 3.18 passes on both seed bases. Class shares (seed base 1000, then 90000 for the pool):
+
+| Population | North U / M / G / E % | Arid U / M / G / E % | Target (listing pool) |
 |---|---|---|---|
-| Median paystreak-block (f ≥ 0.4) grade per claim, p10 / p25 / p50 / p75 / p90 | 0.0013 / 0.0030 / 0.0057 / 0.0094 / 0.0145 | 0.0012 / 0.0027 / 0.0049 / 0.0080 / 0.0125 | "most claims 0.004–0.012" holds for ≈ p35–p85 |
-| Grade of economically mined blocks, bcy-weighted, p10 / p50 / p90 / p99 | 0.010 / 0.016 / 0.034 / 0.086 | 0.010 / 0.016 / 0.035 / 0.090 | brief 0.005–0.03, rare rich pockets |
-| Strip ratio, whole claim p10 / p50 / p90 | 1.9 / 4.1 / 10.3 | 0.7 / 1.5 / 3.6 | R3 north 2–10:1; desert 0.5–3:1 |
-| Strip ratio, mined blocks p10 / p50 / p90 | 1.7 / 3.2 / 7.6 | 0.6 / 1.3 / 2.9 | R3 typical 3–6:1 north |
-| Median contained raw oz in mined blocks: marginal / good / excellent | 620 / 1,790 / 3,550 | 460 / 1,340 / 3,730 | R2: 300–700 oz/yr typical operation |
-| Open overlooked ground (bench + deep muck) that is economic | 16% (vs 9% of open creek ground) | 29% (vs 15%) | |
-| Share uneconomic by claim size (held claims): 20 / 40 / 80 / 160 ac | 71 / 67 / 62 / 49% | 66 / 55 / 49 / 31% | larger groups dilute the fixed development cost |
+| **Listing pool** | **65.7 / 24.4 / 8.5 / 1.3**; 65.6 / 24.3 / 8.7 / 1.3 | **64.1 / 25.9 / 8.8 / 1.1**; 63.0 / 26.5 / 9.3 / 1.2 | 60–72 / 18–30 / 5–10 / 0.7–2.5 |
+| All parcels | 68.9 / 20.6 / 8.9 / 1.7 | 67.7 / 22.7 / 8.4 / 1.2 | |
+| Held (staked) | 60.6 / 25.3 / 11.7 / 2.4 | 59.0 / 26.9 / 12.1 / 2.0 | |
+| Open ground | 87.2 / 10.1 / 2.5 / 0.2 | 79.5 / 17.1 / 3.3 / 0.1 | |
 
-**Listed-claim prior.** Adverse selection makes the listing pool poorer than the held stock, so `visiblePrior(..., 'listed')` uses its own multiplier: `geology.prior.statusMult.listed` = (geometric-mean paystreak grade of the steady-state listing pool) ÷ (that of held claims). The preflight generator measures 0.93 north and 0.92 arid; the default is **0.92** for both, and the P0 harness resets it (3.18). The pool's spread of log grade is slightly narrower than the held stock's (−0.03 to −0.05 in log variance), so `geology.prior.listedSigmaAdj` stays 0 (the prior stays a little wide, which is the safe side for §4's coverage gate).
+The engine's north pool sits near the preflight generator's (64.0%), far under the harness's 73.1%, so north `gMed` does not move. At arid `gMed` 0.0062 the pool came out 60.2 / 27.6 / 10.5 / 1.6 and 59.8 / 27.6 / 10.9 / 1.7, good above its 10% edge and uneconomic on its 60% floor; 0.0059 still gave 9.8% / 10.1% good, so arid takes D-3.36's full step to 0.0056.
 
-Truth is identical across difficulty levels (D-3.18), so these numbers hold for every difficulty. The simulator test (3.18) checks the listing-pool shares and these grade and strip bands on 200 seeded worlds.
+| Statistic | North | Arid | Design-time harness, north; arid | Target, anchor or research |
+|---|---|---|---|---|
+| Median paystreak-block (f ≥ 0.4) grade per held claim, p10 / p50 / p90 | 0.0015 / 0.0062 / 0.0155 | 0.0013 / 0.0045 / 0.0113 | 0.0013 / 0.0057 / 0.0145; 0.0012 / 0.0049 / 0.0125 | p50 0.004–0.009 (3.18); "most claims 0.004–0.012" |
+| Grade of economically mined blocks on held claims, bcy-weighted, p10 / p50 / p90 / p99 | 0.0102 / 0.0170 / 0.0351 / 0.079 | 0.0098 / 0.0156 / 0.0370 / 0.092 | 0.010 / 0.016 / 0.034 / 0.086; 0.010 / 0.016 / 0.035 / 0.090 | p10 ≥ 0.005, p90 ≤ 0.045 (3.18); brief 0.005–0.03, rare rich pockets; BALANCE T-01 (a) p90 ≤ 0.035 (3.17) |
+| Paystreak blocks with grade in 0.005–0.03 | 52.9% | 39.8%; 40.7% on seed base 90000 | — | BALANCE T-01 (b) ≥ 45% / ≥ 40% (3.17) |
+| Pocket blocks above 0.1 oz/bcy | 0.1% | 0.2% | — | 0.05–1% (BALANCE T-01 c) |
+| Strip ratio, whole held claim p10 / p50 / p90 | 1.64 / 4.13 / 10.4 | 0.53 / 1.65 / 3.91 | 1.9 / 4.1 / 10.3; 0.7 / 1.5 / 3.6 | p50 north 3–5, arid 1–2 (3.18); R3 north 2–10:1, desert 0.5–3:1 |
+| Strip ratio, mined blocks p50 | 3.31 | 1.45 | 3.2; 1.3 | R3 typical 3–6:1 north |
+| Median contained raw oz in mined blocks: marginal / good / excellent | 621 / 1,592 / 3,663 | 448 / 1,393 / 3,580 | 620 / 1,790 / 3,550; 460 / 1,340 / 3,730 | R2: 300–700 oz/yr typical operation |
+| Open overlooked ground (bench + deep muck) that is economic | 25.5% | 29.4% | 16%; 29% | |
+| Share uneconomic by claim size (held claims): 20 / 40 / 80 / 160 ac | 66 / 56 / 49 / 38% | 67 / 54 / 45 / 31% | 71 / 67 / 62 / 49%; 66 / 55 / 49 / 31% | larger groups dilute the fixed development cost |
+| Parcels per district, mean (minimum) | 69.5 (60) | 68.1 (60) | — | mean 65–75, ≥ 55 in ≥ 99% of districts (3.18; here 100%) |
+| Realized held share | 0.688 | 0.575 | ≈ 0.70; ≈ 0.57 | 0.65–0.75 / 0.52–0.62 (3.18) |
+| Bench share of parcels | 18.5%; 18.1% | 10.3%; 10.6% | — | depositMix.bench ± 0.05: 20% / 10% (3.4) |
+| Dredged share of valley parcels | 9.1% | 9.3% | — | 10% ± 5 points (3.4) |
+| Claim access, highway / seasonalRoad / winterTrail / flyIn % | 20 / 47 / 23 / 9 | 39 / 61 (highway 39.3%; 36.5%) | — | ±10 points of 15 / 50 / 25 / 10 and 35 / 65 (3.2) |
+| Honesty mix of holders at standard: accurate / optimistic / cherry-picked / fraudulent % | 33.9 / 37.1 / 20.7 / 8.3 | 34.7 / 36.2 / 21.0 / 8.0 | — | ±4 points of 35 / 35 / 22 / 8 (3.10.1) |
+| Listing pool ÷ held geometric-mean paystreak grade | 0.93 | 0.94 | preflight 0.93; 0.92 | `statusMult.listed` 0.92 ± 0.03 (3.18) |
+
+Old drill logs appear on 9.9% of claims (target 0.10 ± 0.02). The arid `gMed` step lowered the held median paystreak grade from 0.0051 to 0.0045 and brought the arid share of paystreak blocks in band (BALANCE T-01 b) down to 39.8–40.7%, on its 40% gate; 3.17 carries that and the T-01 (a) p90 as P1 risks.
+
+**Listed-claim prior.** Adverse selection makes the listing pool poorer than the held stock, so `visiblePrior(..., 'listed')` uses its own multiplier: `geology.prior.statusMult.listed` = (geometric-mean paystreak grade of the steady-state listing pool) ÷ (that of held claims). The preflight generator measured 0.93 north and 0.92 arid, so the default is **0.92** for both. The P0 engine run measures 0.93 north and 0.94 arid, within the ±0.03 of 3.18, so the key stays at 0.92 (D-3.51). The pool's spread of log grade is slightly narrower than the held stock's (−0.03 to −0.05 in log variance, preflight), so `geology.prior.listedSigmaAdj` stays 0 (the prior stays a little wide, which is the safe side for §4's coverage gate).
+
+Truth is identical across difficulty levels (D-3.18), so these numbers hold for every difficulty. The simulator test (3.18) checks the listing-pool shares and these grade and strip bands on 200 seeded worlds; the P0 calibration above ran 400 per seed base.
 
 ### 3.8 The sample-draw model: `drawSample`
 
-**Contract.** `drawSample(bt: BlockTruth, bs: BlockState, req: SampleRequest, m: SampleMethodParams, rng): SampleResult` is pure. It never mutates state. The caller (§4 programs) applies `extractedBcy` to `Block.state.sampledBcy` (or to `oldTailingsTakenBcy` for a tailings sample) and books the gold lines below; §3's own draws of pre-game sampling (seller evidence, old drill logs, family pit logs) apply nothing. §3 owns the physics; §4's method table supplies `SampleMethodParams`. The guide's sketch `drawSample(block, volumeBcy, method, rng)` is refined so that the block state (stripping, thaw) and the request details (interval, open cut, target) are explicit inputs rather than hidden lookups (D-3.34).
+**Contract.** `drawSample(bt: BlockTruth, bs: BlockState, req: SampleRequest, m: SampleMethodParams, rng, ctx: DrawContext): SampleResult` is pure. It never mutates state. The caller (§4 programs) applies `extractedBcy` to `Block.state.sampledBcy` (or to `oldTailingsTakenBcy` for a tailings sample) and books the gold lines below; §3's own draws of pre-game sampling (seller evidence, old drill logs, family pit logs) apply nothing. §3 owns the physics; §4's method table supplies `SampleMethodParams`. The guide's sketch `drawSample(block, volumeBcy, method, rng)` is refined so that the block state (stripping, thaw) and the request details (interval, open cut, target) are explicit inputs rather than hidden lookups (D-3.34). The draw context carries the three facts the physics needs from outside the block (D-3.54): the block's visible surface code (natural exposures exist only on channel blocks), the district's climate band (it selects `waterTableFt` and `waterInflowP`), and the world's snapshotted physics constants. `drawContextFor(state, blockId)` builds it.
 
 ```ts
 interface SampleMethodParams {               // values owned by §4's method table
@@ -2860,7 +2933,12 @@ interface SampleMethodParams {               // values owned by §4's method tab
   geomCv: number;                            // depth logging error
   thickCv?: number;                          // pay-thickness logging error; default 0.10 (§4 fills it per method)
   biasMult: number;                          // systematic bias (RC fine-gold smearing < 1), default 1
+  reportsClassMasses?: boolean;              // sieved class masses (default: pit mode only)
+  bcyPerFt?: number;                         // drill methods: sample volume per ft of column (§4 4.2.B)
 }
+interface DrawContext { surface: 'u' | 'w' | 'c';   // the block's env.surfaceCodes entry
+  climateBand: ClimateBand; physics: SamplePhysics }  // physics = world.genParams.sample: the §3.16 geology.particle.*,
+                                                      // geology.sample.* and geology.vertical.* values (D-3.2)
 interface SampleRequest { blockId: BlockId; volumeBcy: number; interval?: { h1: number; h2: number }; fromOpenCut?: boolean;
   target?: 'inSitu' | 'oldTailings';          // default inSitu; old dumps and tailings piles are a classic cheap target
   samplerCaptureMult?: number /* §4/§8 skill, default 1 */ }
@@ -2878,7 +2956,7 @@ interface SampleResult {
 }
 ```
 
-**Algorithm** (draw order is fixed; `LNmean(1, cv)` = exp(σZ − σ²/2) with σ² = ln(1 + cv²)):
+**Algorithm** (`LNmean(1, cv)` = exp(σZ − σ²/2) with σ² = ln(1 + cv²)). The draw order is fixed, and each step takes its draws whether or not the path uses them: in pit mode the water-inflow u and the stop U(1, 4) first; then the local Z and the pocket u; per size class the Poisson draw, then N_k particle masses (N_k ≤ 40) or one CLT normal; volume and weigh noise; the overburden, depth and thickness logging noise; the bedrock-identification u and pick; and the clay and boulder N. Only the particle-mass loop's length depends on the outcome.
 
 ```
 0. Old tailings (req.target = 'oldTailings', block has a pile): g = pile grade, mix = pile sizeMix, posMult = 1, no pocket, no
@@ -2902,7 +2980,7 @@ interface SampleResult {
    h1 = max(h1, −B); reachedBedrock = (h1 <= 0)
    overburden-only: gLoc = obGrade (3.5.4), mixLoc = bt.sizeMix, skip to step 5; the extracted volume is overburden
                     (no sampledBcy change, accountingRawOz = 0)
-3. Position: posMult = positionMult(bt, h1, h2)                              (3.5.4)
+3. Position: posMult = positionMult(bt, h1, h2, ctx.physics.bedrockDecayFt)  (3.5.4)
 4. Local grade (sub-block variability, de Wijs) and pocket:
    Vb = (T + B) × 1613;  V = req.volumeBcy
    gMatrix = pocket ? (g × Vb − pocket.bcy × pocket.grade) / (Vb − pocket.bcy) : g
@@ -2914,7 +2992,8 @@ interface SampleResult {
 5. Compound Poisson, per size class k in [coarse, medium, fine, ultrafine]:
    m_k = [bt.coarseMeanMg, 3, 0.1, 0.004] mg;  c_k = geology.particle.massCv [2.0, 1.0, 0.7, 0.5]
    λ_k = gLoc × V × mixLoc_k × 31,103.5 / m_k
-   N_k = λ_k < 30 ? poissonKnuth(λ_k) : max(0, round(λ_k + √λ_k · Z))
+   N_k = λ_k < 30 ? poisson(λ_k) : max(0, round(λ_k + √λ_k · Z))   // poisson: exact inversion of the CDF on one uniform, the
+                                                                   // same law and draw as core rng.poisson (D-3.54); λ_k = 0 still draws
    M_k = N_k <= 40 ? Σ_{i=1..N_k} m_k · LNmean(1, c_k) : max(0, N_k·m_k + √N_k · m_k · c_k · Z)
 6. Capture and measurement:
    W_k = M_k × min(1, m.captureBySize[k] × (req.samplerCaptureMult ?? 1))
@@ -2930,7 +3009,7 @@ interface SampleResult {
    hidden.recoveredRawOz = Σ W_k / 31,103.5; hidden.accountingRawOz = g × V (the block-mean gold the volume carries in the ledger)
 ```
 
-**Closed forms for §4's estimator.** These are formulas only; §4 feeds them *its* estimates, never truth.
+**Closed forms for §4's estimator.** These are formulas only; §4 feeds them *its* estimates, never truth. Each takes the world's `SamplePhysics` as its last argument (`logVarMeas` takes the block pay volume Vb before it, `medianRatio` the method's capture), so the estimator and the draw read one set of constants.
 
 ```
 particleCv(g, V, mix, coarseMg) = √( m_eff / (g × V × 31,103.5) ),   m_eff = Σ_k mix_k × m_k × (1 + c_k²)   [mg]
@@ -3057,7 +3136,7 @@ visiblePrior(districtId, setting, status) = {
   paystreakShare = geology.prior.paystreakShare[setting] (valley 0.30, bench 0.40, fan / gulch 0.30)
   obMedFt, payMedFt and their σ, bedrock mix, B̄ = Σ bedrockMix × B0 (north 1.54 ft, arid 0.68 ft), size-mix prior, fineness range, P(frozen) }
 priorContainedOz(claimId) = nBlocks × paystreakShare × (payMedFt + B̄) × 1613 × gradeMedOzBcy × oldWorkingsMult
-  oldWorkingsMult: dredge tailings visible 0.15 | tailings piles visible 0.6 | else 1.0
+  oldWorkingsMult (geology.prior.oldWorkingsMult): dredge tailings visible 0.15 | tailings piles visible 0.6 | else 1.0
 ```
 
 Example: a held 20-ac northern valley claim with no visible workings: 20 × 0.30 × (5 + 1.54) × 1,613 × 0.0095 ≈ 600 raw oz, close to the median contained oz of a marginal claim (3.7). The same parcel listed: ≈ 550 oz; open: ≈ 360 oz.
@@ -3073,12 +3152,12 @@ Example: a held 20-ac northern valley claim with no visible workings: 20 × 0.30
 | `pBarrenCreek` / `barrenMult` | `geology.world.barrenCreekP` (0.20) / `barrenCreekFactor` (0.15) |
 | `pocket` | `pPerStreakBlock` = `tpl.pocketP` × 1.5 on proximal rows or gulches; `bcyMean` 1,650 and `bcy2Mean` 3.33e6 (moments of U(300, 3,000)); `gradeMin` 0.15; `gradeMult` 15 (median of the LN(15, 0.5) law, clamp [0.15, 2.0]) |
 | `oldTimer.pKind` | `oldTimerOdds(depositType, visibleFeatures)`: the 3.2 mix for the deposit type, renormalized over the kinds consistent with what is visible (3.6, 3.9): no features → {none, drift}; tailings piles without recent disturbance → {handCut, dryWash, hydraulic}; recent disturbance → recentCat; dredge tailings → dredge. North creek, no features: drift 0.30 / (0.25 + 0.30) = 0.55. `knownKind` and `workedBlockIds` are left for §4 to fill from records it has found |
-| `sizeMixPrior` / `sizeMixJitterLogSd` | `tpl.sizeMixPriors` for the setting (proximal: top 30% of the creek's rows or an order-3 creek; else mid-reach; bench; fan; gulch) / 0.25 |
-| `coarseMeanMg` / `coarseMassLogSd` | `tpl.coarseMg` for the setting / 0.30 |
+| `sizeMixPrior` / `sizeMixJitterLogSd` | `tpl.sizeMixPriors[claim.sizeSetting]`, the stored visible key (3.4: proximal = top 30% of the creek's rows or an order-3 creek; else mid-reach; bench; fan zone; gulch; D-3.53) / `geology.prior.sizeMixJitterLogSd` (0.25) |
+| `coarseMeanMg` / `coarseMassLogSd` | `tpl.coarseMg[claim.sizeSetting]` / `geology.prior.coarseMassLogSd` (0.30) |
 | `fineness` | the template's alloy fineness `{ mean, districtSd, claimSd }` (visible; §10 uses the same) |
 | `verticalDecayFt` / `bedrockMix` | `tpl.verticalDecayFt[depositType]` (centre of its U(0.75, 1.25) jitter) / `tpl.bedrockMix` (B̄ and s̄_b follow from the BEDROCK table) |
 | `geometry` | `obMedFt` = `tpl.overburden.medFt × depositMult.ob`; `obSigClaim` = √(district² + creek² + AR² + claim²) of the overburden σ; `obSigBlock` = its block σ; `payMedFt` = `tpl.pay.medFt`; `paySigClaim` = √(creek² + AR²); `paySigBlock` = the pay block σ |
-| `blocks` | per block: `blockId`, `i`, `j`, `xFt` = block centre from the paystreak reference axis (`axisOffsetFt + (j − (nAcross − 1)/2) × 209`, minus `axisOffsetFt` on a bench), `acres` 1, `surface` (`env.surfaceCodes`), `visibleWorkings` (the block carries a visible feature) |
+| `blocks` | per block: `blockId`, `i`, `j`, `xFt` = block centre from the paystreak reference axis (`axisOffsetFt + (j − (nAcross − 1)/2) × 209`, minus `axisOffsetFt` on a bench), `acres` 1, `surface` (`env.surfaceCodes`), `visibleWorkings` (the block index is in `claim.visibleWorkings`: dredged blocks, tailings piles other than drift dumps, recent mined and pre-stripped blocks) |
 
 ### 3.10 Sellers and the honesty model
 
@@ -3264,7 +3343,7 @@ saleQualityMult(claimId) = { uneconomic 0.7, marginal 1.0, good 1.8, excellent 2
 
 **Candidates and closings.** `supplyTick(state, turn): ListingCandidate[]` returns candidates in claim-ID order: first the `relistClaim` requests queued since the last tick (`world.supplyQueue`), then the hazard rolls. **First look (P5+, §5 5.3).** When the player's reputation is ≥ `land.firstLookMinRep` (70), a candidate whose holder is not an estate carries `firstLookUntilTurn = turn + land.firstLookWeeks (2)` w.p. `land.firstLookShare` (0.15, §1 1.12), drawn once here as the last draw on `rng(seed,'supply',turn,claimId)`. Only the player sees it until then: neither §5's background sales nor §12's competitors may act on it. §5 does not redraw it, and drops it if it assigns a channel other than private. `onListingClosed(state, claimId, outcome)` applies: `expired` or `withdrawn` → off-market with `geology.supply.relistCooldownWk` (20); `soldOffscreen` → new holder (fresh situation and honesty draws), 52-week cooldown; `soldToPlayer` / `soldToCompetitor` → status `player` / `competitor`. On relist the same holder regenerates the same `ClaimedEvidence`; §5 applies its stale-listing discount.
 
-**Expected flow (P1, standard).** About 70 parcels per district with a realized held share of 0.70 (north) and 0.57 (arid) give ≈ 49 + 40 = 89 held parcels. One cycle of a held parcel is: off-market wait 1 / (0.025 × 1.08) ≈ 37 weeks, then a listing life of ≈ 13 weeks (§5's expiry, mean ≈ 17 weeks, competing with background sales at ≈ 0.02 × 0.87), then a cooldown averaging 0.77 × 20 + 0.23 × 52 ≈ 27 weeks. So 13 / 77 ≈ 17% of held parcels are listed at any time: **≈ 15 active listings** across two districts and **≈ 60 new listings a year**. Steady-state pool quality is shown in 3.7. Good listings disappear fast, so weeks-on-market is an honest (statistical) signal that a listing is weaker.
+**Expected flow (P1, standard).** About 69 parcels per district with realized held shares of 0.69 (north) and 0.575 (arid; the P0 engine, 3.7) give ≈ 48 + 39 = 87 held parcels. One cycle of a held parcel is: off-market wait 1 / (0.025 × 1.08) ≈ 37 weeks, then a listing life of ≈ 13 weeks (§5's expiry, mean ≈ 17 weeks, competing with background sales at ≈ 0.02 × 0.87), then a cooldown averaging 0.77 × 20 + 0.23 × 52 ≈ 27 weeks. So 13 / 77 ≈ 17% of held parcels are listed at any time: **≈ 15 active listings** across two districts and **≈ 60 new listings a year**. Steady-state pool quality is shown in 3.7. Good listings disappear fast, so weeks-on-market is an honest (statistical) signal that a listing is weaker.
 
 **Open ground and staking.** Open parcels are visible on the map (status `open`) with their aerial-visible features and environmental attributes; `openParcel(state, claimId)` gives §5 its `OpenParcel` view. Staking is §5's flow (P2): a staked parcel keeps its pre-generated geometry (OQ-3.2). The parcel's truth already exists, and staking reveals nothing about grade.
 
@@ -3316,11 +3395,11 @@ Block-state changes come from §7 (stripping, mining, thaw, disturbance, reclama
 
 **Provides**
 - **§14 (P6, optional).** Hosts `world.lodes` / `world.lodePanelStates`, `RegionTemplate.lode` fields and `Claim.claimKind` ('placer' | 'lode' | 'millsite') for the hard-rock track; §14 14.2–14.3 and 14.17 define them and they are absorbed here when P6 is scheduled.
-- Types: `RegionTemplate`, `District`, `LandOverlay`, `Creek`, `CreekHistory`, `Claim`, `ClaimEnv`, `BlockTruth`, `BlockState`, `PublicRecord`, `OldDrillHole`, `ListingInfo`, `ListingCandidate`, `SellerClaimSummary`, `OpenParcel`, `SellerProfile`, `ClaimedEvidence`, `SellerTell`, `SampleMethodParams` (shape), `SampleRequest`, `SampleResult`, `VerticalProfile`, `TownServices`, `WaterSourceKind`, `JurisdictionId`, `WageRegion`. IDs: `crk` (creek) and `hld` (holder; = §5 `SellerKey` for NPC sellers) in §2.4's registry, plus §2's `dst`, `clm`, `blk`.
+- Types: `RegionTemplate`, `District`, `LandOverlay`, `Creek`, `CreekHistory`, `Claim`, `ClaimEnv`, `BlockTruth`, `BlockState`, `PublicRecord`, `OldDrillHole`, `ListingInfo`, `ListingCandidate`, `SellerClaimSummary`, `OpenParcel`, `SellerProfile`, `ClaimedEvidence`, `SellerTell`, `SampleMethodParams` (shape), `SampleRequest`, `SampleResult`, `DrawContext`, `SamplePhysics`, `VerticalProfile`, `TownServices`, `WaterSourceKind`, `JurisdictionId`, `WageRegion`, `SizeSetting`, `ValleyRule`. IDs: `crk` (creek) and `hld` (holder; = §5 `SellerKey` for NPC sellers) in §2.4's registry, plus §2's `dst`, `clm`, `blk`.
 - `generateWorld(seed, opts: WorldGenOptions { districtCount; templateIds; parcelsPerDistrict? }, tuning): WorldSlice` (`templateIds` = §1 `setup.world.districtTemplates`).
 - `claimTruth(state, claimId)` / `blockTruth(state, blockId)`: engine-internal, memoized decode keyed by `(claimId, truthHash)` (a §2.3 pure memo cache); never exposed to UI or bot selectors. `blockCoords(blockId)` (visible).
-- `drawSample(bt, bs, req, method, rng): SampleResult`; `sampleGoldLines(result, credited)` (3.8; §4 posts the lines); closed forms `particleCv`, `logVarMeas`, `medianRatio` (3.8); seller method table `geology.seller.methods`.
-- `verticalGoldShare(bt, h1, h2)`, `positionMult(bt, h1, h2)` and their profile forms `verticalGoldShareProfile(p, h1, h2)`, `positionMultProfile(p, h1, h2)` with `profileOf(bt)` (3.5.4; §7 bedrock-cleanup depth and dilution, §4 expected profiles; one vertical profile for sampling, estimation and mining).
+- `drawSample(bt, bs, req, method, rng, ctx): SampleResult` with `drawContextFor(state, blockId): DrawContext` (D-3.54); `sampleGoldLines(result, credited)` (3.8; §4 posts the lines); closed forms `particleCv`, `logVarMeas`, `medianRatio`, each with the world's `SamplePhysics` (3.8); seller method table `geology.seller.methods`.
+- `verticalGoldShare(bt, h1, h2, λb)`, `positionMult(bt, h1, h2, λb)` and their profile forms `verticalGoldShareProfile(p, h1, h2)`, `positionMultProfile(p, h1, h2)`, `cumulativeGoldShare(p, h)` with `profileOf(bt, λb)`, λb = `genParams.sample.bedrockDecayFt` (3.5.4; §7 bedrock-cleanup depth and dilution, §4 expected profiles; one vertical profile for sampling, estimation and mining).
 - `accessFactors(state, claimId): { access, distanceToTownMi, distScale, fuelAdderUsdPerGal, partsLeadWeeks, mobMult, mobMultClass }` with a calc tree (§7, §4 and §6 use `mobMult`; §9 uses `mobMultClass` and `distScale`, 3.3.3); `claimAccess(state, claimId, turn): { heavyOpen, freightOpen, freightMode }` built on §1 `accessOpen` (§7, §9, and §10 for "closed this week").
 - `waterAvailableGpm(state, claimId, turn)` (final physical availability, includes sff and, for springs and wells, the drought hook), `claimWater(state, claimId)` (incl. `rightStub`), `lowFlowGpm(claimId)` (§6 grant cap), `listedFlowGpm(claimId)`.
 - Ground fields for productivity and wear: `permafrost`, `clay`, `boulders`, `cementation`, `bedrockType` via `blockTruth` (§7 `machineEffectiveRate` ground factor, §9 wear); `claim.env` (`surfaceCodes`: 'c' = §7 `inStream`, §6 404; `thawAspectMult` for §7 thaw); `District.jurisdictionId` and `wageRegion` (§8, §9, §11).
@@ -3337,7 +3416,7 @@ Block-state changes come from §7 (stripping, mining, thaw, disturbance, reclama
 **Consumes**
 - §1: `DistrictYearSeason`, `SeasonPhase`, `WeatherWeek.streamFlowFactor` and `precip`; `accessOpen`; climate template ids and fire regimes; difficulty (honesty mix); `NewGameSetup.world`; `game.inheritorTierWeights`, `game.inheritorDepletionAdd`, `game.inheritor.preStrippedBlocks`; owner desk days (`ownerDeskDays`, the desk queue, `ownerTime`) and `owner.injuredUntilTurn` (site visits); reputation (first look).
 - §2: `rng`, dmath (`exp`, `log`, `normInv`, `normCdf`), ID counters, `CalcNode`, the memo-cache rule (2.3), the `world` slice budget (2.13).
-- §4: `SampleMethodParams` values per method (incl. `thickCv`, and `churnHistoric` for old drill logs); `geology.maxTrackedClaims` (watch cap); `skillMult` for tells; `EvidenceRef` for found tells.
+- §4: `SampleMethodParams` values per method (incl. `thickCv`, and `churnHistoric` for old drill logs; until §4's method table lands, the generator reads a placeholder copy of that row, `geology.method.churnHistoric`, D-3.56); `geology.maxTrackedClaims` (watch cap); `skillMult` for tells; `EvidenceRef` for found tells.
 - §5: the `Listing` record (carries `info: ListingInfo`), `priceListing`, channel assignment from the holder's situation, expiry, background sales, the hold-open rule, the situation → motivation mapping, `land.firstLookShare` / `firstLookWeeks` / `firstLookMinRep`.
 - §6: `reclamationCostEstimate(acres, districtId)`; `instantiatePermitStub` (called by §5); interpretation of the permit stub and the senior water right; records check.
 - §7: `thawProgress` semantics; Block-state writes.
@@ -3348,7 +3427,7 @@ Block-state changes come from §7 (stripping, mining, thaw, disturbance, reclama
 
 **Needs from other sections**
 - **§1:** (satisfied: `geology.seller.honestyMix` and `geology.seller.tellDetect` are in 1.11; the unmaintained-road, arid-washout and `geology.access.closed` rules are in 1.4.5.) The Inheritor's "§3 generates the claim conditioned on that tier" is implemented as 3.6.1: §1's consumed `generateClaim(…, { qualityTier, depletionAdd })` becomes `genInheritedGroup`, which conditions the reserved run so worlds stay identical across start types; it reads the D-1.42 / D-1.53 keys (`game.inheritorTierWeights` 0.07 / 0.30 / 0.38 / 0.25, `game.inheritor.preStrippedBlocks` 2, family seasons 2013–2024). Site visits are desk-day tasks (2 / 3 / 4 / 4 days by access) in §1's queue. The first-look effect (1.12) is P5. If OQ-1.3 makes Hard shift ground quality, §3's 3.7 targets and calibration change (D-3.18).
-- **§2:** register `crk` and `hld` (2.4) and §3's streams `world`, `seller`, `seller-tells`, `supply`, `site` (2.3; `world` is §3's alone). The packed truth strings (`claim.hidden.truthPack`, ≈ 0.7 MB at 300 claims, ≈ 0.3 MB in P1) sit inside the 1.0 MB `world` slice budget (2.13), and the decode cache is a pure memo cache under 2.3. §2.14's gold identity carries §3's sample terms (3.8).
+- **§2:** register `crk` and `hld` (2.4) and §3's streams `world`, `seller`, `seller-tells`, `supply`, `site` (2.3; `world` is §3's alone). The packed truth strings (`claim.hidden.truthPack`, ≈ 0.7 MB at 300 claims, ≈ 0.3 MB in P1; 621 kB measured at 315 claims) fit the 1.0 MB `world` slice budget (2.13), and the P1 world slice (561 kB at generation) fits with them; the five-district slice (1,252 kB) does not, which OQ-3.3 settles in P6. The decode cache is a pure memo cache under 2.3. §2.14's gold identity carries §3's sample terms (3.8).
 - **§4:** method rows fill every `SampleMethodParams` field (positionMode, reach, frozenOk, bedrockPenFt, captureBySize, volumeCv, weighCv, geomCv, `thickCv` (default 0.10; §4 D-4.43), biasMult). Pans use `exposure`; exposures exist only on channel blocks or open cuts (3.8). Offer a frozen-ground excavator pit (`frozenOk`, slower and dearer) or the north is drill-only on 75% of creek claims. Support `target: 'oldTailings'`. Post `sampleGoldLines` for every executed sample (pits, trenches and bulk credited; pans and drill holes not). Read `geology.records.historicGradeRatio` and `creekProdLogSd` from §3 (drop the duplicate §4 keys); read `recordsQuality(state, claimId)`; build the prior from `claimPriors` (status `listed` on open listings) and add the listing-pool calibration population (`listingPoolWeights`). If §4's planning wash multiplier keeps mirroring `refEconomics`, add `geology.refEcon.frozenWashAdd × frozen` to `groundWash` (D-3.36). Suggested twin-sample test for the estimator: flag `twinMismatch` when `(mean ln player grade at seller-sample blocks − mean ln claimed) / √(σ²/n + 0.25²/m) < −2`.
 - **§5:** none open. §5 stores `ListingInfo` on `Listing.info` and reads its `summary`, `waterScore`, `improvementsUsd` and `disturbance.liabilityEstimateCents`; derives presented authority from `info.permits.status`; multiplies background-sale p by `saleQualityMult`; assigns the channel from the holder's situation; copies `firstLookUntilTurn` and `starterLease` from the candidate; treats a false permit statement as `misstatedPermit`; calls `onListingClosed`; uses `OpenParcel.setting`; keys `SellerKey` on `HolderId | CompetitorId`; and has dropped `land.listingSupplyMult` and `land.openGroundRelease`. Background sales keep one formula after §12's competitors arrive (no P5 ×0.5; competitor bids act through `ci`).
 - **§6:** read `claim.env` (specialStatus, sensitivity, fishBearing, surfaceCodes, previouslyDisturbed, adjacentClaimIds) and `District.stateOverlayId`; `lowFlowGpm` is the climatological low; `claim.water.rightStub` is the senior right (a groundwater right on arid claims without surface water); treat `disturbanceOrigin = 'inherited'` acres as liability transferred with the claim (P2), including the Inheritor's two pre-stripped blocks, and `'historic'` as nobody's; validity examination for plans on held claims inside withdrawn overlays; RCE and contractor assessment work read `accessFactors(state, claimId).mobMult` (not a class table). §3 accepts 6.12's instantiation defaults for the stub's water, discharge and plan cap.
@@ -3374,37 +3453,58 @@ Block-state changes come from §7 (stripping, mining, thaw, disturbance, reclama
 
 ### 3.16 Tuning constants
 
-Region-template values live in `data/regions/` (3.2). Global keys:
+Region-template values live in `data/regions/` (3.2); a template field of the same name (`benchSideP`, `trailDegradeMi`, `blockRangeAlongFt`) overrides the global key. Global keys (notes marked "prose" register a number the rule text already gave; D-3.56):
 
 | Key | Default | Unit | Diff.? | Notes / source |
 |---|---|---|---|---|
 | `geology.world.districtsP1` / `districtsFull` | 2 / 5 | count | no | full range 4–6 |
 | `geology.world.maxClaims` | 320 | parcels | no | performance cap; per district min(U{60..80}, maxClaims / districtCount) |
-| `geology.world.mainLengthMi` / `nTrib` / `tribLengthMi` / `branchP` / `branchLengthMi` | U(6, 9) / U{3..6} / U(1.5, 4) / 0.4 / U(0.75, 2) | mi / count / mi / p / mi | no | sized so laid parcels ≈ 70 per district |
+| `geology.world.mainLengthMi` / `nTrib` / `tribLengthMi` / `branchP` / `branchLengthMi` | U(6, 9) / U{5..8} / U(2.5, 5) / 0.5 / U(0.75, 2) | mi / count / mi / p / mi | no | P0 engine calibration (D-3.49): U{3..6} / U(1.5, 4) / 0.4 laid only 61–62 parcels per district (13–17% of districts under 55); now 69.5 north / 68.1 arid, minimum 60, nTarget binding in most districts |
+| `geology.world.mapMi` / `stepMi` / `edgeMarginMi` / `outletEdgeFrac` | 12 × 10 / 0.25 / 1 / U(0.25, 0.75) | mi / mi / mi / share of the edge | no | prose (3.3.1): map, polyline step, edge reflection; `outletEdgeFrac` is new in P0 (the outlet's position along its edge) |
+| `geology.world.mainHeadingJitterDeg` / `headingStepSdDeg` | 30 / 12 | deg | no | prose: main stem heads into the map ± 30°; heading += N(0, 12°) per step |
+| `geology.world.tribPosFrac` / `tribMinSpacingMi` / `tribAngleDeg` / `branchPosFrac` | U(0.10, 0.90) / 0.6 / U(35, 70) / U(0.3, 0.8) | share / mi / deg / share | no | prose (3.3.1); branches use `tribAngleDeg` too |
+| `geology.world.valleyHalfWidthFt` (order 1 / 2 / 3) | U(500, 900) / U(250, 500) / U(150, 300) | ft | no | prose (3.3.1) |
+| `geology.world.withdrawnStretchFrac` / `specialStretchFrac` | U(0.10, 0.25) / U(0.15, 0.30) | share of the main stem / of a tributary | no | prose (3.3.1); the arid special-status stretch uses the template's `valley` fields instead (3.2) |
 | `geology.world.barrenCreekP` / `barrenCreekFactor` | 0.20 / 0.15 | p / × | no | |
-| `geology.world.benchSideP` | 0.6 | p | no | |
+| `geology.world.benchSideP` | 0.6 | p | no | fallback only: each P1 template sets `benchSideP` (north 0.5, arid 0.25), which gives benches 18.5% / 10.3% of parcels against 26–28% at 0.6 (D-3.50) |
+| `geology.world.benchMinHalfWidthFt` / `benchStretchFrac` / `benchOffsetFt` | 400 / U(0.3, 0.7) / U(100, 600) | ft / share of the creek / ft beyond the valley half-width | no | prose (3.4) |
+| `geology.world.valleyFirstRowMax` / `valleyGapP` / `valleyGapRows` | 5 / 0.2 / U{1..5} | row / p / rows | no | prose (3.4) |
+| `geology.world.dredgedStretchMi` / `dredgedZoneFrac` / `dredgedShareTol` / `dredgedMaxStretches` | U(1, 3) / 0.6 / 0.05 / 6 | mi / share of rows / share / slots | no | prose (3.4), except `dredgedMaxStretches`: the fixed number of stretch draw slots (stream rule e) |
+| `geology.world.familyRunParcels` / `proximalTopFrac` | 3 / 0.30 | parcels / share of rows | no | prose: the reserved Inheritor run (3.4, 3.6.1); the proximal reach (3.5.2) |
 | `geology.world.junctionBoostLog` / `junctionBoostRows` | 0.25 / 7 | ln / rows | no | R3: rich below tributary junctions |
-| `geology.world.selSlope` / `selSlopeOverlooked` / `zqNoPaystreak` | 1.2 / 0.3 / −3 | logit per 0.5 ln of grade / z | no | open-ground selection |
+| `geology.world.selSlope` / `selSlopeOverlooked` / `zqNoPaystreak` / `zqLnScale` | 1.2 / 0.3 / −3 / 0.5 | logit per zqLnScale ln of grade / z / ln | no | open-ground selection; `zqLnScale` prose (3.4) |
 | `geology.world.trailTortuosity` / `noTrailCreekP` | 1.2 / 0.15 | × / p | no | |
 | `geology.env.channelOffsetFt` / `aspectThawSlope` / `aspectFrozenSlope` | U(−80, 80) / 0.35 / 0.6 | ft / × / × | no | R3: north-facing slopes frozen, south slopes often not |
 | `geology.env.sensitivity` (base / fish / anadromous / wetland share / special status / noise sd) | 0.10 / 0.30 / 0.25 / 0.25 / 0.20 / 0.05 | 0..1 | no | §6 consumes |
-| `geology.prior.statusMult` (held / listed / open) / `paystreakShare` (valley / bench / fan, gulch) | 1.0 / 0.92 / 0.6; 0.30 / 0.40 / 0.30 | × / share | no | visible priors (3.9); listed = pool ÷ held geometric-mean grade (3.7: preflight 0.93 north, 0.92 arid; P0 harness resets it) |
+| `geology.prior.statusMult` (held / listed / open) / `paystreakShare` (valley / bench / fan, gulch) | 1.0 / 0.92 / 0.6; 0.30 / 0.40 / 0.30 | × / share | no | visible priors (3.9); listed = pool ÷ held geometric-mean grade (3.7: P0 engine 0.93 north, 0.94 arid, within ±0.03, so it stays; preflight 0.93 / 0.92; D-3.51) |
 | `geology.prior.listedSigmaAdj` | 0 | ln-variance | no | measured −0.03 to −0.05; kept at 0 (prior stays slightly wide) |
+| `geology.prior.oldWorkingsMult` (dredge tailings / tailings piles) / `sizeMixJitterLogSd` / `coarseMassLogSd` | 0.15 / 0.6; 0.25; 0.30 | × / ln / ln | no | prose (3.9): `priorContainedOz` and `ClaimPriors`; the generator draws the claim size mix and coarse mass with the same σ (3.5.3) |
 | `geology.grade.blockRangeAlongFt` / `blockRangeAcrossFt` | 700 / 120 | ft | no | R3 300–1,500 along, 50–200 across |
 | `geology.grade.wanderRangeFt` / `halfWidthRangeFt` / `obRangeFt` / `payRangeFt` | 2,000 / 1,500 / 2,500 / 1,500 | ft | no | |
 | `geology.grade.obAxisBoost` / `obAxisScaleFt` | 0.3 / 400 | × / ft | no | |
 | `geology.grade.pocketBcy` | min(U(300, 3,000), 0.5 × payBcy) | bcy | no | R3 bonanza pockets |
-| `geology.grade.pocketMult` (median, σ) / clamp | 15, 0.5 / [0.15, 2.0] oz/bcy | × / oz/bcy | no | |
+| `geology.grade.pocketMult` (median, σ) / `pocketGradeClamp` | 15, 0.5 / [0.15, 2.0] | × / oz/bcy | no | |
+| `geology.grade.pocketMaxPayFrac` / `pocketStreakMinF` / `pocketProximalMult` | 0.5 / 0.4 / 1.5 | × payBcy / f / × pocketP | no | prose (3.5.3): pockets only where f ≥ 0.4, × 1.5 on proximal rows and gulches |
+| `geology.grade.claim` | λg jitter U(0.75, 1.25); frozen degree U(0.6, 1.0), P(frozen) ≤ 0.95; clay / boulder / cement log-sd 0.6 / 0.6 / 0.5; block size-mix jitter 0.10; coarse × (0.5 + 0.5 f); block fineness sd 0.006; block permafrost sd 0.08; unfrozen subarctic ≤ 0.15; clay / boulder / cement block sd 0.05; clayFalse clay ≥ 0.4; B0 and s0 × U(0.8, 1.2); pay × (0.7 + 0.3 f); OB ≤ 120 ft; pay 1–15 ft | — | no | prose: the 3.5.3 per-claim and per-block draws |
+| `geology.grade.boulderSettingMult` (proximal / gulch / fan / bench / midReach) | 1.5 / 1.4 / 0.6 / 0.8 / 1.0 | × boulderMed | no | prose (3.5.3), keyed by `sizeSetting` |
 | `geology.vertical.bedrockDecayFt` / `obGradeRatio` | 0.6 / 0.03 | ft / × | no | |
 | `geology.oldTimer.liabilityEraYear` | 1981 | year | no | 43 CFR 3809 |
 | `geology.oldTimer.recentReclaimedP` / `preStripP` / `preStripMaxAgeYr` | 0.45 / 0.25 / 6 | p / p / yr | no | |
 | `geology.oldTimer.histRecoveryHand` | U(0.60, 0.85) | frac | no | R3 hand-era 60–85% |
 | `geology.oldTimer.recentCapture` / `recentOpSkill` | 0.93 / 0.85 / 0.55 / 0.20; U(0.85, 1.0) | by size / × | no | ≈ 0.63–0.74 overall (R3 cat-and-sluice) |
 | `geology.oldTimer.improvementsUsd` | LN(25,000, 0.6), × 0.4 if > 15 yr old | $ | no | §5 improvement credit |
+| `geology.oldTimer.kinds` | the 3.6 table per kind: era, blocks affected, extraction; recentCat top U(15%, 50%), 1–3 blocks per season, pile × U(0.6, 0.9); hydraulic `obMult` 0.5 (P6) | — | no | prose (3.6), except the hydraulic `obMult`, new in P0 ("OB reduced") |
+| `geology.oldTimer.driftBottom` (top ft / bedrock ft / λg × / s_b ×) / `dredgeEffects` (boulders × / λg ft / min s_b) | 5 / 1 / 2 / 0.6; 0.3 / 6.0 / 0.5 | ft / × | no | prose (3.6) |
+| `geology.oldTimer.maxExtraction` / `depleteCap` / `depleteWeights` (hand; dredge) | 0.92 / 0.95 / 1.3, 1.1, 0.7, 0.3; 1.1, 1.05, 0.9, 0.6 | share / share / by size | no | prose: `deplete()` (3.6) |
+| `geology.oldTimer.pileBcy` / `pileMix` | drift 5 ft × 1,613 × U(0.4, 0.7), handCut payBcy × U(0.3, 0.6), dryWash 2 ft × 1,613 × U(0.2, 0.5) / 0.05, 0.20, 0.45, 0.30 | bcy / share by size | no | prose: `tailingsPile()` (3.6) |
+| `geology.oldTimer.recentStartYear` / `recentGapP` / `preStripBlocks` / `preStripThawFt` | U{1985..2018} / 0.2 / U{1..3} / U(3, 6) | year / p / blocks / ft | no | prose (3.6), except `recentGapP`, new in P0: the chance of a one-year gap between seasons ("occasional gaps") |
+| `geology.oldTimer.filedSeasonP` / `filedSeasonMinYear` / `footprintOnRecordP` | 0.8 / 1990 / 0.7 | p / year / p | no | prose: the public record (3.6) |
 | `geology.permitStub.minLastSeasonYear` / `planP` / `noticeP` | 2000 / 0.60 / 0.20 | year / p / p | no | truth stub on recentCat claims (3.9); none = 1 − planP − noticeP = 0.20. Gate ≥ 8% of northern listings with plan authority (BALANCE T-15 b); preflight 10.0% north, 6.6% arid (was 2010 / 0.50: 4.8% / 4.3%; BALANCE R-1, D-3.48) |
+| `geology.permitStub.bondFrac` / `rceStubUsdPerAcre` | U(0.5, 1.0) / 6,000 | × estimate / $ per acre | no | prose (3.9): stub bond = bondFrac × the reclamation estimate of the open acres, priced at the P1 $6,000/acre stub until §6's `reclamationCostEstimate` |
 | `geology.records.historicGradeRatio` / `creekProdLogSd` | 2.5 / 0.50 | × / ln | no | creek history (3.6); §4 reads both (moved from §4's `recordsHistoricGradeRatio` / `recordsCreekProdLogSd`) |
-| `geology.records.priorDrillP` / holes / years | 0.10 / U{3..8} / U{1935..1985} | p / count / year | no | old churn-drill lines, `churnHistoric` method (3.6) |
+| `geology.records.priorDrillP` / `priorDrillHoles` / `priorDrillYears` | 0.10 / U{3..8} / U{1935..1985} | p / count / year | no | old churn-drill lines, `churnHistoric` method (3.6) |
 | `geology.records.flyInQualityMult` | 0.5 | × | no | records quality on fly-in claims; template base 0.8 north / 0.7 arid (3.2) |
+| `geology.method.churnHistoric` | §4 4.2.B's `churnHistoric` row: fullColumn, frozenOk, bedrockPenFt 3, capture 0.90 / 0.85 / 0.70 / 0.40, volume / weigh / geom / thick CV 0.35 / 0.20 / 0.06 / 0.15, 0.01 bcy/ft | — | no | placeholder copy for the old drill logs (3.6) until §4's method table lands; then the generator reads §4's row (D-3.56) |
 | `geology.particle.meanMg` (medium, fine, ultrafine) | 3 / 0.1 / 0.004 | mg | no | R3 worked table; coarse per template |
 | `geology.particle.massCv` | 2.0 / 1.0 / 0.7 / 0.5 | CV | no | R3 compound Poisson 1–3 |
 | `geology.sample.deWijsAlpha` | 0.028 | ln-var per ln(volume) | no | gives σL = 0.5 at 1 bcy in an 8,000-bcy block |
@@ -3414,7 +3514,11 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 | `geology.sample.waterInflowP` (north / arid) | 0.25 / 0.05 | p | no | |
 | `geology.sample.pocketMix` | 0.60 / 0.30 / 0.08 / 0.02 | shares | no | |
 | `geology.sample.exposureMaxObFt` | 0.5 | ft | no | (`conserveMinBcy` deleted: every sample books its gold lines, 3.8) |
+| `geology.sample.exposureDepthFrac` / `defaultThickCv` / `waterStopFt` | 0.4 / 0.10 / U(1, 4) | share / CV / ft above bedrock | no | prose (3.8): method defaults and the water-inflow stop |
+| `geology.sample.bedrockIdP` / `groundObsSd` / `tercileCuts` | 0.9 / 0.10 / 0.33, 0.66 | p / sd / cuts | no | prose: step 7 observations (3.8) |
 | `geology.seller.honestyMix` | table 3.10.1 (§1 1.11 values) | shares | **yes** | |
+| `geology.seller.honestyTilts` / `situationMix` | table 3.10.1 tilts / prospector 0.35, absentee 0.25, retiringOperator 0.15, estate 0.10, distressedOperator 0.15 | × odds / shares | no | prose (3.10.1) |
+| `geology.seller.groupRunP` / `maxParcelsPerHolder` | 0.5 / 6 | p / parcels | no | prose (3.10.1) |
 | `geology.seller.methods` | table 3.10.2 | — | no | seller pans, 3-bcy pits, bedrock scrapes |
 | `geology.seller.packageMix` | table 3.10.3 | shares | no | soft tell |
 | `geology.seller.claimedBlocksMult` | 1.0 / 1.2 / 1.0 / 1.5 | × by honesty | no | `claimedRawOz` |
@@ -3430,7 +3534,7 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 | `geology.supply.inflowMult` | 1.1 / 1.0 / 0.8 / 0.6 | × by class | no | adverse selection |
 | `geology.supply.saleQualityMult` | 0.7 / 1.0 / 1.8 / 2.5 | × by class | no | multiplies §5's background-sale p (expiry and base p are §5's) |
 | `geology.supply.relistCooldownWk` / `postSaleCooldownWk` | 20 / 52 | wk | no | |
-| `geology.supply.goldElasticityUp` / `Down` / `lagWk` / clamp | 0.5 / 1.5 / 8 / [1.0, 2.5] | — | no | `rippleTwoSided` on `goldIdxReal`, no escalation (§10 10.8, canonical here) |
+| `geology.supply.goldElasticityUp` / `goldElasticityDown` / `goldLagWk` / `goldMultClamp` | 0.5 / 1.5 / 8 / [1.0, 2.5] | — | no | `rippleTwoSided` on `goldIdxReal`, no escalation (§10 10.8, canonical here) |
 | `geology.supply.maxListHazard` | 0.10 | /wk | no | caps the product of multipliers (3.11) |
 | `geology.supply.scarcityMax` | 2.5 | × | no | P2+; listing flow holds until the NPC stock falls to 40% of baseline |
 | `geology.supply.npcForfeitRate` / `lowGoldMult` | 0.03 / 1.5 | p/yr / × | no | P2+; week 36; low gold = `goldIdxReal` < 0.85 |
@@ -3442,40 +3546,49 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 | `geology.access.<class>.mobMult` | 1.0 / 1.4 / 2.2 / 4.0 | × | no | anchors |
 | `geology.access.<class>.refMi` | 40 / 80 / 120 / 150 | mi | no | |
 | `geology.access.distExponent` / `distScaleClamp` | 0.5 / [0.6, 1.8] | — | no | |
-| `geology.access.trailDegrade1Mi` / `trailDegrade2Mi` | 6 / 18 | mi | no | |
+| `geology.access.trailDegrade1Mi` / `trailDegrade2Mi` | 6 / 18 | mi | no | a template's `trailDegradeMi` overrides both: arid 12 / 30, which gives 39.3% / 36.5% highway claims against 21.7% at 6 / 18 (D-3.50) |
 | `geology.water.usableFrac` | 0.8 | frac | no | fish-passage and intake losses |
 | `geology.water.lowFlowShape` (creek / spring) | 0.45 / 0.90 | × baseGpm | no | climatological low of §1's hydrograph |
 | `geology.water.listingShape` (early / mid / late) | 1.40 / 0.90 / 0.75 | × baseGpm | no | display and §5 `waterScore` only |
 | `geology.water.listingNoiseSigma` | 0.20 | ln | no | |
 | `geology.water.rightStubP` (north / arid) / `rightStubGpm` | 0.10 / 0.30; U(50, 300), surface ≤ `lowFlowGpm` | p / gpm | no | recentCat claims that stay held (3.3.4); §6 senior right |
-| `geology.refEcon.*` (strip, wash, dev costs, class thresholds) | 3.7 | $ | no | sim and tests only; spot = `market.openingSpotUsdPerFineOz` (renamed from `geology.refOp.*`) |
+| `geology.water.benchLiftFt` / `nearestFillFrac` | U(30, 300) / U(0.3, 1.0) | ft / × distanceToTownMi | no | prose (3.3.4) |
+| `geology.refEcon.stripUsd` / `washUsd` (north / arid) | 2.50 / 2.20; 12.00 / 14.00 | $ per bcy | no | prose (3.7); the `geology.refEcon.*` keys are sim, tests and dev reveal only (renamed from `geology.refOp.*`); spot = `market.openingSpotUsdPerFineOz`, with no fallback key |
+| `geology.refEcon.devBaseUsd` / `devPerAcreUsd` (north / arid) | 150,000 / 120,000; 8,000 / 7,000 | $ / $ per mined acre | no | prose (3.7) |
+| `geology.refEcon.payable` / `capture` / `clayRecoveryPenalty` | 0.95 / 0.95, 0.88, 0.62, 0.25 / 0.15 | share / by size / × clay | no | prose (3.7): §7's sluice-only anchors |
+| `geology.refEcon.frozenStripAdd` / `cementStripAdd` / `boulderWashAdd` / `clayWashAdd` | 0.6 / 0.5 / 0.3 / 0.3 | × on strip / wash cost | no | prose (3.7) |
+| `geology.refEcon.goodCdvUsd` / `goodMargin` / `excellentCdvUsd` / `excellentMargin` | 750,000 / 0.40 / 3,000,000 / 0.60 | $ / share | no | prose (3.7): class thresholds |
 | `geology.refEcon.frozenWashAdd` | 0.40 | × permafrost on wash cost | no | D-3.36: yardstick frozen / thawed break-even 1.36 at 3:1 vs the engine's 1.38 ± 0.05 (§7 fixture) |
 | `geology.siteVisit.costUsd` / `days` | 400 / 800 / 1,800 / 3,500; 2 / 3 / 4 / 4 | $ / owner desk days | no | by access; days go through §1's desk-day queue (3.12) |
 
 ### 3.17 Balance levers and risks
 
-**Levers that most affect survival and profitability:** `gMed` per template (the economic share moves ≈ 1–2 points per 5% change: a 5% rise in north `gMed` moves the listing pool from ≈ 73.1% to ≈ 72.0% uneconomic and the good + excellent share from ≈ 6.4% to ≈ 7.3% in the harness); `geology.refEcon.frozenWashAdd` (how strictly frozen ground is classed; a yardstick lever, it changes labels and the Inheritor's conditioning, not engine physics); the dispersion σcreek and σrich (fatness of the good/excellent tail); `bgRatio` and paystreak half-width (how much of a claim is mineable); `barrenCreekP` and the staking intercept (how bad open ground is); `inflowMult` and `saleQualityMult` (quality of the listing pool versus the held stock); `selSlope` (how worthwhile staking is); `baseListHazard` and `scarcityMax` (how many listings the player sees, early and late); `npcForfeitRate` and `npcRestakeRatio` (cheap good ground per year, and how long it stays open); `geology.permitStub.*` and the starter lease (how many listings let a new player mine in season 1 under full rules); and the sampling informativeness, `deWijsAlpha` and the coarse particle masses (how expensive certainty is).
+**Levers that most affect survival and profitability:** `gMed` per template (the economic share moves ≈ 1–2 points per 5% change: a 5% rise in north `gMed` moves the listing pool from ≈ 73.1% to ≈ 72.0% uneconomic and the good + excellent share from ≈ 6.4% to ≈ 7.3% in the harness; on the engine, arid 0.0062 → 0.0056 (−10%) moved the pool from 60.2% / 59.8% to 64.1% / 63.0% uneconomic and good from 10.5% / 10.9% to 8.8% / 9.3%, D-3.51); `geology.refEcon.frozenWashAdd` (how strictly frozen ground is classed; a yardstick lever, it changes labels and the Inheritor's conditioning, not engine physics); the dispersion σcreek and σrich (fatness of the good/excellent tail); `bgRatio` and paystreak half-width (how much of a claim is mineable); `barrenCreekP` and the staking intercept (how bad open ground is); `inflowMult` and `saleQualityMult` (quality of the listing pool versus the held stock); `selSlope` (how worthwhile staking is); `baseListHazard` and `scarcityMax` (how many listings the player sees, early and late); `npcForfeitRate` and `npcRestakeRatio` (cheap good ground per year, and how long it stays open); `geology.permitStub.*` and the starter lease (how many listings let a new player mine in season 1 under full rules); and the sampling informativeness, `deWijsAlpha` and the coarse particle masses (how expensive certainty is).
 
 **Exploits and counters**
 
 1. **Pan spam** (1,000 pans ≈ 6.7 bcy for ≈ $3k of labor). Counter: pans sample only exposures, which exist on the channel column or in an open cut; elsewhere an unstripped block yields overburden colours. Channel pans default to the upper 40% of the gravel (posMult ≈ 0.3, and the correction is uncertain because λg and s_b vary by block), and cannot get below the active layer in frozen ground, so they systematically understate bedrock pay. Pans taken from an open cut avoid this, and that cut is a pit.
 2. **Long-history claims as a safe bet.** Counter: recent operators mined the best blocks, so honest history overstates the remaining grade. Records review reveals which blocks produced.
 3. **Reading the market from vanishing listings.** Fast-selling listings were better, but they are gone. The only exploitable signal is "fresh listings skew better", which rewards decisiveness. That is intended.
-4. **Stake-and-test everything** (P2). 84–89% of open ground is uneconomic, testing costs $25–60k per claim, a Notice and bond are needed, and fees run $200/claim/yr. It is a legitimate "prospector" strategy with a thin edge on overlooked benches and deep muck (16% economic north, 29% arid, against 9–15% of open creek ground). NPC staking at week 40 takes a forfeiture-sized bite of open ground each year, weighted to what looks good, so the edge is in being first, not in waiting. Watch its EV in the simulator. If it dominates, raise `selSlopeOverlooked` toward 0.5 (stronger selection leaves fewer good benches open); if it is never worth it, lower it toward 0.
+4. **Stake-and-test everything** (P2). 80–87% of open ground is uneconomic (P0 engine: 87.2% north, 79.5% arid), testing costs $25–60k per claim, a Notice and bond are needed, and fees run $200/claim/yr. It is a legitimate "prospector" strategy with a thin edge on overlooked benches and deep muck (P0 engine: 25.5% economic north, 29.4% arid; the harness gave 16% / 29% against 9–15% of open creek ground). NPC staking at week 40 takes a forfeiture-sized bite of open ground each year, weighted to what looks good, so the edge is in being first, not in waiting. Watch its EV in the simulator. If it dominates, raise `selSlopeOverlooked` toward 0.5 (stronger selection leaves fewer good benches open); if it is never worth it, lower it toward 0.
 5. **Package-level metagaming** (avoid `none` packages, or buy only `complete` ones). Estates show `none` half the time whatever their honesty, and fraudsters show `complete` 30% of the time, so neither filter is safe (3.10.3).
 6. **Fine-gold ground misvalued by everyone.** Fan and fine ground samples well (low particle CV) but recovers poorly (§7). That is a deliberate opportunity for players who buy fine-gold recovery circuits.
-7. **Dominant "buy the biggest association claim".** 160-acre claims dilute the fixed development cost (49% uneconomic vs 71% for 20 ac north). Counter: §5 prices scale with acreage, fees are $200 per 20 ac (§6), and capital needs are larger. Check the strategy-dominance matrix.
+7. **Dominant "buy the biggest association claim".** 160-acre claims dilute the fixed development cost (P0 engine: 38% uneconomic vs 66% for 20 ac north; 31% vs 67% arid). Counter: §5 prices scale with acreage, fees are $200 per 20 ac (§6), and capital needs are larger. Check the strategy-dominance matrix.
 8. **Work around the creek.** Mining only the upland columns avoids §6's 404 permit on the channel column; when the paystreak hugs the creek that costs the richest blocks. Intended trade-off; watch that 404 costs (§6) are not so high that every player skips channel blocks.
 9. **The starter lease as a free signal.** The guaranteed permitted lease is not conditioned on ground quality, so finding it tells the player nothing about grade; its only gift is time. Its holder is honest about permits, not necessarily about grade (cherry-pickers qualify).
 10. **Buying a district dry to starve rivals** (P5+). Scarcity raises the listing rate of the NPC parcels that remain, and the supply floor opens withdrawn ground once 35% of a district is in player or competitor hands, so the market keeps listing as others are taken (the brief's rule).
 
-**Risks:** the targets are measured at $4,200 with the reference operator. A sustained bull market (§10) widens the economic share. That is realistic, but the simulator should report class shares by gold regime. `goldIdxReal` is relative to the opening price in real terms, so a real gold plateau far from the opening level keeps the listing hazard elevated indefinitely (inflation alone no longer does, D-10.32); if that floods the market in long sandbox runs, switch `goldMult` to a ratio of lagged index levels (8 vs 104 weeks). Truth-based adverse selection depends on hidden state; it is engine-side only, and bots never see it. The calibration harness simplifies the creek network; P0 must re-run the shares on the full generator and retune `gMed` or the staking intercept if they leave the bands. With the frozen wash term the two simplified implementations put the north pool at 64% and 73% uneconomic, either side of the 72% ceiling, so this re-run is the deciding measurement (D-3.36). `statusMult.listed` (0.92) comes from the preflight generator; if the P0 harness finds the pool poorer (the expected 0.85–0.90), lower it before §4's listing-pool calibration gate runs. The long-run supply rules (NPC staking, scarcity, supply floor) are derived on paper (D-3.42); the 15-year simulator test (3.18) must confirm them before P5 exits.
+**Risks:** the targets are measured at $4,200 with the reference operator. A sustained bull market (§10) widens the economic share. That is realistic, but the simulator should report class shares by gold regime. `goldIdxReal` is relative to the opening price in real terms, so a real gold plateau far from the opening level keeps the listing hazard elevated indefinitely (inflation alone no longer does, D-10.32); if that floods the market in long sandbox runs, switch `goldMult` to a ratio of lagged index levels (8 vs 104 weeks). Truth-based adverse selection depends on hidden state; it is engine-side only, and bots never see it. The design-time harness simplified the creek network, so P0 re-ran the shares on the engine's full generator (3.7): the north pool came out at 65.7% uneconomic, inside the band, so north `gMed` stays, and arid `gMed` took its planned step to 0.0056 (D-3.36, D-3.51). The engine measures the pool ÷ held grade at 0.93 / 0.94, so `statusMult.listed` stays 0.92 for §4's listing-pool gate. The long-run supply rules (NPC staking, scarcity, supply floor) are derived on paper (D-3.42); the 15-year simulator test (3.18) must confirm them before P5 exits.
+
+**P1 risks from the P0 calibration** (BALANCE T-01 gates in P1, not in P0; non-gating checks in the harness):
+- **T-01 (a), mined-block p90.** BALANCE caps the bcy-weighted p90 grade of economically mined blocks at 0.035; §3.18's own band is ≤ 0.045. The engine measures 0.0351 north and 0.0370 arid: inside §3.18, on or above BALANCE's line, as BALANCE §9.2 predicted (the richest blocks are mined first). Levers: the pocket tail (`geology.grade.pocketMult`, `tpl.pocketP`) and the template block and richness σ (arid `sigma.block` 0.65, `sigma.rich` 0.40), each of which would also thin the good and excellent tail of the listing pool, so a change needs the pool re-checked; or aligning BALANCE's line with §3.18's, which is a BALANCE band change for the owner.
+- **T-01 (b), arid paystreak blocks in 0.005–0.03.** 39.8% and 40.7% on the two seed bases against BALANCE's ≥ 40% (north 52.9% against ≥ 45%), down after the `gMed` step. Levers: arid `gMed` back up toward 0.0059 (more blocks clear 0.005, but that run gave 9.8% / 10.1% pool good, on the 10% edge), or a narrower arid `sigma.block` (fewer blocks in the low tail, with the same pool trade-off). Re-run `calibrate:world` on both seed bases before P1 sign-off and move one lever at a time.
 
 ### 3.18 Tests
 
 **Formula unit tests (Vitest)**
 - `overlap(d = 0, h = 110)` = 1.0; `overlap(104.5, 110)` = 0.526; `overlap(400, 110)` = 0.
-- `G(T) = 1`, `G(−B) = 0`, `G(0) = s_b`. positionMult cases from 3.8 example 3: 0.502, 0.365, 1.000, 1.046, 1.905 (±0.002); exposure 0.304. `positionMultProfile(profileOf(bt), h1, h2)` equals `positionMult(bt, h1, h2)` bit for bit.
+- `G(T) = 1`, `G(−B) = 0`, `G(0) = s_b`. positionMult cases from 3.8 example 3: 0.502, 0.365, 1.000, 1.046, 1.905 (±0.002); exposure 0.304. `positionMultProfile(profileOf(bt, λb), h1, h2)` equals `positionMult(bt, h1, h2, λb)` bit for bit.
 - `particleCv(0.01, 10, mid, 150)` = 0.247 ± 0.002; m_eff (mid) = 189.9 mg.
 - De Wijs: σL²(V = Vb) = 0; σL(1 bcy, Vb 8,000) = 0.502.
 - Bedrock cleanup: cleaning 0.5 of 1.5 ft (s_b 0.20, λb 0.6) leaves 0.0768 of block gold.
@@ -3508,7 +3621,7 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - Accurate sellers produce no tells. Cherry-picked claimed grade ≥ accurate claimed grade on the same evidence. Fraudulent claimed grade ≥ 2.5 × max(honest, 0.6 gMed). Fabricated samples have ln-sd ≈ 0.25 ± 0.1 (n ≥ 8). Fraudulent beliefRawOz / claimedRawOz ≤ 0.4.
 
 **Simulator and distribution tests (200 seeded worlds, standard)**
-- Listing-pool class shares within 60–72 / 18–30 / 5–10 / 0.7–2.5% for each P1 template, with the frozen wash term (BALANCE T-02; this run decides the D-3.36 `gMed` steps). The measured pool ÷ held geometric-mean grade is within ±0.03 of `geology.prior.statusMult.listed`, else the key is reset to the measurement.
+- Listing-pool class shares within 60–72 / 18–30 / 5–10 / 0.7–2.5% for each P1 template, with the frozen wash term (BALANCE T-02; the P0 run decided the D-3.36 `gMed` steps, D-3.51; results in 3.7). The measured pool ÷ held geometric-mean grade is within ±0.03 of `geology.prior.statusMult.listed`, else the key is reset to the measurement.
 - Held-claim median paystreak grade p50 in [0.004, 0.009]; economically mined block grade p10 ≥ 0.005 and p90 ≤ 0.045; whole-claim strip p50 north 3–5, arid 1–2.
 - Parcels per district: mean 65–75, never above nTarget, ≥ 55 in ≥ 99% of districts; realized held share 0.65–0.75 north, 0.52–0.62 arid.
 - Block field z (before paystreak mixing): lag-1 correlation along 0.742 ± 0.03, across 0.175 ± 0.04, unit variance ± 0.05. Adjacent claims on the same creek: correlation of claim-mean ln-grade > 0.3 (creek richness carries across boundaries).
@@ -3518,11 +3631,11 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - NPC stock (P2 rules, no player purchases, no competitors, 15 years): each district's NPC-held count stays within ±10% of `npcHeldBaseline`.
 - **Long-run supply** (P5 rules, the aggressive bot plus competitors, 15-year runs): through year 15, active listings per district ≥ 6 and new listings per district ≥ 20 a year (means over 200 seeds; p10 ≥ 4 and ≥ 15).
 
-**Performance**
-- `generateWorld` (300 parcels, ≈ 14,000 blocks) < 60 ms in Node; P1 world < 25 ms.
-- Decoding a 160-block claim < 0.3 ms. `drawSample` < 20 µs median (λ-capped particle loops).
-- Saves: `truthPack` ≤ 0.8 MB at 320 claims; whole `world` slice ≤ 1.0 MB after 10 simulated years (§2.13's per-slice year-10 budget).
-- `claimPriors` < 0.2 ms per 20-block claim (memoized afterwards).
+**Performance** (targets; P0 engine measurements in Node in brackets)
+- `generateWorld` (300 parcels, ≈ 14,000 blocks) < 60 ms in Node; P1 world < 25 ms. [Five districts, 315 claims: ≈ 151 ms; P1 two-district world: ≈ 66 ms (median; `newGame` 86 ms). Most of the time goes to the deterministic dmath `exp` and `normInv` and to packing. Both miss the target, stay far below the brief's 1.5 s ceiling and fail no test today; OQ-3.3.]
+- Decoding a 160-block claim < 0.3 ms [0.22 ms]. `drawSample` < 20 µs median (λ-capped particle loops) [7.2 µs for a 3-bcy pit].
+- Saves: `truthPack` ≤ 0.8 MB at 320 claims [621 kB at 315 claims]; whole `world` slice ≤ 1.0 MB after 10 simulated years (§2.13's per-slice year-10 budget) [P1 world 561 kB at generation; five-district world 1,252 kB at generation, over budget: OQ-3.3].
+- `claimPriors` < 0.2 ms per 20-block claim (memoized afterwards) [well under].
 
 ### 3.19 Decisions
 
@@ -3531,7 +3644,7 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - **D-3.3** — Block grade is measured over the mined pay column (pay gravel + bedrock cleanup). — Matches R3's definition of grade ("including bedrock cleanup") and §7's "yards washed".
 - **D-3.4** — `gradeOzPerBcy` is the current in-place grade, net of old-timer removal. `virginGradeOzPerBcy` and `minedOutFraction` are descriptive only. `sizeMix` is post-depletion. — This prevents double counting in §7; old reports and records use the virgin grade.
 - **D-3.5** — The paystreak is a continuous across-valley band (half-width median 110 ft north) mixed into 1-acre blocks by overlap fraction f, plus a separable AR(1) block field (700 ft along, 120 ft across). Creek-level AR processes carry continuity across claim boundaries. — Gives a realistic down-valley paystreak and "the paystreak left the creek" outcomes with small closed-form code.
-- **D-3.6** — Grade medians refined from the anchor: the region `gMed` (paystreak centre) is 0.0095 north and 0.0062 arid. The resulting median paystreak-block grade per held claim is 0.0057 / 0.0049 (p25–p75 0.0030–0.0094 north), and the anchor's "most claims 0.004–0.012" holds for ≈ p35–p85. — Calibrated so the listing pool hits the brief's "most ground marginal or uneconomic" (3.7; harness re-run with barren creeks and junction boosts). Listed in §0's deviations-from-the-brief table. Retune rules after the frozen wash term: D-3.36.
+- **D-3.6** — Grade medians refined from the anchor: the region `gMed` (paystreak centre) is 0.0095 north and 0.0056 arid (0.0062 until the P0 engine calibration, D-3.51). The resulting median paystreak-block grade per held claim is 0.0062 / 0.0045 on the engine (design-time harness: 0.0057 / 0.0049 at the old arid median, p25–p75 0.0030–0.0094 north), and the anchor's "most claims 0.004–0.012" holds for ≈ p35–p85. — Calibrated so the listing pool hits the brief's "most ground marginal or uneconomic" (3.7; harness re-run with barren creeks and junction boosts). Listed in §0's deviations-from-the-brief table. Retune rules after the frozen wash term: D-3.36.
 - **D-3.7** — The economic classes are defined by a truth-based reference operator (sluice-only, $2.50 strip / $12 wash north, $2.20 / $14 arid, frozen pay +0.40 × permafrost on the wash cost (D-3.36), dev cost $150k + $8k per acre north and $120k + $7k arid, $4,200 gold). — Turns "uneconomic / marginal / good / excellent" into a testable simulator metric consistent with the reference northern operation.
 - **D-3.8** — Open ground is worse by *selection* (a logistic staking probability on ground reputation, intercept 0.82 north / 0.70 arid), with a weak slope for benches and deep muck, rather than by a flat penalty. — Overlooked ground then emerges naturally (17% / 29% of open benches and deep muck are economic vs 10% / 15% of open creek ground). The intercepts were raised from 0.75 / 0.60 once barren creeks entered the harness, to keep realized held shares near 0.70 / 0.57.
 - **D-3.9** — Adverse selection in supply: the listing hazard and the background-sale hazard depend on the true class (the latter through `saleQualityMult`, applied by §5). — Real (owners mine good ground; informed locals snap it up). It makes the market worse than the held stock and makes weeks-on-market meaningful without revealing truth.
@@ -3558,12 +3671,12 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - **D-3.30** — The Inheritor's family ground is a run of three 20-ac parcels reserved in every world and conditioned at `newGame` by a uniform grade scale k found by bisection. — Satisfies §1's tier draw exactly while keeping worlds identical across start types; truth is still immutable after the first turn.
 - **D-3.31** — Holders keep only a ≈ 100-byte evidence summary; `ClaimedEvidence` is regenerated deterministically on relist. — Full sample results would exceed the save budget (now §2.13's 1.0 MB `world` slice) within a few game years.
 - **D-3.32** — The decode cache is keyed by `(claimId, truthHash)`. — `(seed, claimId)` returns stale truth in simulator tuning sweeps and after the Inheritor re-pack.
-- **D-3.33** — The creek network is sized (main 6–9 mi, 3–6 tributaries of 1.5–4 mi) so laid parcels average ≈ 70 per district, with a hard per-district cap of maxClaims / districtCount. — An earlier network laid ≈ 110 parcels per district, breaking both the 60–80 template range and the 320-claim performance cap.
-- **D-3.34** — `drawSample` takes `(BlockTruth, BlockState, SampleRequest, SampleMethodParams, rng)` instead of the guide's `(block, volumeBcy, method, rng)`. — Stripping, thaw, intervals, open cuts and tailings targets change the physics and must be explicit inputs to keep the function pure.
+- **D-3.33** — The creek network is sized (main 6–9 mi, 5–8 tributaries of 2.5–5 mi, a branch on half of them; resized in P0 by D-3.49) so laid parcels fill each district's `nTarget` (≈ 69 per district on the engine), with a hard per-district cap of maxClaims / districtCount. — An earlier network laid ≈ 110 parcels per district, breaking both the 60–80 template range and the 320-claim performance cap; the first P0-era sizing (3–6 tributaries of 1.5–4 mi, branch 0.4) laid too few (D-3.49).
+- **D-3.34** — `drawSample` takes `(BlockTruth, BlockState, SampleRequest, SampleMethodParams, rng)` instead of the guide's `(block, volumeBcy, method, rng)`, plus a `DrawContext` since P0 (D-3.54). — Stripping, thaw, intervals, open cuts and tailings targets change the physics and must be explicit inputs to keep the function pure.
 - **D-3.35** — Recent operators' history and their tailings losses come from one per-size recovery model (0.93 / 0.85 / 0.55 / 0.20 × operator skill). — An earlier version used a flat U(0.65, 0.80) for history and per-size losses for the pile, so the two disagreed; one model keeps the gold balance exact.
-- **D-3.36** — The yardstick charges frozen pay `geology.refEcon.frozenWashAdd` (0.40) × permafrost on its wash cost. Grade medians and the Inheritor's tier CDV targets do not move with it. North `gMed` rises in 5% steps only if the P0 full-generator run (T-02) puts the north listing pool above 72% uneconomic; arid `gMed` drops to 0.0056 only if that run, with §7's D-7.37 water change in place, confirms arid good > 10% (BALANCE §9.2 gives the sensitivity). — The engine loses throughput on frozen ground that a strip-cost-only yardstick missed (break-even ratio 1.17 vs the engine's 1.38; now 1.36), so frozen ground was classed too generously. The two simplified harnesses put the north pool at 64% and 73% uneconomic, either side of the band edge. Changing `gMed` now would also invalidate §4's worked prior examples (built on 0.0095) on one harness's word. The tier targets are positions inside each class, so the corrected yardstick already makes a "good" family run 6–11% richer, as intended.
+- **D-3.36** — The yardstick charges frozen pay `geology.refEcon.frozenWashAdd` (0.40) × permafrost on its wash cost. Grade medians and the Inheritor's tier CDV targets do not move with it. North `gMed` was to rise in 5% steps only if the P0 full-generator run (T-02) put the north listing pool above 72% uneconomic, and arid `gMed` to drop to 0.0056 only if that run confirmed arid good > 10% (BALANCE §9.2 gives the sensitivity). The P0 engine run decided both (D-3.51): north stays 0.0095 (65.7% uneconomic) and arid steps to 0.0056 (good was 10.5–10.9%); the planned condition on §7's D-7.37 water change was dropped, because the yardstick reads no §7 state. — The engine loses throughput on frozen ground that a strip-cost-only yardstick missed (break-even ratio 1.17 vs the engine's 1.38; now 1.36), so frozen ground was classed too generously. The two simplified harnesses put the north pool at 64% and 73% uneconomic, either side of the band edge. Changing `gMed` before P0 would also have invalidated §4's worked prior examples (built on 0.0095) on one harness's word. The tier targets are positions inside each class, so the corrected yardstick already makes a "good" family run 6–11% richer, as intended.
 - **D-3.37** — Every sample books its gold lines (`sampleGoldLines`); the 20-bcy `conserveMinBcy` exemption is deleted. Pans and drill holes book their recovered gold as `sampleProcessingLoss`; credited samples become a §10 lot through §5's interest settlement. — The exemption broke conservation the first time a pit was dug (pits and trenches are all under 20 bcy, and §4 credits their gold). Exact lines cost nothing and keep the §2.14 property exact from P1.
-- **D-3.38** — §3 builds §4's `ClaimPriors` (`claimPriors`) from template constants and visible geometry, and listed claims use `statusMult.listed` = 0.92 with `listedSigmaAdj` 0. — §3 owns every constant in the prior, so one producer prevents drift (§4 D-4.15, D-4.16). The listing pool really is poorer than the held stock (adverse selection, D-3.9), so a held-stock prior would be optimistic exactly on the claims the player evaluates. 0.92 is the preflight generator's measurement; the P0 harness resets it if it differs by more than 0.03.
+- **D-3.38** — §3 builds §4's `ClaimPriors` (`claimPriors`) from template constants and visible geometry, and listed claims use `statusMult.listed` = 0.92 with `listedSigmaAdj` 0. — §3 owns every constant in the prior, so one producer prevents drift (§4 D-4.15, D-4.16). The listing pool really is poorer than the held stock (adverse selection, D-3.9), so a held-stock prior would be optimistic exactly on the claims the player evaluates. 0.92 is the preflight generator's measurement; the P0 engine run measured 0.93 north and 0.94 arid, within the ±0.03 that would reset it, so it stays (D-3.51).
 - **D-3.39** — Creek history is computed from the creek's real historic workings (yards from the worked blocks; ounces = yards × 2.5 × the creek's median virgin grade × LN(1, 0.5)) after all of the district's claims exist, on its own sub-stream `('world','creekHist',creekId)`. — A history consistent with the old-timer footprint the same review can find. The alternative sub-stream, `('world','creeks',districtId)`, already drives `genCreekNetwork`, and drawing more from it would shift the network or violate stream isolation.
 - **D-3.40** — Senior water rights are recorded stubs on held recent-operator claims (north 0.10, arid 0.30). On arid claims without surface water the right is a groundwater pumping right of U(50, 300) gpm, not min(lowFlowGpm, …). — §6 needs real senior rights for drought exemption and listing value. Read literally, the surface formula gives 0 gpm on most arid claims (`lowFlowGpm` 0 without a spring), which would make the arid 0.30 rate meaningless. Nevada-style rights are mostly groundwater permits, and §7 still caps physical draw at the drilled well's yield.
 - **D-3.41** — A site visit costs §1 owner desk days (2 / 3 / 4 / 4), queued or forced with `ownerTime: 'now'`; payment is taken at action time and the visit resolves when its days are booked. `OWNER_UNAVAILABLE` is removed; `OWNER_INJURED` stays. — One owner-time budget (§1 D-1.28) instead of a separate §8 absence rule. Paying up front keeps a queued visit from failing later on cash.
@@ -3574,11 +3687,20 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - **D-3.46** — The jurisdiction (`akStyle`, `nvStyle`, `temperateStyle`, `yukon`) and wage region are template data copied onto each district, and one `JurisdictionId` type serves payroll, sales tax and income tax. — §8, §9 and §11 each consumed a jurisdiction field that nobody produced, under three names.
 - **D-3.47** — Access: `accessFactors` also returns the class anchor `mobMultClass` and the distance scale `distScale`; winter-trail freight goes by air whenever the trail is shut; the drought hook touches only spring and well sources; `relistClaim` lists the following week. — In order: §9 prices transport miles itself, so `mobMult` would count distance twice; air always flies, and closing freight outside the trail window stalled §7 fuel and §9 parts; creek drought already arrives through §1's sff, so applying the hook too would count it twice; and a step-5 bust cannot reach §5's step-3 listing creation in the same pass.
 - **D-3.48** — The truth permit stub covers recent operators whose last season is 2000 or later (`geology.permitStub.minLastSeasonYear` 2010 → 2000), with plan 0.60 (was 0.50), notice 0.20 and none 0.20 (BALANCE R-1). — At 2010 / 0.50 the preflight found only 4.8% of northern listings with true plan authority (arid 4.3%), under BALANCE T-15 (b)'s 8% gate; 2000 / 0.60 gives 10.0% (arid 6.6%) and lifts full-rules pooled `cautious` S2 from 49% to 52% (BALANCE §9). `planP` 0.85 alone (7.8%) and 2000 with 0.50 (8.2%) fell short or sat on the edge. The values are data and cheap to reverse; the stub is still not conditioned on ground quality.
+- **D-3.49** — The creek network is resized on the engine generator: `geology.world.nTrib` U{3..6} → U{5..8}, `tribLengthMi` U(1.5, 4) → U(2.5, 5) mi and `branchP` 0.4 → 0.5 (≈ 920 valley rows per district on average), so `nTarget` caps most districts. Calibrated on the engine generator (400 worlds per template, two seed bases): parcels per district went from a mean of 61–62, with 13–17% of districts under 55, to 69.5 north and 68.1 arid, minimum 60. — D-3.33 assumed 565 valley rows would give ≈ 56 valley parcels, but a valley parcel uses ≈ 11.6 rows once gaps and the unusable rows at each creek head are counted, so the old network failed both 3.18 parcel bands (mean 65–75; ≥ 55 in 99% of districts). A network larger than needed and capped by `nTarget` still keeps the 60–80 range and the 320-claim cap.
+- **D-3.50** — A template may override two global keys: `RegionTemplate.benchSideP` (north 0.5, arid 0.25; `geology.world.benchSideP` 0.6 stays as the fallback) and `RegionTemplate.trailDegradeMi` (arid [12, 30] mi; the north keeps `geology.access.trailDegrade1Mi` / `2Mi`, 6 / 18). Calibrated on the engine generator (400 worlds per template, two seed bases): benches went from 26–28% of parcels in both templates to 18.5% / 18.1% north and 10.3% / 10.6% arid (targets 20% and 10% ± 5 points; north at 0.45 gave 17.0%), and arid highway claims from 21.7% to 39.3% / 36.5% (target 35% ± 10). — 3.4 tunes bench sides to each template's deposit mix, which one global value cannot do for a 20% and a 10% target at once. Desert district roads stay passable much further up the washes than northern trails do.
+- **D-3.51** — The P0 engine run settles D-3.36's grade-median steps and D-3.38's listed multiplier: north `gMed` stays 0.0095, arid `gMed` 0.0062 → 0.0056, and `geology.prior.statusMult.listed` stays 0.92. Calibrated on the engine generator (400 worlds per template, two seed bases): the north pool is 65.7 / 24.4 / 8.5 / 1.3% uneconomic / marginal / good / excellent; the arid pool went from 60.2 / 27.6 / 10.5 / 1.6 and 59.8 / 27.6 / 10.9 / 1.7 to 64.1 / 25.9 / 8.8 / 1.1 and 63.0 / 26.5 / 9.3 / 1.2 (0.0059 still gave 9.8% / 10.1% good); the arid held median paystreak grade moved 0.0051 → 0.0045; pool ÷ held geometric-mean grade is 0.93 north and 0.94 arid. — Arid good sat above its 10% edge and uneconomic on its 60% floor. D-3.36's condition on §7's D-7.37 water change does not apply, because the yardstick reads no §7 state. The north pool is under the 72% ceiling, so §4's worked prior examples on 0.0095 stand, while §4's arid prior medians fall to 0.9×. The cost is BALANCE T-01 (b): arid paystreak blocks in 0.005–0.03 fall to 39.8–40.7%, on the 40% gate, a P1 risk (3.17).
+- **D-3.52** — In a wash template the fan zone is the non-dredged valley parcels nearest the outlet by channel miles, taken in that order until fan / (fan + gulch) matches the template's desertFan / (desertFan + gulch), 0.45 / 0.80; they are `desertFan` and the rest `gulch`. A dredged parcel within that reach takes the fan size mix. The rule takes no draws, and `valley.overlayFanMainFrac` (0.30) now only places the tortoise special-status stretch. — The literal rule ("the lower 30% of main-stem rows is desertFan") gave ≈ 7% fan and 58–77% gulch against the template's 45 / 35, while 3.7's harness drew 45% fan and BALANCE's `starterArid` fixture is fan ground; a bajada spreads across the lower reach of every wash, not only the main stem. Measured: fan 45.8%, gulch 35.6% of parcels; at the old arid `gMed` the pool moved from 60.9 / 27.9 / 9.3 / 1.9 to 63.4 / 26.7 / 8.3 / 1.5 (40 worlds).
+- **D-3.53** — `Claim.sizeSetting` (proximal / midReach / bench / fan / gulch) is a stored visible field, derived from layout geometry only, and both the generator and `claimPriors` read it. The slice also carries `Claim.visibleWorkings`, `Creek.lengthMi`, `Creek.mouthMiFromOutlet`, `WorldSlice.familyRunClaimIds` and `TownServices.equipmentDealers`, and `RegionTemplate` lists every field the generator reads (display name, overlay labels, spring wetland, valley rule, the D-3.50 overrides, block range along, aquifer, name pools, cementation median by deposit type, and the arid depth σ and well and depth clamps). — The size-mix key depends on the district layout (the fan zone), so a prior recomputed from the claim alone could disagree with the generator; one stored value keeps truth and prior on the same key without reading hidden fields. The other fields were in the code but missing from the contract.
+- **D-3.54** — `drawSample(bt, bs, req, m, rng, ctx)` takes a `DrawContext { surface, climateBand, physics }`, built by `drawContextFor(state, blockId)`. Its draw order is fixed and each step draws whether or not the path uses it; only the particle-mass loop's length depends on N_k. Poisson below λ = 30 is exact inversion of the CDF on one uniform, the same law and draw as core `rng.poisson` (it replaces Knuth's product method). The vertical-profile functions take λb explicitly (`profileOf(bt, λb)`, from `genParams.sample.bedrockDecayFt`), and the closed forms take `SamplePhysics`. — Natural exposures exist only on channel blocks and the water table and inflow odds differ by climate band, so the physics needs those visible facts, and its constants must come from the world's snapshot (D-3.2), not live tuning. Knuth's method draws N + 1 uniforms; inversion draws the same distribution with one, so a sample's stream layout stays fixed (§2.3).
+- **D-3.55** — Two pseudo-code corrections: the junction boost covers exactly `junctionBoostRows` (7) rows, the junction row k and the 6 below it (the old `richLog[k−7 .. k]` spanned 8); and a claim whose cementation median is 0 gets cementation 0 on every block (the block noise is still drawn), not clamp(0 + N(0, 0.05)) half-normal noise. — The prose and the key both say 7 rows. The half-normal noise would give every northern valley block a mean cementation of ≈ 0.02 against 3.2's "benches 0.15, else 0", and charge the yardstick's cement strip term on ground that has none.
+- **D-3.56** — Every number §3 gave only in pseudo-code or prose is a registered `geology.*` key (3.16, marked "prose"), with no value changed; four constants are new (`geology.world.dredgedMaxStretches` 6, `outletEdgeFrac` U(0.25, 0.75), `geology.oldTimer.recentGapP` 0.2 and the hydraulic `obMult` 0.5 in `geology.oldTimer.kinds`). The yardstick's constants are spelled out per `geology.refEcon.*` key and its spot is `market.openingSpotUsdPerFineOz`, with no fallback key. `geology.method.churnHistoric` holds a copy of §4's `churnHistoric` row for the old drill logs until §4's method table lands. — CLAUDE.md rule 4: a number a designer might change lives in a tuning file under a key the owning section names, and the generation snapshot (D-3.2) can freeze only keys.
 
 ### 3.20 Open questions
 
 - **OQ-3.1 — Should true geology ever change after generation?** *Resolved — owner ruling 2026-10-05: default confirmed (§0).* Immutable truth stays (D-3.1). Examples are a flood redistributing tailings, a permafrost slump, or a survey dispute that redraws block boundaries (rather than removing blocks from a claim). The design assumes immutable truth (D-3.1), and packed storage, seller evidence and §4's estimator all rely on it. Allowing mutation later means moving truth into mutable per-block state and invalidating estimates, which is expensive to retrofit. **Default: immutable.** Events change `Block.state` or claim membership only.
 - **OQ-3.2 — Is staking limited to pre-generated parcels?** *Resolved — owner ruling 2026-10-05: default confirmed (§0).* Pre-generated parcels only. The design stakes only the parcels laid at `newGame` (fixed geometry, fixed block IDs), which keeps truth packing, the map and adjacency static. Free-form staking (the player drawing a 20-ac rectangle over any open blocks, or splitting a 160-ac open parcel into units) would need dynamic claim creation, re-gridding of truth and new block IDs mid-game, which is expensive to retrofit. **Default: pre-generated parcels only**; §5 may stake a large open parcel as several 20-ac units of the same parcel.
+- **OQ-3.3 — World generation time and slice size at five districts (P6).** *Open; not a P0 or P1 failure.* The P0 engine generates the P1 two-district world in ≈ 66 ms (target < 25 ms) and a five-district, 315-claim world in ≈ 151 ms (target < 60 ms), most of it in the deterministic dmath `exp` and `normInv` and in packing; both stay far below the brief's 1.5 s ceiling. At generation the five-district world slice is 1,252 kB against §2.13's 1,000 kB `world` budget: packed truth is 621 kB, as 3.1 estimated, but the visible per-claim data (environment, water, geometry, public record, pre-game block states, names) adds ≈ 2 kB per claim that the estimate left out. The P1 world (561 kB) fits. **Default:** when P6 fixes the district count, trim per-claim visible fields (or rebuild derivable ones on load) or raise the `world` budget, and speed up generation or relax the time targets. Trimming stored fields changes the state shape, so by then it ships with a save migration (§2.9).
 
 ### 3.21 Sources
 
@@ -3589,7 +3711,7 @@ Region-template values live in `data/regions/` (3.2). Global keys:
 - R1 (U.S. federal law; 2026): 20-acre placer claims and 160-acre association placers; Sept 1 fee and forfeiture (week 35 → forfeiture roll week 36); 43 CFR 3809 (1981) notice and plan tiers; Notice bulk-sample cap < 1,000 tons; patent moratorium since 1994 (patented ground scarce); Nevada claim churn (≈ 16% of recorded claims active); Fortymile and Steese special-status areas (withdrawn and special stretches); Alaska d-1 revocations (land-opened event).
 - R2 also: Taylor and Top of the World highways unmaintained mid-Oct to May (Taylor-style seasonal road); Fortymile/Chicken season; north-facing ground stays frozen. R3: valley bottoms and north-facing slopes frozen, south slopes and benches often not; legacy tailings grades by era.
 - R1 also: withdrawn lands closed to new location subject to valid existing rights, validity examinations for plans on withdrawn land (43 CFR 3809.100); Fortymile Wild and Scenic River corridor and Steese NCA requiring plans for above-casual work.
-- Calibration harness prototype (`docs/prototypes/geology/geo-calib.js`, `docs/prototypes/geology/sample-calib.js`; to be ported to `sim/` in P0) implementing 3.5–3.7 and 3.11: 40 districts per template, ≈ 4,000 parcels each; drawSample Monte Carlo of 20,000 draws per row (3.8). The 3.7 tables are a re-run that adds barren creeks (0.20 at ×0.15), one or two junction boosts per creek and the revised staking intercepts. The prototype still simplifies the creek network to independent creeks with the same row processes. P0 re-runs it on the full generator and retunes `gMed` if the shares drift outside the bands.
+- Calibration harness prototype (`docs/prototypes/geology/geo-calib.js`, `docs/prototypes/geology/sample-calib.js`) implementing 3.5–3.7 and 3.11: 40 districts per template, ≈ 4,000 parcels each; drawSample Monte Carlo of 20,000 draws per row (3.8). The 3.7 design-time tables are a re-run that adds barren creeks (0.20 at ×0.15), one or two junction boosts per creek and the revised staking intercepts. The prototype simplifies the creek network to independent creeks with the same row processes. P0 replaced it with `sim/calibration/world.ts` (`npm run calibrate:world`), which runs the engine's own generator; its 400-world runs on two seed bases are 3.7's engine figures and the basis of D-3.49–D-3.52.
 - Preflight model (`docs/prototypes/preflight/preflight_model.py`, seed 20261004, 40 districts per template; an independent implementation of 3.3–3.7 and 3.11): the frozen-wash shift of the north class shares (3.7), the listed ÷ held grade ratio behind `statusMult.listed` (0.93 north, 0.92 arid), the arid `gMed` sensitivity (BALANCE §9.2), and the 6–11% change in the Inheritor's conditioning scale (3.6.1). Re-run scripts: `docs/prototypes/preflight/frozen_wash.py`, `listed_mult.py`, `inh_k.py`.
 - R1 §9 and R2 (desert water): prior appropriation in western states, Nevada's State Engineer permits and waivers, often fully appropriated desert basins, and "drill a well (capex plus a water right)" behind the senior `rightStub` and its arid groundwater variant (D-3.40).
 
@@ -3792,7 +3914,7 @@ These keys do not depend on the week, the program or other claims, so weather ti
 
    On a hit, the request uses §3's `interval` mode with `[h_fb, Tg]`, where `h_fb = Tg × (0.2 + 0.5 u)`. The record is marked `bedrockLogged = true`, with logged depth `(OB + Tg − h_fb) × LNmean(1, geomCv·nm)`. An auger refusal on a boulder is logged the same way.
 3. **Method parameters.** §4 passes its row with the logger's noise multiplier `nm` (4.13) applied to `volumeCv`, `weighCv`, `geomCv` and `thickCv`. A hole from a company-owned rig (P3) also multiplies `volumeCv` and `weighCv` by §8 `drillerNoiseMult(driller's true skill)` (`1.25 − 0.005·s`); contractor holes use 1. With no geologist it passes `samplerCaptureMult = unloggedCaptureMult` (0.93): unsupervised crews pan down concentrates carelessly.
-4. **Draw.** `drawSample(bt, bs, req, params, rng)` returns a §3 `SampleResult`. §3 owns the rest of the physics: reach, the frozen limit for non-`frozenOk` methods, water inflow, `positionMult`, the de Wijs local factor, pockets, compound Poisson particles, capture and measurement noise, the observed geometry, and the gold-accounting lines of every sample (`accountingRawOz`, recovered, capture loss, sampling variance; pan and drill gold booked as `sampleProcessingLoss`).
+4. **Draw.** `drawSample(bt, bs, req, params, rng, drawContextFor(state, blockId))` returns a §3 `SampleResult` (the context carries the block's surface code, the climate band and the world's physics snapshot; §3 D-3.54). §3 owns the rest of the physics: reach, the frozen limit for non-`frozenOk` methods, water inflow, `positionMult`, the de Wijs local factor, pockets, compound Poisson particles, capture and measurement noise, the observed geometry, and the gold-accounting lines of every sample (`accountingRawOz`, recovered, capture loss, sampling variance; pan and drill gold booked as `sampleProcessingLoss`).
 5. **Apply.** Add `extractedBcy` to `Block.state.sampledBcy`, or to `oldTailingsTakenBcy` for a tailings target. Record disturbance with §6. For a credited method (4.12 sample gold) add §3's `hidden.recoveredRawOz` and its fine content (× the block's true alloy fineness) to `knowledge.sampleConc[claimId].hidden`, and the logged `recoveredMg` to its visible total. Results become visible at `availableTurn = turn + resultLagWeeks`. Winter pit samples wait until the test plant can run (the district's `operatingStartWeek`).
 6. **Classify the interval:**
 
@@ -3956,14 +4078,14 @@ True `G = 0.010`, mid-reach mix 25/40/27/8 (`Gnc = 0.0075`), coarse mass 150 mg,
 
 The public prior is §3's `claimPriors(state, claimId, priorStatus)`: a `ClaimPriors` record built from §3's template constants and visible claim facts only. It uses the same structure and hyperparameters §3 uses to generate truth, so a well-run estimate is calibrated (D-4.16). All terms are in natural log of raw oz/bcy over the pay column.
 
-**Prior status.** Listings are adversely selected (§3: about 70% of the northern listing pool is uneconomic against 63% of held claims), so a listed claim gets §3's listed prior. `knowledge.priorStatus[claimId]` is set when the claim first gets player evidence or enters the tracked set: `'listed'` if it was listed then, `'open'` if open ground, else `'held'`. It does not change when the player buys the claim, because the selection already happened (D-4.44).
+**Prior status.** Listings are adversely selected (§3 3.7, P0 engine: 65.7% of the northern listing pool is uneconomic against 60.6% of held claims), so a listed claim gets §3's listed prior. `knowledge.priorStatus[claimId]` is set when the claim first gets player evidence or enters the tracked set: `'listed'` if it was listed then, `'open'` if open ground, else `'held'`. It does not change when the player buys the claim, because the selection already happened (D-4.44).
 
 ```
 ln G_b = m + e_b
 m   ~ N(M, V_m)          claim-level mean
   M   = ln claimPriors.gradeMedOzBcy + estPriorMedianAdj[template]   (valve, default 0)
         gradeMedOzBcy = tpl.gMed × depositMult.grade × geology.prior.statusMult[priorStatus]
-        (§3: held 1.0; listed ≈ 0.85–0.90, measured in §3's 3.7 harness as listing-pool median ÷ held median; open 0.6)
+        (§3: held 1.0; listed 0.92, the listing-pool ÷ held geometric-mean grade, measured 0.93 north / 0.94 arid in §3 3.7; open 0.6)
   V_m = σ_district² + σ_creek² + σ_rich² + σ_claim² (+ v_depl, below) (+ geology.prior.listedSigmaAdj when listed, §3)
         north 0.25²+0.38²+0.28²+0.20² = 0.3253; arid 0.25²+0.38²+0.40²+0.25² = 0.4294
 e   ~ N(μ_e(h), Σ_e)     block field given paystreak hypothesis h
@@ -18306,7 +18428,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-2.48 | `dmath` adds `expm1`, `log1p`, `tan`, `atan2`, `erfc`, `lgamma`; trigonometry up to 2²⁰·π/2 only; `exp(1)` = `Math.E`; `lgamma` for x > 0 | No untested reduction paths; exact `exp(1)` |
 | D-2.49 | Large Records iterated weekly keep a sorted `…Ids` array; full-state hashing never per simulated week | Measured: ≈ 3 ms per 20k keys, ≈ 0.17 s per 3.5 MB hash |
 
-#### §3 World and Geology (D-3.1 – D-3.48)
+#### §3 World and Geology (D-3.1 – D-3.56)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -18315,7 +18437,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-3.3 | Block grade measured over the mined pay column (pay gravel + bedrock cleanup) | Matches R3 and §7 "yards washed" |
 | D-3.4 | `gradeOzPerBcy` is current in-place grade, net of old-timers; virgin grade descriptive only | No double counting in §7 |
 | D-3.5 | Paystreak = continuous across-valley band mixed into 1-acre blocks, plus a separable AR(1) field | Realistic paystreak, small code |
-| D-3.6 | Grade medians `gMed` 0.0095 north, 0.0062 arid | Listing pool "mostly marginal or uneconomic" |
+| D-3.6 | Grade medians `gMed` 0.0095 north, 0.0056 arid (0.0062 before D-3.51) | Listing pool "mostly marginal or uneconomic" |
 | D-3.7 | Economic classes defined by a truth-based reference operator at $4,200 | Testable class metric |
 | D-3.8 | Open ground is worse by selection (logistic staking probability), not a flat penalty | Overlooked ground emerges naturally |
 | D-3.9 | Listing and background-sale hazards depend on true class | Adverse selection; market worse than held stock |
@@ -18342,12 +18464,12 @@ These shape several systems at once. Changing one means touching every section l
 | D-3.30 | Inheritor ground: three reserved 20-ac parcels conditioned by a uniform grade scale | Exact tier draw; same world for every start |
 | D-3.31 | Holders keep ≈ 100-byte evidence summaries; claimed evidence regenerated on relist | Fits the save budget |
 | D-3.32 | Decode cache keyed by (claimId, truthHash) | Avoids stale truth |
-| D-3.33 | Creek network sized for ≈ 70 parcels per district, hard per-district cap | Template range and 320-claim cap |
-| D-3.34 | `drawSample` takes block state and method params explicitly | Stays pure |
+| D-3.33 | Creek network sized to fill each district's `nTarget` (resized by D-3.49), hard per-district cap | Template range and 320-claim cap |
+| D-3.34 | `drawSample` takes block state and method params explicitly (and a draw context, D-3.54) | Stays pure |
 | D-3.35 | One per-size recovery model for recent operators' history and tailings | Exact gold balance |
-| D-3.36 | Yardstick charges frozen pay +0.40 × permafrost on wash cost; `gMed` retunes only on the P0 run | Frozen ground was classed too generously |
+| D-3.36 | Yardstick charges frozen pay +0.40 × permafrost on wash cost; `gMed` retunes only on the P0 run (decided by D-3.51) | Frozen ground was classed too generously |
 | D-3.37 | Every sample books its gold lines; the 20-bcy exemption is deleted | Exact conservation from P1 |
-| D-3.38 | §3 builds §4's `ClaimPriors`; listed claims use `statusMult.listed` 0.92 | One producer; adverse selection in the prior |
+| D-3.38 | §3 builds §4's `ClaimPriors`; listed claims use `statusMult.listed` 0.92 (P0 engine 0.93 / 0.94: kept) | One producer; adverse selection in the prior |
 | D-3.39 | Creek history computed from real historic workings on its own sub-stream | Consistent with the findable footprint |
 | D-3.40 | Senior water rights stubbed on held recent-operator claims (north 0.10, arid 0.30, arid = groundwater) | §6 needs real rights |
 | D-3.41 | A site visit costs owner desk days (2/3/4/4), paid at action time | One owner-time budget |
@@ -18358,6 +18480,14 @@ These shape several systems at once. Changing one means touching every section l
 | D-3.46 | Jurisdiction and wage region are template data on each district; one `JurisdictionId` | A consumed field nobody produced |
 | D-3.47 | Access fixes: class anchor and distance scale returned separately; air always flies; drought hook on springs/wells | Removes double counts and stalls |
 | D-3.48 | Permit stub on recent operators since 2000 (was 2010), plan 0.60 / notice 0.20 / none 0.20 | Northern listings with plan authority 4.8% → 10.0% (gate ≥ 8%, BALANCE R-1, T-15 b) |
+| D-3.49 | Creek network resized: 5–8 tributaries of 2.5–5 mi, a branch w.p. 0.5 | The old sizing laid 61–62 parcels per district; now 69.5 north / 68.1 arid (band 65–75) |
+| D-3.50 | Per-template `benchSideP` (north 0.5, arid 0.25) and `trailDegradeMi` (arid 12 / 30 mi) | Benches 26–28% → 18.5% / 10.3% of parcels; arid highway claims 21.7% → 39.3% / 36.5% |
+| D-3.51 | P0 engine run: north `gMed` stays 0.0095, arid 0.0062 → 0.0056; `statusMult.listed` stays 0.92 | Arid pool good 10.5–10.9% → 8.8–9.3%; pool ÷ held grade 0.93 / 0.94 |
+| D-3.52 | Arid fan ground = the valley parcels nearest the outlet until the template's fan share | The main-stem rule gave ≈ 7% fan against 45% |
+| D-3.53 | Visible `Claim.sizeSetting` stored at generation; slice and template shapes list every field the generator uses | Generator and priors read one value |
+| D-3.54 | `drawSample` takes a `DrawContext`; fixed draw order; one-draw Poisson inversion; λb passed explicitly | Visible inputs, snapshot constants, stable streams |
+| D-3.55 | Junction boost spans exactly 7 rows; a zero cementation median gives 0 | Pseudo-code off by one; no phantom cementation |
+| D-3.56 | §3's prose constants registered as `geology.*` keys; `churnHistoric` placeholder until §4's table | Tuning lives in data and in the snapshot |
 
 #### §4 Prospecting and Resource Estimation (D-4.1 – D-4.46)
 
