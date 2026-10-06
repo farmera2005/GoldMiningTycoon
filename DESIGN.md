@@ -1,6 +1,6 @@
 # Gold Mining Tycoon: Design Document
 
-**Status:** the owner's rulings of 2026-10-05 are applied (§0 records them; no question is open). The design covers every system through Phase 6, nothing is implemented yet, and it awaits the owner's go-ahead for Phase 0.
+**Status:** Phase 0 (Foundation) is implemented (2026-10-06) and awaits the owner's review; Phase 1 starts only after it. The owner's rulings of 2026-10-05 are applied, and §0 records them and lists the questions still open: OQ-3.3, OQ-3.4, OQ-4.3 and OQ-4.4. The design covers every system through Phase 6.
 
 **Companion files:**
 - [`CLAUDE.md`](CLAUDE.md): how we build.
@@ -131,6 +131,9 @@ The owner confirmed every call below on 2026-10-05 except item 3, which the ruli
 ### Still open
 
 - **OQ-3.3 (P6): world generation time and slice size at five districts.** A five-district world takes ≈ 151 ms to generate (target < 60 ms) and its `world` slice is 1,252 kB at generation against §2.13's 1,000 kB; the P1 world fits the budget. Default until the owner answers: when P6 fixes the district count, trim per-claim visible fields or raise the budget, and speed up generation or relax the targets (§3 3.20).
+- **OQ-3.4 (P1): hand-cut workings that work no block.** In P0, 84.9% of `handCut` parcels work no block (the kind takes the top 30% of the paystreak under 10 ft of cover, which northern ground rarely has), against D-3.45 and §4's `geology.recordsWorkedShare` of 0.30 for `handCut`. Default until the owner answers: re-measure in P1 with the estimator in place, then relax the hand-cut rule or lower the template's `handCut` share and the records share together (§3 3.20).
+- **OQ-4.3 (P1): two §4 calibration misfits left from P0.** Arid recent-operator ground at sonic + bulk covers truth in 0.886 ± 0.011 of claims against the 0.88 ceiling (AT-RISK; the only gated miss in P0's estimator calibration), and §3's drift removal (−1.34 in log terms) disagrees with §4's records table (−0.87), behind the reported-only `north.ot.drift` bias of +0.22 at the prior. Default until the owner answers: nothing retuned in P0; P1 closes both one lever at a time, the first candidate being the configuration mixture around recent operators' cuts (§4 4.10.2, 4.22).
+- **OQ-4.4: the estimator calibration protocol.** Claims of one district share its grade effects, and a big cell's 1,000 claims come from 27–36 worlds, so the ±0.10 bias band is under 2 cluster SEs there. Default until the owner answers: the nightly calibration keeps its protocol and prints world-cluster SEs; the alternative takes at most k claims per world per cell, as the fast test does (k = 2), which changes which runs fail the gate (§4 4.22, D-4.56).
 
 ---
 
@@ -1989,6 +1992,8 @@ Names used elsewhere refer to these bots: "untested" is `noTest` (and the brief'
 
 If the measured simulator mean misses 3.5 ms, the phase report states the figure and the balance matrix is not cut (BALANCE §6.5).
 
+**§4 estimator, measured in P0 (a P1 risk).** Against the table's §4 estimator row and §4 4.22's per-estimate targets: a 20-acre solve takes 11.4 ms with the prior model cached (target 10 ms; 21.7 ms cold), a 160-acre solve 61.2 ms cold (60 ms), an economic-layer rerun 0.13 ms mean and 0.22 ms p95 (0.5 ms, within), and the refresh 14.7 ms per game-week with 8 tracked claims taking new evidence every week (1.5 ms). P0 does not run the estimator in the weekly pipeline, so P0's simulator week is unaffected. The fix is §4's incremental production path and re-solving only on new evidence (§4 4.5.2, D-4.41, D-4.58), built in P1; without it P1's bots, tracking up to 8 claims, would break O-13's 3.5 ms mean.
+
 **Implementation guidance** (measured in P0, D-2.49). `Object.keys` on a 20,000-key Record costs ≈ 3 ms in V8, close to the whole week budget, so a very large collection iterated every week (blocks, ledger lines) keeps a sorted `…Ids` array beside its Record, maintained with `insertSortedId` and `removeSortedId` (`engine/core/iter.ts`), instead of calling `sortedKeys` each week. Hashing a 3.5 MB state takes ≈ 0.17 s: fine for golden replays and save tests, never per simulated week.
 
 **Save size** (year 10, uncompressed JSON; a test builds the year-10 fixture and checks each slice):
@@ -3212,6 +3217,8 @@ Example: a held 20-ac northern valley claim with no visible workings: 20 × 0.30
 | `geometry` | `obMedFt` = `tpl.overburden.medFt × depositMult.ob`; `obSigClaim` = √(district² + creek² + AR² + claim²) of the overburden σ; `obSigBlock` = its block σ; `payMedFt` = `tpl.pay.medFt`; `paySigClaim` = √(creek² + AR²); `paySigBlock` = the pay block σ |
 | `blocks` | per block: `blockId`, `i`, `j`, `xFt` = block centre from the paystreak reference axis (`axisOffsetFt + (j − (nAcross − 1)/2) × 209`, minus `axisOffsetFt` on a bench), `acres` 1, `surface` (`env.surfaceCodes`), `visibleWorkings` (the block index is in `claim.visibleWorkings`: dredged blocks, tailings piles other than drift dumps, recent mined and pre-stripped blocks) |
 
+Beyond `ClaimPriors`, §4 reads three visible template constants (`depositMix`, `depositGradeMult` and `oldTimerMix`) to mix the hidden deposit types that share a visible setting (valley-bottom ground can be deep muck) in its prior and held selection (§4 4.5.1, D-4.49). `claimPriors` would be the cleaner home for that mixture; moving it would change no number.
+
 ### 3.10 Sellers and the honesty model
 
 #### 3.10.1 Holders (sellers)
@@ -3862,7 +3869,7 @@ Estimates themselves are **not** stored in `GameState`. They live in a pure, non
 - the statistical layer, keyed by `(claimId, evidenceHash)` (with the incremental production path of 4.5.2);
 - the economic layer, keyed by the planning hash plus the quantized planning price (4.7).
 
-The memo is a §2.3 pure memo cache: keyed by content hash, never serialized or hashed, and returning identical objects for identical keys (the same rule covers §3's truth decode). Estimates are rebuilt on demand, so saves stay small and replay hashes never depend on caches (D-4.24). The claims tracked each week are the owned claims plus §3's `world.watch.claimIds`; §3's `world/setWatch` refuses a watch beyond `geology.maxTrackedClaims` (40) claims.
+The memo is a §2.3 pure memo cache: keyed by content hash, never serialized or hashed, and returning identical objects for identical keys (the same rule covers §3's truth decode). Estimates are rebuilt on demand, so saves stay small and replay hashes never depend on caches (D-4.24). The **evidence hash** is the content hash of the claim id, its samples and record findings in ascending id order (each by its own content hash, computed once per immutable record and memoized), the known block states, the assays by value and the logging flag, so acquisition order never changes it. The economic layer also caches each minable set's claim summary per statistical layer, so a reprice that leaves the set unchanged repeats no Fenton–Wilkinson work (D-4.58). The claims tracked each week are the owned claims plus §3's `world.watch.claimIds`; §3's `world/setWatch` refuses a watch beyond `geology.maxTrackedClaims` (40) claims.
 
 **Registries.** §4's ID prefixes are in §2.4's registry: `smp` sample, `rec` record finding, `rpt` report, `ctr` prospecting contractor (§9's rental contracts use their own prefix), `eng` consultant engagement; programs use `prog`. §4's RNG streams are in §2.3's registry: `prospect` (execution rolls), `sample` (the §3 draw, keyed by §4 as `(claimId, blockId, methodId, k)`, or `(cmpId, claimId, blockId, methodId, k)` for §12 competitors), `records` and `contractors`. §3's seller evidence keeps its own `seller` stream.
 
@@ -3921,7 +3928,7 @@ Worked numbers: a thawed 18-ft pit with 5 bcy processed takes `0.6 + 0.06·19 + 
 
 | `id` | positionMode | maxDepthFt | frozenOk | bedrockPenFt | Capture coarse / medium / fine / ultrafine | volumeCv / weighCv / geomCv / thickCv | biasMult | Sample pay volume | Class masses? | falseBedrockP | Measures |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `pan` | exposure (0.4) | — | no | 0 | 0.97 / 0.92 / 0.80 / 0.45 | 0.25 / 0.20 / — / — | 1 | 0.067 bcy/station | colours only | — | presence, size and shape hint, exposure grade |
+| `pan` | exposure (0.4) | — | no | 0 | 0.97 / 0.92 / 0.80 / 0.45 | 0.25 / 0.20 / 0.15 / 0.15 | 1 | 0.067 bcy/station | colours only | — | presence, size and shape hint, exposure grade |
 | `handPit` | pit | 5 | no | 0.5 | 0.95 / 0.88 / 0.62 / 0.25 | 0.15 / 0.12 / 0.10 / 0.15 | 1 | 0.5 bcy | yes | 0.25 | shallow grade, size mix |
 | `drywasher` | pit | 5 | no | 0.5 | 0.90 / 0.75 / 0.40 / 0.10 | 0.15 / 0.15 / 0.10 / 0.15 | 1 | 0.5 bcy | yes | 0.25 | as above, loses fines |
 | `excavatorPit` | pit | reach | yes | 1.0 | 0.95 / 0.90 / 0.75 / 0.40 | 0.15 / 0.08 / 0.04 / 0.10 | 1 | 2 / 5 / 10 bcy | yes | 0.08 | grade, D, Tg, OB, bedrock type, clay / boulders / frost, size mix, fineness |
@@ -3937,7 +3944,7 @@ Worked numbers: a thawed 18-ft pit with 5 bcy processed takes `0.6 + 0.06·19 + 
 
 "Colours" means §3 returns `colorsBySize` and a total `recoveredMg` but no sieved class masses. The estimator splits the total by `colours_c × μ_c` (4.4.3). Fine- and ultrafine-gold losses for RC are in its capture row; `biasMult` stays 1 for every method so that §3's draw and the estimator agree.
 
-`thickCv` is the pay-thickness logging error §3's `drawSample` applies to `Tg` (§3 default 0.10). The top of pay is gradational, so it is not the depth error `geomCv`: 0.10 for logged pits, trenches, bulk samples and modern drill core or cuttings, 0.15 for hand pits and historic logs, 0.30 for the auger (D-4.43).
+`thickCv` is the pay-thickness logging error §3's `drawSample` applies to `Tg` (§3 default 0.10). The top of pay is gradational, so it is not the depth error `geomCv`: 0.10 for logged pits, trenches, bulk samples and modern drill core or cuttings, 0.15 for hand pits and historic logs, 0.30 for the auger (D-4.43). The pan's `geomCv` and `thickCv` (0.15) are never used: exposures log no depth or thickness.
 
 **Data shape.**
 
@@ -4032,15 +4039,15 @@ Pockets (§3: ≥ 0.15 oz/bcy over 300–3,000 bcy) are hit with probability `(p
 
 The estimator evaluates §3's `positionMultProfile(profile, h1, h2)` (the function `positionMult` on `BlockTruth` is built on) on an *expected profile* `{ Tg = T̂ − B̂, B̂, ŝ_b, λg = template verticalDecayFt, λb = 0.6 }`. Below, `positionMult(h1, h2)` means that call. The profile parameters come from:
 - `T̂`, the posterior median of the pay column (4.6);
-- `B̂` and `ŝ_b`, from the bedrock type the block's samples logged (§3 `BEDROCK` table), or the template's mix-weighted means if none was logged (north `B̄` = 1.54 ft).
+- `B̂` and `ŝ_b`, the posterior means over the claim's bedrock type (§3 draws one type per claim; `BEDROCK` table). The prior is `tpl.bedrockMix`; each bedrock-logged sample multiplies a type's weight by `geology.sample.bedrockIdP` (0.9) if it names that type and by (1 − 0.9)/5 otherwise. With no logged sample they are the template's mix-weighted means (north `B̄` = 1.54 ft). The cleanup's sd is `estGeomBSdUnknownFt` (0.39 ft) until a type is logged, then `sqrt(Σ_type P(type) × ((B0 × estGeomBLogSdKnown)² + (B0 − B̂)²))` with `estGeomBLogSdKnown` 0.115 (D-4.53).
 
 | Interval | `pm` | Position log-variance |
 |---|---|---|
 | `fullColumn` | `positionMult(−min(B̂, bedrockPenFt), Tg)` | `estPosFullLogSd²` (0.10²) |
-| `upperPay` | 5-point Gauss–Hermite average of `ln positionMult(Tg_q − p, Tg_q)` over the pay-column posterior, where `p = depthReachedFt − observed.overburdenFt` is the gravel actually penetrated (observed) and `Tg_q = exp(ln T̂ + √2·sd·z_q) − B̂` | quadrature variance + 0.10² + `estPosUpperExtraLogSd²` (0.15²) |
+| `upperPay` | Gauss–Hermite average of `ln positionMult(Tg_q − p_k, Tg_q)`: 5 points over the pay-column posterior, `Tg_q = exp(ln T̂ + √2·sd·z_q) − B̂`, times 3 points over the gravel penetrated, `p_k = p + √2·sd_p·z_k` with `p = depthReachedFt − observed.overburdenFt`. The dug depth is exact (§3's logged interval for a stopped pit is the dug depth), so `p` carries the logged cover's error: `sd_p = observed.overburdenFt × geomCv` (without a logged cover, the depth posterior's) | quadrature variance + `estPosFullLogSd²` (0.10²), independent; plus `estPosUpperExtraLogSd²` (0.15²) in one error group `upperPay:claimId` shared by every upper-pay row of the claim (§3 draws `λg` once per claim; D-4.53) |
 | `exposure` | `positionMult(0.6·Tg, Tg)` | shared across all exposure observations of the claim (one error group, 4.5.2): `estExposureLambdaLogSd² (0.25²) + estExposureThickElast² (1.6²) × Var[ln T_b]` |
 
-Example (5 ft of gravel over 1.5 ft of schist cleanup, `λg` 2): a pit that takes 1 ft of bedrock reads ×1.06; one stopped 1 ft above bedrock reads ×0.74; 2 ft above, ×0.54; 4 ft above, ×0.30. An exposure pan on the upper 40% reads ×0.40. That is why a short pit tells little, and the estimator says so.
+Example (5 ft of gravel over 1.5 ft of schist cleanup, `λg` 2): a pit that takes 1 ft of bedrock reads ×1.06; one stopped 1 ft above bedrock reads ×0.74; 2 ft above, ×0.54; 4 ft above, ×0.30. An exposure pan on the upper 40% reads ×0.40. That is why a short pit tells little, and the estimator says so. Where a pit stops a foot or two into the gravel, as on covered ground at the machine's reach, `ln positionMult` is steep in `p`, so the quadrature over `p` matters more than its small sd suggests.
 
 #### 4.4.3 Non-coarse composite observation
 
@@ -4060,7 +4067,9 @@ v       = v_t/β² + ln((1 + CV²_L)(1 + CV²_M)) + Σ_k w_k² v_pos,k + estMode
   CV²_M = Σ_k w_k² ((1 + volumeCv_k²)(1 + weighCv_k²) − 1);  p_b = coarse share of block b (4.5.3)
 ```
 
-The observation enters the posterior as `y = y_nc + E[w_b]` on the row `m + e_b − p_b·r` (4.5.2).
+The observation enters the posterior as `y = y_nc + E[w_b]` on the row `m + e_b − p_b·r` (4.5.2). A shared position term (the upper-pay or exposure group of 4.4.2) loads on a composite as `(Σ_k w_k √shared_k)²`.
+
+**Claim-shared error** (P0 addition, D-4.53). Every sample row of the claim (block composites and exposure composites, not the creek-history row) also shares one claim-level error `geology.estClaimSharedLogSd²` (0.05²): capture, profile and lab errors that do not average out over samples. Without it a 160-block pit grid pinned the claim far tighter than the model is right (P10–P90 coverage 0.66).
 
 #### 4.4.4 Small-count table and site refinement
 
@@ -4145,16 +4154,22 @@ The public prior is §3's `claimPriors(state, claimId, priorStatus)`: a `ClaimPr
 
 ```
 ln G_b = m + e_b
-m   ~ N(M, V_m)          claim-level mean
-  M   = ln claimPriors.gradeMedOzBcy + estPriorMedianAdj[template]   (valve, default 0)
+m   ~ N(M + δ_class, V_m)     claim-level mean
+  M   = ln claimPriors.gradeMedOzBcy + estPriorMedianAdj[template]   (valve: north 0, arid −0.05; P0 calibration, D-4.55)
         gradeMedOzBcy = tpl.gMed × depositMult.grade × geology.prior.statusMult[priorStatus]
         (§3: held 1.0; listed 0.92, the listing-pool ÷ held geometric-mean grade, measured 0.93 north / 0.94 arid in §3 3.7; open 0.6)
-  V_m = σ_district² + σ_creek² + σ_rich² + σ_claim² (+ v_depl, below) (+ geology.prior.listedSigmaAdj when listed, §3)
-        north 0.25²+0.38²+0.28²+0.20² = 0.3253; arid 0.25²+0.38²+0.40²+0.25² = 0.4294
+  δ_class = the shift of m for the hypothesis class (gold-bearing, barren, no paystreak) from the hidden deposit types and the
+            held selection (below)
+  V_m = σ_district² + σ_creek² + σ_claim² (+ v_depl, below) (+ geology.prior.listedSigmaAdj when listed, §3), shrunk by held selection
+        north 0.25²+0.38²+0.20² = 0.2469; arid 0.25²+0.38²+0.25² = 0.2694 (before selection)
 e   ~ N(μ_e(h), Σ_e)     block field given paystreak hypothesis h
-  Σ_e[a][b] = σ_block² × exp(−|Δalong_ab|/R_a − |Δacross_ab|/R_c) + estStreakResidLogSd² × [a = b]
+  Σ_e[a][b] = σ_block² × exp(−|Δalong_ab|/R_a − |Δacross_ab|/R_c) + σ_rich² × exp(−|Δalong_ab|/tpl.richRangeFt)
+              + (estStreakResidLogSd² + v_misfit,b) × [a = b]
      σ_block north 0.50 / arid 0.65; R_a = tpl block range along (700 / 500 ft); R_c = geology.grade.blockRangeAcrossFt (120); resid 0.35
-  μ_e(h)[b] = ln( f_b(h) + (1 − f_b(h)) × bgRatio ) + o_depl(h, b)
+     σ_rich north 0.28 / arid 0.40 with §3's rich-stretch range (north 3,000 / arid 2,000 ft): §3 draws the rich and poor stretches
+     as an AR(1) along the creek (3.5.2), so the term lives in the block field, not in V_m. That is identical on a short claim and
+     right on a 160-acre one (D-4.48)
+  μ_e(h)[b] = E_misfit[ ln( f_b + (1 − f_b) × bgRatio ) | h ] + o_depl(h, b)        (the row misfit, below)
 ```
 
 **Paystreak hypotheses.** §3 builds each block's grade as `f·gStreak + (1 − f)·gStreak·bgRatio`, where `f` is the share of the block inside a paystreak that wanders off the creek. The result is bimodal across the valley (×10 with `bgRatio` 0.10). No single Gaussian can represent that, so the estimator carries a discrete set:
@@ -4164,11 +4179,35 @@ h = (cDown, cUp, hw, barren)
   cDown, cUp: paystreak-centre offsets at the downstream and upstream rows, each on 9 nodes z ∈ {−3, −2.25, …, +3} × tpl.wanderSdFt,
               prior weight ∝ bivariate normal density with correlation ρ = exp(−(nAlong − 1) × 209 / estStreakRangeAlongFt (2,000))
   centre at row i: c(i) = ((1 − t) cDown + t cUp), t = i/(nAlong − 1)
-  hw: tpl.halfWidthMedFt × depositMult.halfWidth × exp(tpl.sigHalfWidth × {−1.2247, 0, +1.2247}), weights {1/6, 2/3, 1/6}
+  hw: tpl.halfWidthMedFt × depositMult.halfWidth × exp(σ_hw,claim × {−√3, 0, +√3}), weights {1/6, 2/3, 1/6}
+      (the 3-point Gauss–Hermite rule for a standard normal; D-4.48)
+      σ_hw,claim = tpl.sigHalfWidth × √ρ̄_hw,  ρ̄_hw = mean over row pairs (j, k) of exp(−|j − k| × 209 / geology.grade.halfWidthRangeFt (1,500)):
+      §3 draws ln hw per row as an AR(1), and a configuration's one half-width is the claim's row average (σ_hw when the misfit is off)
   barren: {0, 1} with weights {1 − pBarrenCreek, pBarrenCreek} (§3: 0.20); barren adds ln(barrenMult) = ln 0.15 to M
   f_b(h) = overlap of block b's 209-ft width with [c(i) − hw, c(i) + hw] / 209, block centre x_b from §3 (ft from the paystreak reference axis)
 → 9 × 9 × 3 × 2 = 486 hypotheses; the covariance is identical for all of them, only the mean differs
 ```
+
+**Row misfit** (P0 addition, D-4.48). §3 draws the paystreak centre (AR(1), range `geology.grade.wanderRangeFt` 2,000 ft) and its half-width (AR(1), range `halfWidthRangeFt` 1,500 ft) row by row, while a configuration is a straight centre line between its end nodes with one half-width. So the prior averages each block's log share over its row's misfit about the configuration:
+
+```
+μ_share(h, b) = Σ_q Σ_r w5_q w3_r ln( f_qr + (1 − f_qr) bgRatio ),   f_qr = overlap(x_b − c_h(i) − sd_c(i) z5_q,  hw_h exp(sd_h(i) z3_r))
+  5-point Gauss–Hermite in the centre, 3-point (±√3) in ln hw; i = the block's row, x_i = i × 209 ft, L = (nAlong − 1) × 209 ft
+  sd_c(i)² = wanderSd² × s × [1 − (r1² + r2² − 2 r1 r2 rL)/(1 − rL²)],  r1 = e^{−x_i/R}, r2 = e^{−(L − x_i)/R}, rL = e^{−L/R}, R = wanderRangeFt
+             (the bracket is the centre's variance given both end rows, as a share of wanderSd²: 0 at the ends, near 1 mid-claim on a 40-row claim)
+  sd_h(i)² = sigHalfWidth² × s × (1 − 2 ρ̄_i + ρ̄_hw),  ρ̄_i = mean_j exp(−|i − j| × 209 / halfWidthRangeFt)   (the row about the claim's mean)
+  s = geology.estStreakMisfitScale (0.5; 0 turns the misfit off)
+v_misfit,b = Σ_h prior_h × Var_misfit[ln share_b | h]      added to Σ_e's diagonal; held selection leaves it out (§3 selects on virgin gStreak)
+```
+
+The same quadrature gives `P(f_b > minF | h)` and the log share on either side of a dredge's `minF`, which the dredge footprint uses (4.10.2). The misfit matters on long claims: on 160-acre claims (40 rows, 8,150 ft) P10–P90 coverage at the pit fences and later rose from 0.66–0.68 to 0.73–0.77, and block z sd fell from 1.15–1.20 to 0.94–0.98 (calibrated on §3's engine generator, P0).
+
+**Hidden deposit types** (P0 addition, D-4.49). §3 reads valley-bottom ground as `creek`, but part of it is deep muck (×1.3 grade under thick cover, overlooked by stakers, never hand-cut or dredged; §3 3.2). The prior therefore mixes the deposit types that share the visible setting: `P(dep) ∝ tpl.depositMix[dep] × Σ_k tpl.oldTimerMix[dep][k]` over the old-timer kinds the visible features allow (`ClaimPriors.oldTimer.pKind`). Each type shifts `m` by `ln(depositGradeMult[dep] / depositGradeMult[visible type])` and keeps its own §3.4 selection slope. This raises P(barren | held valley bottom) and P(no paystreak | held valley bottom), as §3's weak selection on deep muck implies. The mixture reads the template's constants directly; `claimPriors` would be its cleaner home (§3 3.9).
+
+**Held selection** (D-4.16, written out in P0; D-4.49). Held and listed claims passed §3.4's staking test, `pHeld = logistic(logit(tpl.stakedFraction) + b × zq)`, with `zq = ln(mean virgin gStreak of the paystreak blocks / gMed) / geology.world.zqLnScale (0.5)`, `b = selSlope` (1.2) or `selSlopeOverlooked` (0.3) on benches and deep muck, and `zq = zqNoPaystreak` (−3) without a paystreak. Held status is visible, so the prior carries that factor:
+- `u = ln(gStreak/gMed)` of the claim is about `(m − ln gMed) + ē`, where `ē` is the log of the mean of `e^{rich + block}` over the `round(Σ_b P(f_b ≥ 0.4))` blocks most likely on the paystreak under the prior, without the residual or the row misfit; so `u ~ N(u0, V_m + Var ē)`;
+- for each hypothesis class (gold-bearing, barren, no paystreak) the estimator tilts that normal by `pHeld` on a fixed 121-point grid over ±6 sd, mixed over the hidden deposit types: the class weight is multiplied by `E[pHeld]`, `m` shifts by the tilted mean (`δ_class`), and `V_m` shrinks by `(1 − ratio) V_m² / (V_m + Var ē)`, with `ratio` the gold-bearing class's tilted variance over the untilted;
+- barren creeks are rarely staked, so P(barren | held valley claim) is a few percent, not 0.20; open ground carries no selection, only the deposit-type shift.
 
 **Hidden old-timer depletion** (`o_depl`). Drift workings are invisible from the air. On a northern creek parcel with no aerial features, `P(drift | visible) = 0.30/(0.25 + 0.30) = 0.55` (§3 mix; hand-cut and recent cats leave visible features). Until records or pits reveal the kind:
 - every block with `f_b(h) ≥ 0.4` gets `o_depl = Σ_kind P(kind | visible) × q_kind × ℓ_kind`;
@@ -4183,7 +4222,10 @@ Here `q_kind` is the share of paystreak blocks worked and `ℓ_kind = E[ln(1 −
 | dredge | 1.0 | −1.97 |
 | dryWash | 0.50 | −0.23 |
 
-Averaged over all paystreak blocks, the selection of rich blocks cancels. North creek: `o_depl = 0.55 × 0.48 × (−0.87) = −0.23`, `v_depl = 0.145`. A known kind (records footprint or "old workings hit" in a pit) replaces the mixture with that kind's worked and passed-over offsets (4.10.2), which include the selection effect.
+Averaged over all paystreak blocks, the selection of rich blocks cancels. North creek: `o_depl = 0.55 × 0.48 × (−0.87) = −0.23`, `v_depl = 0.145`. A known kind (records footprint or "old workings hit" in a pit) replaces the mixture with that kind's worked and passed-over offsets (4.10.2), which include the selection effect. Three refinements follow §3 3.6:
+- **Hand-cut cover.** §3's hand-cutters worked only paystreak blocks under `geology.oldTimer.kinds.handCut.maxObFt` (10 ft) of cover, so every hand-cut term on a block (hidden mixture or passed-over offset) is multiplied by `P(eligible_b) = Φ((maxObFt − OB50_b) / sd_ob)` from the geometry posterior (4.6; D-4.51).
+- **Recent operators** (`recentCat`, visible from recent disturbance) mined their blocks outright, so their worked blocks hold no remaining pay and take no offset; passed-over blocks take the selection offset at `q` = 0.325, the mean of §3's top U(15%, 50%) (4.10.2). Blocks a recent operator pre-stripped and left are neutral.
+- **The hidden kind is updated by bedrock samples.** On a claim with no visible workings, each bedrock-logged block without an old-workings hit multiplies a hidden kind's odds by `1 − q_kind × P(f_b ≥ 0.4)`; those blocks then count as passed over.
 
 **Other inputs.**
 - **Pockets** stay out of `G` and enter claim totals separately (4.7).
@@ -4205,7 +4247,7 @@ interface ClaimPriors {                       // §3 claimPriors(state, claimId,
 }
 ```
 
-Single-hypothesis prior for a block fully inside the paystreak (north): sd `sqrt(0.3253 + 0.25 + 0.1225) = 0.835`, so P10–P90 spans ×0.34 to ×2.9 of the median (0.0033 / 0.0095 / 0.0277 oz/bcy). Across hypotheses an off-streak block's median is ten times lower.
+Single-hypothesis prior for a block fully inside the paystreak (north), before held selection: sd `sqrt(0.2469 + 0.0784 + 0.25 + 0.1225) = 0.835` (`V_m`, the rich stretch, the block field and the residual; the row misfit is 0 well inside the streak), so P10–P90 spans ×0.34 to ×2.9 of the median (0.0033 / 0.0095 / 0.0277 oz/bcy). Across hypotheses an off-streak block's median is ten times lower.
 
 #### 4.5.2 Posterior: one solve, many hypotheses
 
@@ -4213,13 +4255,14 @@ The latent vector is `x = [m, e_1 … e_n, r]`, where `r = ln R − m_r` is the 
 
 | Observation | Row | Offset in `y` |
 |---|---|---|
-| Non-coarse composite on block b (4.4.3) | `m + e_b − p_b·r` | `+ E[w_b]` |
+| Non-coarse composite on block b (4.4.3) | `m + e_b − p_b·r` | `+ E[w_b]`; upper-pay parts load on error group `upperPay:claimId` (4.4.2) |
 | Exposure composite on block b | `m + e_b − p_b·r` | `+ E[w_b]`; error group `exposure:claimId` |
 | Production on block b (4.4.6) | `m + e_b` | error group `prodRecovery:claimId` |
-| Creek history record | `m` | `y = ln(histOzPerBcy) − ln geology.records.historicGradeRatio` (§3, 2.5), `v = geology.records.creekProdLogSd² (§3, 0.50²) + σ_rich² + σ_claim²` |
+| Creek history record | `m` | `y = ln(histOzPerBcy) − ln geology.records.historicGradeRatio` (§3, 2.5) `+ ln(depositMult.grade × statusMult[priorStatus])`: the history observes the creek median, and `m` also carries the visible deposit and status multipliers (the valve `estPriorMedianAdj` moves the prior only); `v = geology.records.creekProdLogSd² (§3, 0.50²) + σ_claim²` (the rich stretch lives in `Σ_e`; D-4.53) |
 
 ```
-K      = H Σ0 Hᵀ + R          R = diag(v) + Σ_groups (shared variance on every pair of rows in the group)
+K      = H Σ0 Hᵀ + R          R = diag(v) + Σ_groups (shared variance on every pair of rows in the group, a row with itself included)
+                                  + estClaimSharedLogSd² on every pair of sample rows (4.4.3)
 Lc     = chol(K)                                    one factorization, shared by all hypotheses
 for each hypothesis h:  r_h = y − H μ0(h);  α_h = K⁻¹ r_h;  μ_post(h) = μ0(h) + Σ0 Hᵀ α_h;  ℓ_h = −½ r_hᵀ K⁻¹ r_h
 Σ_post = Σ0 − Σ0 Hᵀ K⁻¹ H Σ0                         shared
@@ -4232,6 +4275,8 @@ block ln G_b | h ~ N(μ_post,m(h) + μ_post,e_b(h), Σ_post[m,m] + 2Σ_post[m,e_
 **Cost.** Cholesky uses only `+ − × ÷ sqrt`, so it is deterministic under dmath. The unoptimized JS prototype takes 15–22 ms per estimate for a 20-block claim (486 hypotheses; 36 survive pruning after 20 pits). A 160-block association claim takes about 0.5 s, because hundreds of hypotheses survive on a wide claim. Engine targets, with `exp(C)` precomputed, typed arrays and pruning:
 - ≤ 10 ms for 20 blocks;
 - ≤ 60 ms for 160 blocks, using **large-claim mode**: claims over 40 blocks use `estStreakNodesLarge` = 7 nodes per control point (294 hypotheses) and prune at 1e-3.
+
+The P0 engine measures 21.7 ms cold and 11.4 ms with the prior model cached for 20 blocks, and 61.2 ms cold for 160 blocks: over both targets until P1's work (4.22 Performance).
 
 A full solve runs only when a claim's non-production evidence changes; production uses the incremental path below; price and planning changes rerun only the economic layer (4.7). §2.13's budgets for §4 (simulator, explanations off): estimator refresh ≤ 1.5 ms per game-week amortized over all tracked claims, and an economic-layer rerun ≤ 0.5 ms per tracked claim. Test 4.22 enforces all targets.
 
@@ -4268,7 +4313,7 @@ So exploring one claim makes its neighbours on the creek less risky, which is ho
 
 #### 4.5.3 Coarse factor: Gamma–Poisson
 
-Coarse particles are rare, so they get an exact conjugate model. `R` is the coarse ratio of **paystreak-centre** gold. Block `b`'s ratio is `R_b = a_b R`, with `a_b = 0.5 + 0.5 f̄_b` (§3 thins coarse gold away from the channel) and `f̄_b` the posterior expected paystreak fraction from the previous pass.
+Coarse particles are rare, so they get an exact conjugate model. `R` is the coarse ratio of **paystreak-centre** gold. Block `b`'s ratio is `R_b = a_b R`, with `a_b = (0.5 + 0.5 f̄_b) × c_b` (§3 thins coarse gold away from the channel) and `f̄_b` the posterior expected paystreak fraction from the previous pass. `c_b` is the old-timers' coarse removal (D-4.53): on a worked block, `R_after / R_before` from §3's `deplete()` size weights at the kind's mean extraction on the prior size mix (drift's extraction scaled by its bottom interval's gold share); on a block of unknown depletion, `1 + Σ_k P(k) q_k (c_k − 1)`; otherwise 1. On dredged ground it takes the coarse share from about 25% to about 9%.
 
 ```
 κ = 1 + massCv_coarse² = 5;   μ̂_c = (n0 × coarseMeanMg_tpl + Σ coarse mass)/(n0 + Σ coarse colours/cap),  n0 = estCoarseMassPriorCount (5)
@@ -4281,12 +4326,12 @@ posterior α = α0 + Σ_b φ_b N_b,  β = β0 + Σ_b φ_b E_b;   m_r = ψ(α) �
 per block: p_b = a_b e^{m_r}/(1 + a_b e^{m_r});  E[w_b] = ln(1 + a_b e^{m_r}) + ½ p_b(1 − p_b) v_r;  w_b ≈ E[w_b] + p_b r
 ```
 
-§3 jitters each class by `LN(1, 0.25)` and then normalizes. That implies `σ_lnR = 0.30` for a mid-reach creek: `α0 = 11.66`, `R0 = 0.327` (coarse share 0.247), `β0 = 34.13`. The prior is fairly tight because the setting (proximal / mid-reach / bench) is visible. The coarse-gold problem therefore scales with the coarse share itself. On a proximal creek (45% coarse) the coarse factor's contribution to log grade is `0.45 × 0.30 = 0.135` at the prior; on a fine-gold fan (10%) it is 0.03.
+§3 jitters each class by `LN(1, 0.25)` and then normalizes. That implies `σ_lnR = 0.30` for a mid-reach creek: `α0 = ψ₁⁻¹(0.30²) = 11.60`, `R0 = 0.3275` (coarse share 0.247), `β0 = e^{ψ(α0)}/R0 = 33.92` (earlier printings gave 11.66 and 34.13, a rounding slip; D-4.57). The prior is fairly tight because the setting (proximal / mid-reach / bench) is visible. The coarse-gold problem therefore scales with the coarse share itself. On a proximal creek (45% coarse) the coarse factor's contribution to log grade is `0.45 × 0.30 = 0.135` at the prior; on a fine-gold fan (10%) it is 0.03.
 
 **Worked example** (mid-reach prior, true `R` 0.45):
 - *30 sonic holes:* about 2.2 units of coarse exposure in total against `β0` 34, with about one coarse colour expected. `R` ends at 0.31 (none caught), 0.34 (one) or 0.36 (two), sd 0.28–0.30. Drilling leaves the coarse factor where the prior put it.
-- *20 test pits of 5 bcy:* `E_b` 1.48 and `φ` 0.966 per pit, `α` 24.51, `β` 62.67, so `R` 0.383 with sd 0.204.
-- *One 500-bcy bulk sample:* `E_b` 147.7 and `φ` 0.205, `α` 25.29, `β` 64.41, so `R` 0.385 with sd 0.201. Coarse factor `1 + R` = 1.385 (P10 1.30, P90 1.50).
+- *20 test pits of 5 bcy:* `E_b` 1.48 and `φ` 0.966 per pit, `α` 24.45, `β` 62.46, so `R` 0.384 with sd 0.204.
+- *One 500-bcy bulk sample:* `E_b` 147.7 and `φ` 0.205, `α` 25.23, `β` 64.20, so `R` 0.385 with sd 0.201. Coarse factor `1 + R` = 1.385 (P10 1.30, P90 1.50).
 
 One bulk sample says as much about coarse gold as twenty pits spread over the claim, at the price of a Notice and a plant. On a proximal claim, indicated (coarse sd ≤ 0.06) needs both: bulk samples on two blocks plus a pit grid.
 
@@ -4301,8 +4346,11 @@ Panning is nearly free. It tells you whether gold is present and how coarse it l
 #### 4.5.5 Block grade distribution
 
 ```
-block b: mixture over surviving hypotheses h of N(μ_b(h), σ²_b);   gradeP10/P50/P90 = mixture quantiles of exp(·) by bisection
-         (60 iterations on the mixture CDF in log space; P10 = low case, D-4.4)
+block b: mixture over surviving hypotheses h of N(μ_b(h), σ²_b);   gradeP10/P50/P90 = mixture quantiles of exp(·)
+         (P10 = low case, D-4.4)
+mixture quantile (here and in 4.7): Newton steps on the mixture CDF in log space, safeguarded by a shrinking bracket, starting at the
+         moment-matched normal's quantile; a component beyond |z| = 8.5 counts as 0 or 1 without evaluating Φ; tolerance 1e-10,
+         at most 100 steps (D-4.58; the same quantiles as 60-step bisection to 1e-10)
 ```
 
 **Worked example (one block, one pit, inside one hypothesis that puts the block fully in the paystreak).** North prior: `M = ln 0.0095 = −4.656`, variance `0.6978`. The coarse factor is at the prior (`E[w] = 0.291`, `p = 0.247`, `v_r = 0.0895`). One 5-bcy pit on schist logs bedrock and returns a capture-corrected `ĝnc` of 0.0100.
@@ -4318,17 +4366,23 @@ Across hypotheses, the same pit also shifts weight toward paystreaks that cover 
 There are two Gaussian fields, on `ln D` and `ln T` (`T = Tg + B`). Each has a claim-level mean, an along-valley component (§3's AR ranges of 2,500 ft for overburden and 1,500 ft for pay) and an iid block term. Priors come from the template by the delta method:
 
 ```
-OB50_b = obMedFt × depositMult.ob × (1 + 0.3 exp(−(x_b/400)²));   Tg50_b(h) = payMedFt × (0.7 + 0.3 f_b(h));   B̄ = Σ bedrockMix × B0
+OB50_b = obMedFt × depositMult.ob × (1 + 0.3 exp(−(x_b/400)²)), or 0 on blocks a visible dredge worked
+Tg50_b(h) = payMedFt × (0.7 + 0.3 f_b(h));   B̄ = Σ bedrockMix × B0
 D50_b  = OB50_b + Tg50_b;  T50_b(h) = Tg50_b(h) + B̂_b
 τ²_D,claim = (OB50² σ²_OBclaim + Tg50² σ²_Tclaim)/D50²;   τ²_D,block = (OB50² σ²_OBblock + Tg50² (σ²_Tblock + σ²_f,b))/D50²
 τ²_T,claim = (Tg50² σ²_Tclaim + sdB²)/T50²;  τ²_T,block = Tg50² (σ²_Tblock + σ²_f,b)/T50²
    σ²_OBclaim = Σ district..claim overburden sigmas (north 0.15²+0.25²+0.25²+0.15² = 0.170); σ_OBblock 0.15
    σ²_Tclaim = creek² + AR² (north 0.045); σ_Tblock 0.15; σ_f,b = 0.3 sd(f_b)/(0.7 + 0.3 f̄_b);
-   sdB = 0.39 ft until a bedrock type is logged, then B0 × 0.115
+   sdB = 0.39 ft until a bedrock type is logged, then the claim's bedrock-type mixture sqrt(Σ P(type) ((B0 × 0.115)² + (B0 − B̂)²)) (4.4.2)
 north centre column: D50 23.4 ft (τ claim 0.34, block 0.13), T50 5.7 ft (τ claim 0.17, block 0.15); outer columns D50 21.1, T50 5.2
 ```
 
 The pay-column prior mean depends on the paystreak hypothesis. Grade and thickness both rise with `f` in §3, and ignoring that correlation understated contained ounces by about 9% in calibration (D-4.30).
+
+**Visible workings in the geometry priors** (P0, D-4.52):
+- **Dredged blocks.** §3 3.6 (D-3.58): a dredge stripped only the blocks it worked; the valley fill beside them keeps its cover. So `OB50_b` is 0 only on blocks a visible dredge worked, and the planning boulder prior there is `tpl.boulderMed` × §3's `geology.oldTimer.dredgeEffects` boulder factor (0.3; 4.7).
+- **Footprint-weighted pay column.** With a known footprint, `f̄_b` and `sd(f_b)` in the `Tg50_b` prior are the moments over the paystreak configurations weighted by the footprint likelihood (4.10.2: worked-off-streak, dredge and count terms, except the hand-cut count, which needs this geometry), not the footprint-blind configuration prior.
+- **Hand-cut cover bound** (D-4.51). §3's hand-cutters worked only paystreak blocks under `maxObFt` (10 ft) of cover, so each known hand-cut block (visible, or from a records footprint) bounds its depth: `D_now < max(0.5, maxObFt − strippedFt) + Tg50_b`. The bound enters the `ln D` field as one Gaussian site per block: the site that turns the block's prior marginal (claim factor and block term) into its moments truncated at the bound, with its precision multiplied by `geology.estThinCoverSiteWeight` (0.05). Through the claim-level depth factor it also thins the cover expected elsewhere on the claim, which is what hand-cut workings say. The weight is low because the unworked paystreak blocks carry the opposite news (they were mostly left because their cover was thick), which only a joint model of cover, eligibility and configuration would capture; at weight 1 the claim's cover came out far too thin. On visibly hand-cut north claims (161 claims, prior stage) weight 0 / 0.05 / 0.1 gave median ln(P50/truth) +0.135 / −0.007 / −0.121 and expected paystreak blocks 10.9 / 8.9 / 8.2 (true 9.0).
 
 **Data.**
 
@@ -4360,13 +4414,20 @@ X_b = ln O_b = ln G_b + ln T_b + ln(1613 × acres_b × f_rem,b)
 μ_b(h) = E[ln G_b | h] + E[ln T_b | h] + ln(1613 acres_b f_rem,b);   C_ab = Cov(ln G_a, ln G_b) + Cov(ln T_a, ln T_b)   (shared)
 FW over a block set S:  A_b = exp(μ_b + C_bb/2);  E[S] = Σ_{b∈S} A_b;  E[S²] = Σ_{a,b∈S} A_a A_b exp(C_ab)
   exp(C_ab) is computed once and reused for every hypothesis; only the vector A changes
-pockets (independent):  λ_b(h) = pPerStreakBlock × [f_b(h) ≥ 0.4] × Π_{samples k on b} max(0, 1 − (bcyMean + V_k)/Vb)
-  g_p = max(gradeMin, gradeMult × exp(E[ln G_b | h]));  Ep = Σ λ_b bcyMean g_p;  Vp = Σ λ_b bcy2Mean g_p² (1 + 0.30)
-  confirmed hits add their oz to Ep and oz² × (bcy2Mean/bcyMean² − 1) to Vp
-ES_h = E[S] + Ep;  Var_h = E[S²] − E[S]² + Vp;  σ²_h = ln(1 + Var_h/ES_h²);  μ_h = ln ES_h − σ²_h/2
-claim quantiles: P_q = mixture quantile of N(μ_h, σ²_h) weighted by w_h (bisection);  spreadFactor = P90/P10
-base quantiles (no pocket term) feed the confidence gates (4.8)
+pockets (independent):  λ_b(h) = pPerStreakBlock × [f_b(h) ≥ 0.4] × f_rem,b × Π_{samples k on b} max(0, 1 − (bcyMean + V_k)/Vb)
+  g_p = max(gradeMin, gradeMult × exp(E[ln G_b | h] − ℓ_b)) × exp(ℓ_b)     §3 floors the virgin pocket grade; old-timer removal ℓ_b then scales it
+  Λ_h = Σ λ_b;  Ep = Σ λ_b bcyMean g_p;  Vp = Σ λ_b bcy2Mean g_p² (1 + 0.30)     over blocks without a confirmed hit
+  confirmed hits: Ec = Σ oz;  Vc = Σ oz² × (bcy2Mean/bcyMean² − 1)
+each hypothesis splits into two lognormal components (D-4.54):
+  no undetected pocket   weight w_h e^{−Λ_h}         mean E[S] + Ec          variance E[S²] − E[S]² + Vc
+  at least one           weight w_h (1 − e^{−Λ_h})   mean E[S] + Ec + m1     variance E[S²] − E[S]² + Vc + v1
+     m1 = Ep / (1 − e^{−Λ_h}),  v1 = (Vp + Ep²) / (1 − e^{−Λ_h}) − m1²         (the compound Poisson given at least one pocket)
+  each component: σ² = ln(1 + variance/mean²),  μ = ln mean − σ²/2
+claim quantiles: P_q = mixture quantile over the components (4.5.5);  spreadFactor = P90/P10
+base quantiles (one component per hypothesis: E[S] alone, no pocket or confirmed-hit term) feed the confidence gates (4.8)
 ```
+
+A pocket is a rare, large, all-or-nothing addition (Λ about 0.1 per claim, each pocket worth hundreds of ounces). Folded into each hypothesis's lognormal by moments, it spread that jump over the whole distribution: where the base is small (arid fans, dredged and mined-out claims) it pulled P10 far below the base and put 93–98% of truths inside P10–P90. The split keeps the jump a jump.
 
 `percentileOz(claimId, q, which)` exposes any quantile for §5 and §11.
 
@@ -4388,7 +4449,8 @@ interface PlanningAssumptions {
 ```
 groundStrip_b = 1 + 0.6·frozen_b + 0.5·cementation_b;
 groundWash_b  = 1 + 0.3·boulders_b + 0.3·clay_b + geology.refEcon.frozenWashAdd·frozen_b   (0.40; §3 refEconomics multipliers, D-3.36, D-4.46;
-                 observed terciles → 0.15 / 0.5 / 0.85; unobserved → template medians; frozen_b = logged frozen, else P(frozen))
+                 observed terciles → 0.15 / 0.5 / 0.85; unobserved → template medians, boulders × 0.3 on blocks a visible dredge worked (4.6);
+                 frozen_b = logged frozen, else P(frozen))
 costPerPayBcy_b = mineWash·groundWash_b + strip$·groundStrip_b·strip50_b        ($ per pay bcy; the cutoff numerator, published to §5)
 margin50_b  = gradeP50_b · rec · fineness50 · price · payable − costPerPayBcy_b                                      ($ per pay bcy)
 cutoff_b    = costPerPayBcy_b / (rec · fineness50 · price · payable)                    (metal raw oz/bcy; fineness50 is alloy fineness)
@@ -4403,7 +4465,7 @@ recoverableRawOz50 = minableOz50 × rec;   fineOz50 = recoverableRawOz50 × fine
 costUsdPerPayBcyM  = Σ_{b∈M} costPerPayBcy_b·T50_b·acres_b / Σ_{b∈M} T50_b·acres_b      (claim-level figure for §5)
 ```
 
-**Repricing.** The economic layer is memoized on the quantized price, so a weekly EMA13 drift reruns it (≤ 0.5 ms per tracked claim) only when the price crosses a 2% grid line, and the statistical layer never reruns for price (D-4.41). The quantized price is at most 1% from the planning price. P1's flat price never crosses a line.
+**Repricing.** The economic layer is memoized on the quantized price, so a weekly EMA13 drift reruns it (≤ 0.5 ms per tracked claim) only when the price crosses a 2% grid line, and the statistical layer never reruns for price (D-4.41). Within a rerun, the claim summary of each minable set is cached per statistical layer and set, so a price step that leaves `M` unchanged reuses it (D-4.58). The quantized price is at most 1% from the planning price. P1's flat price never crosses a line.
 
 *Worked cutoff.* Price $4,200, payable 0.95, northern fineness 0.86, mid-reach mix 25/40/27/8 on a sluice-only plant (`rec = 0.25·0.95 + 0.40·0.88 + 0.27·0.62 + 0.08·0.25 = 0.777`), clean thawed ground:
 
@@ -4514,7 +4576,9 @@ The claim is a 20-acre northern creek placer, 4 blocks across the valley × 5 do
 - streak-weighted coarse share 0.23;
 - depth to bedrock 15–28 ft, with six blocks beyond the 22-ft reach of the owner's 30-t excavator.
 
-The estimator runs with the defaults in 4.20, and §3's generator and draw produced the samples (`docs/prototypes/estimator`, seed 104). Pit costs are for frozen ground (ripping, 4.12). The table uses the held prior. Seen first as a listing, the claim would carry §3's listed prior: at `statusMult.listed` 0.92 (§3 D-3.38) the prior P50 falls about 7% (to ≈ 543 oz), the records and pan rows about 3–4%, and the pit rows by under 1% (scaled from the prototype's run at 0.875: −12% to 517 oz, −4 to −7%, ≤ 1%). Evidence quickly overrides the selection allowance.
+**Prototype figures.** The numbers in this section come from the design-time prototype (`docs/prototypes/estimator`, seed 104): a §3-faithful generator and draw written before §3's engine generator, running the estimator with 4.20's defaults of the time. The engine generator deals different worlds from the same seed, so these exact figures cannot be reproduced on it. The engine checks the same story as a progression test over north valley-bottom claims (4.22), and reproduces exactly the closed-form fixtures of 4.4.7 and 4.8 (D-4.57).
+
+Pit costs are for frozen ground (ripping, 4.12). The table uses the held prior. Seen first as a listing, the claim would carry §3's listed prior: at `statusMult.listed` 0.92 (§3 D-3.38) the prior P50 falls about 7% (to ≈ 543 oz), the records and pan rows about 3–4%, and the pit rows by under 1% (scaled from the prototype's run at 0.875: −12% to 517 oz, −4 to −7%, ≤ 1%). Evidence quickly overrides the selection allowance.
 
 | Step | New evidence | Direct cost | Contained raw oz P10 / P50 / P90 | Spread (base) | P(barren) | Coarse share (sd ln R) | Class |
 |---|---|---|---|---|---|---|---|
@@ -4550,7 +4614,7 @@ What this shows:
 | sonic | 0.79 |
 | sonic + bulk | 0.82 |
 
-  The median `ln(P50/truth)` stayed within ±0.05 at every stage. Truth falls below P10 about one claim in ten, which is what P10 means.
+  The median `ln(P50/truth)` stayed within ±0.05 at every stage. Truth falls below P10 about one claim in ten, which is what P10 means. On §3's engine generator (P0, 1,000 north valley-bottom claims, 4.22) coverage is 0.77–0.87 and the median bias within ±0.07 at every stage.
 
 **When drilling wins: the same claim under deep muck.** Put the same gravel and gold under a deep-muck setting, which is visible on the listing, so the prior knows it: overburden median 30 ft, depth to bedrock 27–51 ft (mean 37.5 ft). Every block is beyond the 22-ft reach of the owner's 30-t excavator, and all but one beyond a 45-t's 27 ft (P3 catalog). The truth is still 1,741 raw oz (`docs/prototypes/estimator-deep`, seed 104).
 
@@ -4636,11 +4700,48 @@ worked = ℓ_kind + σ_block × φ(z_q)/q_kind;   passed-over = −σ_block × �
 | Kind (σ_block) | Worked block | Passed-over paystreak block |
 |---|---|---|
 | drift (0.50) | −0.45 | −0.38 |
-| handCut (0.50) | −0.47 | −0.25 |
+| handCut (0.50) | **−0.84** (formula −0.47; measured on §3's engine generator, P0) | −0.25 × P(eligible) |
 | dredge (0.50) | −1.97 | (all worked) |
 | dryWash (arid 0.65) | +0.29 | −0.52 |
+| recentCat (north 0.50, arid 0.65) | mined out: no pay left, no offset | −0.27 north / −0.35 arid (`q` 0.325, the mean of §3's top U(15%, 50%); removal 0) |
 
 Dry-washers took little, and only from the best spots, so on a dry-washed claim the worked blocks are the ones to follow. Worked blocks also carry the era's vertical change: for drift, §3 doubles `λg` and cuts `s_b` by 0.6, which the position multiplier uses. Tailings piles get their own prior (4.7).
+
+**Measured on §3's engine generator (P0).** Dry-wash, dredge and recent-operator offsets match the generator. Two do not:
+- **Hand-cut** (changed, D-4.51). §3 picks hand-cut blocks by cover (overburden under `maxObFt`, 10 ft), not by grade, so a worked block's virgin selection is +0.20 to +0.25 (two P0 measurements: +0.245, then +0.195 on 407 claims), not the formula's +0.58. With the measured removal −1.086 the table takes −0.84 (+0.245 − 1.086); the 407-claim total, −0.891, is within its noise and was not retuned. Unworked paystreak blocks under thin cover measure −0.333 against the table's −0.25, which the estimator applies × P(eligible) (4.5.1); unworked blocks under thick cover measure +0.015. Hand-cut ground is also short of worked blocks altogether (§3 OQ-3.4).
+- **Drift** (measured, not changed). §3's drift removal is −1.34 in log terms against the table's `ℓ` −0.87 (worked offset −1.05 against −0.45; passed-over −0.29 against −0.38). This is why the reported-only `north.ot.drift` cell reads +0.22 at the prior (4.22). P1 reconciles it (OQ-4.3).
+
+**A known footprint is evidence on the paystreak** (P0 additions, D-4.50). Old-timers worked only paystreak blocks, so a known footprint (visible from the air, a records footprint, or pit hits) adds likelihood terms to each paystreak configuration `s`:
+
+```
+worked off the streak: each known worked block (not a dredge's) with f_s < 0.4 multiplies the configuration's likelihood by
+                       L = geology.estWorkedOffStreakLik (0.1); soft, because §3's streak wanders and changes width row by row
+dredge footprint:      Σ_{dredged b} ln(L + (1 − L) P(f_b > minF | s)) + Σ_{unworked b} ln(L + (1 − L)(1 − P(f_b > minF | s)))
+                       a dredge took every block with f > minF (§3: 0.05), so it observes f on every block; P over the row misfit
+                       (4.5.1). Each block's log share is E[ln(f + (1 − f) bgRatio) | f > minF] on dredged blocks and E[· | f ≤ minF]
+                       on unworked ones
+worked count:          a complete footprint (visible or records, not pit hits; not a dredge's) has W worked blocks, W ~ N(μ, v):
+                       N = the configuration's paystreak blocks, ū and Var U = mean and variance of §3's top share U(lo, hi),
+                       p = the work probability (drift 0.8, else 1);
+                       μ = p ū N,  v = 1/12 + p(1 − p) ū N + p² (Var U · N² + ū² · estWorkedCountSlackBlocks²)   (slack 2 blocks)
+                       hand-cut: μ = min(μ, N_el), v += Σ el_b (1 − el_b), N_el = Σ P(eligible_b) over the configuration's paystreak
+worked set:            − estWorkedSetTemper (1) × ln C(N, W): which W of the N, under an exchangeable grade ranking
+                       (hand-cut: C(max(N_el, W), W))
+```
+
+- Without the count and set terms the off-streak term favoured wide paystreaks, which cover the worked blocks most easily: on arid dry-washed claims the posterior expected paystreak count was 14.5 against a true 10.4; with them it is about 10.4.
+- At 1e-3 the off-streak term forced wide configurations and overstated worked claims by 0.1–0.2 at the prior; at 0.1 (calibrated on §3's engine generator) prior bias fell from +0.149 to +0.079 on arid dry-washed ground, +0.182 to +0.124 on arid recent-operator ground and +0.083 to +0.017 on north 160-acre claims.
+- The dredge footprint replaces a rigid test (`f_s ≥ minF`), which either favoured wide configurations or, dropped, left the dredged blocks under-covered. North dredged ground at the pit fences / grid moved from +0.111 / +0.098 to +0.033 / +0.017.
+
+**The selection truncates the block field** (P0 addition, D-4.50). Old-timers took the richest share `q` of the paystreak, so on worked and passed-over blocks the block-field term is truncated, not merely shifted by the offsets above. The block-field part of `Σ_e` is rescaled per block, `Σ'_ab = Σ_ab + (d_a d_b − 1) σ_block² ρ_ab` with `d_b = √ratio_b` (it stays positive semi-definite):
+
+```
+worked block:  ratio_b = Var[Z | Z > z_q] = 1 + z_q λ − λ²,  λ = φ(z_q)/q          (not for dredges, q = 1, or recent operators' mined blocks)
+passed block:  ratio_b = 1 − Σ_k P(k) × el_b × P(PS_b) × (1 − Var[Z | Z < z_q]),  Var[Z | Z < z_q] = 1 − z_q λ' − λ'²,  λ' = φ(z_q)/(1 − q)
+               P(PS_b) = P(f_b ≥ 0.4) under the configuration prior with the footprint terms; el_b = P(eligible) for hand-cut, else 1
+```
+
+Keeping the full `σ_block²` there inflated the gold on worked ground by `e^{(1 − ratio) σ²/2}` per block, about +0.13 on dry-washed claims.
 
 `recordsQuality_district` (0..1) is §3 data (`RegionTemplate.recordsQuality` copied to the district): northern federal 0.8, arid federal 0.7, × 0.5 for fly-in districts. §3's `publicRecord` holds what exists: `creekHistory { histOz, histBcy, era }` per producing creek (null for barren creeks), the old-timer footprint with `workedBlockIdxs`, and `priorDrill` logs (3–8 `churnHistoric` holes on about 10% of claims). Creek-level findings are shared by every claim on the creek.
 
@@ -5184,8 +5285,8 @@ Trade-offs, one line each:
   - Delegation: a staff geologist plans and runs programs by VOI within a budget.
   - Hard rock (optional, last): see §14. §14 owns the lode method rows (core drilling, rock chips, RC on veins), fire assay and QA/QC (14.4) and `estimateLode` (14.5); §4's programs and estimator run them unchanged, and 4.2 adds no hard-rock method rows.
 - **Phase exit gates** (§4's share of §1 1.19; tests in 4.22):
-  - **P0:** estimator calibration against §3's generator (4.22): every cell defined by visible information (template × listing setting, template × visible old-timer evidence including `noVisibleWorkings`, 160-acre claims, the listing pool) at every evidence mix, and the hidden-attribute cells (true old-timer kind, true deep muck) from the pit grid on (D-4.47).
-  - **P1:** calibration (north creek and arid fan, held and listed populations); the 4.4–4.10, 4.12 and 4.14 fixtures; production reconciliation (zero-noise ±0.02) and the incremental path; gold conservation with sample lots; difficulty multipliers; performance and `knowledge` save budget.
+  - **P0:** estimator calibration against §3's generator (4.22): every cell defined by visible information (template × listing setting, template × visible old-timer evidence including `noVisibleWorkings`, 160-acre claims, the listing pool) at every evidence mix, and the hidden-attribute cells (true old-timer kind, true deep muck) from the pit grid on (D-4.47); the fast calibration test in every `npm test`. P0 result: every gated cell × mix passes but one, arid recent-operator ground at sonic + bulk (coverage 0.886 ± 0.011 against 0.88, AT-RISK; OQ-4.3).
+  - **P1:** calibration (north creek and arid fan, held and listed populations); the 4.4–4.10, 4.12 and 4.14 fixtures; production reconciliation (zero-noise ±0.02) and the incremental path; gold conservation with sample lots; difficulty multipliers; performance (the incremental path must bring the weekly refresh within 1.5 ms: P0 measures 14.7 ms, 4.22) and `knowledge` save budget.
   - **P2:** Notice enforcement fixtures; seller and family verification; VOI and default-context EVSI fixtures; listing access tiers.
   - **P3:** drilling fixtures, including the deep-muck example (pits unchanged, sonic inferred) and its EVSI; contractor ledger, standby and minimum footage.
   - **P5:** ripple fixtures; competitor sampling isolation (`cmpId` streams).
@@ -5196,13 +5297,15 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 
 | Key | Default | Unit | Diff.? | Notes / source |
 |---|---|---|---|---|
-| `geology.estPriorMedianAdj[template]` | 0 | log | no | calibration valve per template; tune so median ln(P50/truth) at the prior stays within ±0.10 |
+| `geology.estPriorMedianAdj[template]` | north 0 / arid −0.05 | log | no | calibration valve per template; tune so median ln(P50/truth) at the prior stays within ±0.10. Calibrated on §3's engine generator (P0) by centring the visible cells' prior biases weighted 1/SE²: north 0 → +0.05 → 0 (the visible cells sat +0.075 high at +0.05), arid 0 → −0.02 → −0.05 (+0.043 high at −0.02); D-4.55 |
 | `geology.estStreakResidLogSd` | 0.35 | log | no | iid block residual (row-to-row half-width wander); prototype block-z sd 0.97 |
-| `geology.estStreakNodes` / `estStreakHwNodes` | 9 / 3 | count | no | 486 hypotheses with the barren flag |
+| `geology.estStreakNodes` / `estStreakHwNodes` | 9 / 3 | count | no | 486 hypotheses with the barren flag; half-width nodes ±√3 × `σ_hw,claim`, weights 1/6, 2/3, 1/6 (4.5.1, D-4.48) |
 | `geology.estStreakNodesLarge` / `estLargeClaimBlocks` / `estHypPruneWeightLarge` | 7 / 40 / 1e-3 | count / blocks / weight | no | large-claim mode (performance) |
 | `geology.estStreakRangeAlongFt` | 2,000 | ft | no | §3 centre-wander AR range |
+| `geology.estStreakMisfitScale` | 0.5 | × variance | no | P0 addition: scales the row misfit of §3's wandering paystreak about a rigid configuration (4.5.1; 0 = off). Calibrated on §3's engine generator (P0): 160-acre P10–P90 coverage at fences and later 0.66–0.68 → 0.73–0.77, block z sd 1.15–1.20 → 0.94–0.98 (D-4.48) |
 | `geology.estHypPruneWeight` | 1e-4 | weight | no | performance |
 | `geology.estModelErrorLogSd` | 0.10 | log | no | calibration floor; tune so P10–P90 coverage stays 0.72–0.88 |
+| `geology.estClaimSharedLogSd` | 0.05 | log | no | P0 addition: error shared by every sample row of a claim (capture, profile, lab; 4.4.3). Without it a 160-block pit grid held truth in 0.66 of P10–P90 bands; tune with `estModelErrorLogSd` (D-4.53) |
 | `geology.estPosFullLogSd` / `estPosUpperExtraLogSd` | 0.10 / 0.15 | log | no | profile uncertainty (λg, s_b, B) |
 | `geology.estExposureLambdaLogSd` / `estExposureThickElast` | 0.25 / 1.6 | log / — | no | shared exposure-pan position term (from §3's λg ± 25% and the profile slope) |
 | `geology.estSmallCountTable` | 4.4.4 table | — | no | Monte Carlo of §3's draw; regenerate when §3 changes masses or CVs |
@@ -5236,8 +5339,12 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 | `geology.boxYardToBankFactor` | 0.70 | ratio | no | R3 and §3: screened-feed grade reads 1.25–1.7× bank |
 | `geology.records.historicGradeRatio` (§3) | 2.5 | ratio | no | §3 key; §4 reads it for the creek-history row (4.5.2) |
 | `geology.records.creekProdLogSd` (§3) | 0.50 | log | no | §3 key; creek-history observation sd |
-| `geology.recordsWorkedLogOffset` | drift −0.45/−0.38; handCut −0.47/−0.25; dredge −1.97; dryWash +0.29/−0.52 | log | no | worked / passed-over; formula in 4.10.2 (calibration valve) |
+| `geology.recordsWorkedLogOffset` | drift −0.45/−0.38; handCut −0.84/−0.25; dredge −1.97; dryWash +0.29/−0.52 | log | no | worked / passed-over; formula in 4.10.2 (calibration valve). handCut worked measured on §3's engine generator (P0): −0.47 → −0.84 (§3 picks hand-cut blocks by cover; virgin selection +0.20 to +0.25, removal −1.086); hand-cut passed-over applied × P(eligible) (D-4.51) |
 | `geology.recordsWorkedShare` / `recordsRemovalLog` | drift 0.48/−0.87; handCut 0.30/−1.05; dredge 1.0/−1.97; dryWash 0.50/−0.23 | share / log | no | `q_kind`, `ℓ_kind` from §3 3.6 extraction ranges |
+| `geology.estWorkedOffStreakLik` | 0.1 | likelihood | no | P0 addition: per known worked block a configuration puts off its streak, and the floor of the dredge footprint likelihood (4.10.2). Calibrated on §3's engine generator (P0): 1e-3 → 0.1, prior bias arid dry-washed +0.149 → +0.079, arid recent-operator +0.182 → +0.124, north 160 ac +0.083 → +0.017 (D-4.50) |
+| `geology.estWorkedCountSlackBlocks` | 2 | blocks | no | P0 addition: sd of a configuration's paystreak block count in the worked-count likelihood (4.10.2, D-4.50) |
+| `geology.estWorkedSetTemper` | 1 | exponent | no | P0 addition: weight of the exchangeable worked-set term −ln C(N, W) (4.10.2). With the count term, arid dry-washed posterior paystreak blocks 14.5 → ≈ 10.4 (truth 10.4; D-4.50) |
+| `geology.estThinCoverSiteWeight` | 0.05 | × precision | no | P0 addition: weight of each hand-cut block's thin-cover depth bound (4.6). Calibrated on §3's engine generator (P0): north visibly hand-cut prior / records / pans bias +0.180 / +0.167 / +0.068 → +0.009 / +0.010 / −0.016 (D-4.51) |
 | `geology.recordsTailingsPriorMedian` | 0.012 / 0.005 / 0.0025 | oz/bcy | no | hand-era / dozer / dredge; R3 |
 | `geology.recordsMaxFindProb` | 0.95 | prob | no | |
 | `geology.recordsItemWeight` | 1.0 / 0.9 / 1.0 / 0.8 / 1.0 | — | no | creekHistory / oldWorkings / priorExploration / filedProduction / permitHistory |
@@ -5311,7 +5418,7 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 - *Twinning the seller instead of testing the claim.* Labelled as biased (R9); the claim-wide test and records still expose a cherry-picker.
 - *Sample gold as income.* Bulk samples are capped at 590 bcy per Notice (about 5–10 raw oz at typical grades), and pit gold returns cents per dollar spent.
 - *Information leakage.* `estimateFromEvidence` takes no truth; a test scrambles truth and asserts identical estimates. Bots use only `knownEstimate`. The planner uses visible P(frozen), not truth.
-- *Calibration drift when §3 changes its generator.* A simulator check (4.22) fails the build if P10–P90 coverage leaves 0.72–0.88 or the median bias exceeds ±0.10, per template and setting. The valves are `estModelErrorLogSd`, `estPriorMedianAdj` and the small-count table.
+- *Calibration drift when §3 changes its generator.* A simulator check (4.22) fails the build if P10–P90 coverage leaves 0.72–0.88 or the median bias exceeds ±0.10, per template and setting. The valves are `estModelErrorLogSd`, `estClaimSharedLogSd`, `estPriorMedianAdj` and the small-count table, plus the old-timer offsets and footprint keys for worked ground. The clustered-claim SEs (4.22) say how much of a cell's bias is district noise.
 - *Owner-geologist too strong.* It saves about one staff salary and improves records and reviews, but never makes estimates independent. If the simulator shows geologist starts winning more than 1.15× the median net worth of other backgrounds, cut `reviewerMult` for the owner-geologist to 0.8 and limit supervision to programs on the owner's own claim.
 
 ### 4.22 Tests
@@ -5326,26 +5433,39 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
   - Pruning at 1e-4 changes claim P50 by < 0.5% (prototype: 0.0% and 0.15%).
   - The mixture quantile of a single component equals its lognormal quantile.
 - **Monotonicity.** Within a fixed hypothesis set, adding any observation never increases any block's posterior variance (property test).
-- **Gamma prior.** `α0 = ψ₁⁻¹(0.30²) = 11.66`, `β0 = 34.13` for `R0` 0.327. The 4.5.3 fixtures:
-  - 20 pits: α 24.51, β 62.67, R 0.383, sd 0.204;
-  - bulk: α 25.29, β 64.41, R 0.385, sd 0.201;
+- **Gamma prior.** `α0 = ψ₁⁻¹(0.30²) = 11.60`, `β0 = e^{ψ(α0)}/R0 = 33.92` for `R0` 0.3275 (earlier printings: 11.66 and 34.13, rounding). The 4.5.3 fixtures:
+  - 20 pits: α 24.45, β 62.46, R 0.384, sd 0.204;
+  - bulk: α 25.23, β 64.20, R 0.385, sd 0.201;
   - no coarse data: R = R0.
 - **Fenton-Wilkinson.** A single block reproduces its lognormal exactly. The two-block fixture returns 82.4 / 146.8 / 261.5. Fully correlated identical blocks sum to `n ×` one block. Precomputed `exp(C)` gives identical results to direct evaluation.
 - **Pockets.** The pocket term is 0 with `pPerStreakBlock` 0. A sonic hole with one coarse particle and normal non-coarse grade is never a `pocketHit`.
 - **Order independence and determinism.** Shuffling acquisition order (same ids) gives a bit-identical estimate. Golden values match across Node and browsers via dmath. The memo returns identical objects for identical evidence hashes, and a save/load round trip changes no estimate.
 - **No truth leakage.** Scrambling all `world` truth fields leaves `estimateFromEvidence` and the program planner unchanged.
 - **RNG isolation.** Adding a program on claim A leaves every draw on claim B unchanged. Re-pitting block X uses `k + 1`.
-- **Calibration (simulator, nightly, against §3's generator).** 1,000 claims per cell at each of eight evidence mixes (prior, records, pans, pit fences, pit grid, + bulk, sonic, sonic + bulk). A cell passes a mix when:
+- **Calibration (simulator, nightly, against §3's engine generator; `npm run calibrate:estimator`).** 1,000 claims per cell at each of eight evidence mixes (prior, records, pans, pit fences, pit grid, + bulk, sonic, sonic + bulk). A cell passes a mix when:
   - P10–P90 holds truth contained oz in 0.72–0.88 of claims;
   - median `ln(P50/truth)` is within ±0.10;
   - block-level z sd is within 0.85–1.15.
 
   **Which cells gate** (D-4.47). A Bayesian estimator is calibrated over the population that shares its information, so a cell can be held to the gates only at evidence that observes the attribute defining it:
-  - *Gated at every mix:* cells defined by player-visible information only. Each template × visible listing setting (`claim.setting`: `valleyBottom`, `bench`, `dredgedGround`, `fan`, `gulch`); each template × visible old-timer evidence (one cell per kind the visible workings identify, plus a `noVisibleWorkings` cell); each template's 160-acre claims; and each template's listing pool (below, with its teeth test).
+  - *Gated at every mix:* cells defined by player-visible information only. Each template × visible listing setting (`claim.setting`: `valleyBottom`, `bench`, `dredgedGround`, `fan`, `gulch`); each template × visible old-timer evidence (one cell per kind the visible workings identify, plus a `noVisibleWorkings` cell); each template's 160-acre claims; and each template's listing pool (below, with its teeth test). The setting and old-timer cells take 20- and 40-acre claims; 160-acre claims fill only their own cell.
   - *Reported at prior, records, pans and pit fences; gated at pit grid, + bulk, sonic and sonic + bulk:* cells defined by a hidden attribute, namely the true old-timer kind (none, drift, hand-cut, dry-wash, dredge, recent operator) and true deep-muck ground. Only evidence that samples the pay across the claim can see workings and depth; before that, such a cell averages over kinds or deposits the evidence cannot tell apart, so its numbers are printed at every mix but scored only from the grid on.
 
-  The harness marks each cell × mix gated or reported, and its exit code counts gated failures only. The prototype passed for the north creek template without old-timers (4.9).
+  The harness marks each cell × mix gated or reported, and its exit code counts gated failures only. The prototype passed for the north creek template without old-timers (4.9); the P0 engine result is below.
   - **Listing pool.** A second population draws claims from §3's steady-state listing pool with §3 3.11's weights and uses the `'listed'` prior; it must pass the same 0.72–0.88 coverage and ±0.10 bias gates. At §3's measured `statusMult.listed` 0.92 a ±0.10 gate alone cannot catch a missing selection allowance, so the test also checks its effect: with `statusMult.listed` forced to 1.0, the prior-only median `ln(P50/truth)` must rise by ln(1/0.92) ≈ 0.08 (± 0.02) against the correct run (the test has teeth).
+  - **Clustered claims** (protocol, P0; D-4.56). Claims of one district share its district and creek grade effects, so a cell's 1,000 claims are clustered: the commonest cells (north valley bottom, north `noVisibleWorkings` and both listing pools) fill from 27–36 worlds. The report prints, beside each median bias and coverage, a world-cluster bootstrap standard error (200 resamples of whole worlds, seeded by cell and mix). At the prior the median-bias SE is 0.05–0.06 for those cells and 0.023–0.035 for the rare ones (dredged ground, 160-acre claims, visible workings), so the ±0.10 band is under 2 SE for the commonest cells. The CLI still fills each cell in claim-id order; taking at most k claims per world per cell, as the fast test does, would make the gate far more powerful, but it changes the protocol and is left to the owner (OQ-4.4).
+  - **P0 result** (reviewed world, 1,000 claims per cell, seed base 1000, 1,713 worlds, 29 cells × 8 mixes). Every gated cell × mix passes except arid recent-operator ground at sonic + bulk: coverage 0.886 ± 0.011 against the 0.88 ceiling (`arid.vis.recentCat`; `arid.ot.recentCat` holds the same claims). The band edge lies inside the interval, so it is AT-RISK by BALANCE §3.0's rule, and the harness exits 1. Bias (−0.019) and block z sd (0.95) are in band, so the extra width sits in a claim-level term (OQ-4.3). Reported-only misses: `north.ot.drift` at the prior (+0.222) and records (+0.105), from the drift removal mismatch (4.10.2), and `north.deepMuck` records coverage 0.712. `docs/balance/phase-0.md` has the full table.
+- **Fast calibration test** (`tests/scenarios/estimator-calibration.test.ts`, in every `npm test`; D-4.56). Six cells on §3's engine generator from seed base 1000: north valley bottom, bench and `noVisibleWorkings`; arid fan, gulch and `noVisibleWorkings`.
+  - **Sampling.** Each world gives each cell at most 2 claims, in a seeded random order. A cell takes 150 claims from the prior to the pit grid and 60 at + bulk, sonic and sonic + bulk; the progression cell (north valley bottom) takes 150 at every mix.
+  - **Bands.** Below 400 claims per cell the bands are widened (coverage 0.60–0.97, bias ±0.35, z sd 0.75–1.30); from 400 (`ESTIMATOR_CALIBRATION_CLAIMS`) the nightly gates apply.
+  - **Power.** A correct estimator fails this test in about 0.5% of world draws (cluster bootstrap). The earlier design, each cell's first 40 claims in id order (2–4 districts), failed one in about 80%.
+- **Engine progression test** (4.9 on §3's engine generator; D-4.57), on the fast test's 150 north valley-bottom claims:
+  - every claim is speculative at the prior, and the median P90/P10 shrinks at every step from the prior to the pit grid;
+  - the speculative share after the pit fences is at least 0.15 below the share after pans;
+  - on claims whose fences reached bedrock in at least 6 pits (§4.9's ground; at least 20 such claims), under 25% stay speculative (0.02 at seed base 1000, 0.06 in the population). In the whole population 0.70 stay speculative after the fences, mostly deep ground whose pits stop above bedrock, as in 4.9's deep-muck variant;
+  - + bulk lifts the indicated share above the pit grid's; sonic alone is never indicated or measured and is inferred on over 90%; sonic + bulk is indicated on more than 30% (population 0.38).
+- **Visible footprints** (P0 fixtures). On a visibly dredged claim at the prior, unworked blocks have posterior `f` < 0.1, worked blocks sit on the streak, the pay column is thinner off the streak, and the overburden prior is 0 only on worked blocks. On a visibly hand-cut claim the depth posterior is shallower on every block with `estThinCoverSiteWeight` than with weight 0. Perturbing every §4 key leaves the generated world bit-identical.
+- **Selection and misfit units.** The 4.10.2 formula reproduces the drift and dry-wash offsets and the hand-cut formula value −0.47; upper- and lower-truncated variances at `q` 0.5 equal 1 − 2/π; the centre misfit is 0 at the end rows; the thin-cover site for N(0, 1) truncated at 0 gives mean −0.7979 and variance 1 − 2/π; the upper-pay quadrature with no penetration error equals the plain 5-point average; mixture quantiles invert the mixture CDF to 1e-9 with far and zero-weight components.
 - **Confidence gates.** Fixtures at each class boundary: base spread 1.90 vs 1.91; cov0 0.70 vs 0.69; processed 74 vs 75 bcy; coarseSd 0.060 vs 0.061. Sonic-only on mid-reach ground is inferred; sonic plus bulk is indicated.
 - **Seller check.** The 4.10.5 fixture gives twin mean z 1.06 (`twinMismatch`), claim-wide z = 2.23 and pHonest 0.026. Verification passes with three honest twins and fails with salted values. The `unreportedPits` tell probability is 0.63 for the owner-geologist.
 - **Censoring and false bedrock.** A short pit adds the pseudo-observation only when P50(D) < 1.10·h. Conflicting depths flag the shallower sample.
@@ -5361,14 +5481,14 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 - **Incremental path.** After 1–11 appended production rows, the incremental estimate equals a full solve with the same frozen anchor quantities to 1e-9, and differs from an unfrozen full solve by < 1% in claim P50; a save/load round trip with a cold memo gives a bit-identical estimate; the 12th row, new sample evidence and a season end each re-anchor.
 - **VOI.** The preposterior σ' equals the posterior σ after adding the same synthetic observations. EVSI ≥ 0. The 4.11 fixture (player context, breakeven 1,500 oz) returns EVSI ≈ 58.8 oz-equivalent for +12 pits; the default develop context returns ≈ $224k (+12 pits) and ≈ $220k (+30 sonic). A pit planned where P(OB ≤ reach) < 0.5 adds no grade information.
 - **Decision contexts.** A listing gets `buy` at its ask, an owned claim with no plan ever active gets per-block `develop`, a claim in development gets none, and `setDecisionContext { clear: true }` restores the default. `devCost_b / k = payBcy_b × §5 breakevenGradeOzPerBcy` to 1e-9.
-- **Drilling wins on deep ground** (4.9 second example, seed 104, overburden median 30 ft): 20 pits to 22 ft leave P10 / P50 / P90 unchanged at 652 / 1,158 / 2,130 with no censoring row; 20 sonic holes give 1,345 / 1,769 / 2,330, inferred; default-context EVSI is $0 for the pits and ≈ $560k / $444k for 20 / 10 sonic holes.
+- **Drilling wins on deep ground** (4.9 second example, P3; overburden median 30 ft): on an engine-generated deep-muck claim, 20 pits to 22 ft leave P10 / P50 / P90 unchanged with no censoring row; 20 sonic holes reach inferred; default-context EVSI is $0 for the pits and positive for 20 and 10 sonic holes, 20 first. The prototype's figures (seed 104: 652 / 1,158 / 2,130 unchanged; 1,345 / 1,769 / 2,330; ≈ $560k / $444k) illustrate it and are not engine fixtures (D-4.57).
 - **Verdict line.** The 4.14 fixture reads "Likely 970–2,100 oz in the 11 blocks that could pay (8 in 10) … about 9 of 10 … unsampled ground"; P(barren) ≥ 0.05 names the creek; with no context the payback clause is absent.
 - **Fineness.** Prior 0.86 ± 0.032 and observation 0.835 ± 0.0158 give 0.840 ± 0.014.
 - **Access, tools and difficulty.** `samplingAccess` tier `casual` with reason `sellerPermission` allows a pan survey and refuses a hand pit with `NO_ACCESS`; an inspection term allows `operator` work until `untilTurn` and `NO_ACCESS` the week after; owned ground is `operator`. `pStop`, records find probabilities and contractor lead times scale by `pitStopMult`, `recordsFindMult` and `contractorLeadMult` exactly as §1 1.11 lists them. An own-fleet bulk sample creates a §7 plan with `capBcy = min(request, bulkSampleRemainingBcy)` and is absent from `programDisturbance`.
 - **Family records.** Adding the Inheritor's `familyRecords` leaves every estimate bit-identical; the claim-wide test runs in P1; verified family pit logs enter as `sellerVerified` in P2.
 - **Program hours and costs.** `programMachineUse` reports `frozenShare` 17/19 and `ripping` true for the 18-ft permafrost pit; `programCrewUse.byDay` sums to the granted hours; program fuel appears once, as a §7 `OpsCostLine` tagged `programId`. The 4.12 fixtures: $9,928 for 20 thawed own pits, $16,777 frozen, $58,400 / $83,400 contractor, $185,250 for 30 sonic holes with the owner-geologist; `hPit` 4.95 h for a 22-ft frozen pit.
 - **Save budget.** The §2.12.1 `heavyProspector` bot keeps `knowledge` under 300 kB at year 10 (§2.13's per-slice budget).
-- **Performance.** In Node, one full estimate takes ≤ 10 ms for a 20-block claim with 20 samples, and ≤ 60 ms for a 160-block claim with 60 samples in large-claim mode. Large-claim mode changes claim P50 by < 2% against the full grid (prototype: +1.1% and −0.9% on two 160-block claims). An appended production batch takes ≤ 1 ms on 20 blocks; an economic-layer rerun ≤ 0.5 ms per tracked claim; in the simulator (explanations off) the estimator refresh averages ≤ 1.5 ms per game-week for the `cautious` and `heavyProspector` bots.
+- **Performance.** In Node, one full estimate takes ≤ 10 ms for a 20-block claim with 20 samples, and ≤ 60 ms for a 160-block claim with 60 samples in large-claim mode. Large-claim mode changes claim P50 by < 2% against the full grid (prototype: +1.1% and −0.9% on two 160-block claims). An appended production batch takes ≤ 1 ms on 20 blocks; an economic-layer rerun ≤ 0.5 ms per tracked claim; in the simulator (explanations off) the estimator refresh averages ≤ 1.5 ms per game-week for the `cautious` and `heavyProspector` bots. **P0 measurement** (Node, idle machine, `sim/calibration/estimator-perf.ts`): a 20-acre claim with 20 pits 21.7 ms cold and 11.4 ms with the prior model cached (target 10); a 160-acre claim with 60 samples 61.2 ms cold (60); an economic-layer rerun 0.13 ms mean, p95 0.22 (0.5, within); the refresh 14.7 ms per game-week with 8 tracked claims and new evidence every week (1.5). The refresh needs the incremental path (4.5.2, D-4.41), which P1 builds. P0 does not run the estimator in the weekly pipeline, so the P0 simulator week is unaffected; it is a P1 risk, because P1's bots track up to 8 claims and O-13's 3.5 ms mean would fail without it (D-4.58).
 
 ### 4.23 Decisions
 
@@ -5419,6 +5539,17 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
 - **D-4.46** — Planning wash cost carries §3's `geology.refEcon.frozenWashAdd` (0.40 × frozen share), so the player's, §5's and the bots' cutoffs on frozen ground match the engine's frozen/thawed break-even ratio (≈ 1.36–1.38) instead of reading ≈ 15% optimistic. The 4.9 and 4.11 worked figures were computed before this term; the P0 estimator prototype gate recomputes them (expected effect: cutoffs on frozen blocks rise ≈ 10–15%, so fewer candidate blocks, and EVSI shifts toward tests that split marginal frozen blocks). — The planning tool must agree with the engine, or the explain system teaches the wrong lesson.
 - **D-4.45** — The verdict line uses the decision context's set, its P10–P90 and P(S ≥ breakeven), and names one biggest unknown by a fixed precedence (barren creek, top VOI hint, blocking gate). — One plain sentence for the first purchase, built only from numbers the panels already show, and deterministic.
 - **D-4.47** — Calibration cells gate by what the evidence can see (integrator ruling, P0). Cells defined by player-visible information (template × visible setting, template × visible old-timer evidence with a `noVisibleWorkings` cell, 160-acre claims, the listing pool) gate at every evidence mix. Cells defined by a hidden attribute (true old-timer kind, true deep-muck ground) are reported at prior, records, pans and pit fences and gate at pit grid, + bulk, sonic and sonic + bulk. — A Bayesian estimator is calibrated over the population that shares its information: at evidence that cannot see a hidden kind or deposit, the estimate is correctly the mixture over the kinds consistent with what is visible, so a cell sliced by the hidden attribute shows opposite-sign biases that are not errors. Gating those cells there would force the prior to read hidden truth (§2.5 "Hidden vs known"); gating them once the evidence samples the pay across the claim still catches a real model error.
+- **D-4.48** — The paystreak configurations approximate §3's row processes (P0, calibrated on §3's engine generator). The rich-stretch term moves from `V_m` into `Σ_e` with §3's along-creek range. Half-width nodes are ±√3 (the 3-point Gauss–Hermite rule for a standard normal; the printed ±1.2247 gave the half-width half its variance) on the claim-level spread `σ_hw √ρ̄_hw`. Each block's log share is averaged over the row misfit of the centre and half-width (5 × 3 quadrature, `geology.estStreakMisfitScale` 0.5), and the configuration-averaged misfit variance joins `Σ_e`'s diagonal. — §3 draws the centre, half-width and rich stretch row by row while a configuration is rigid: on 160-acre claims (40 rows) coverage was 0.66–0.68 and block z sd 1.15–1.20 at fences and later, now 0.73–0.77 and 0.94–0.98.
+- **D-4.49** — The prior mixes the hidden deposit types behind the visible setting (`depositMix` × the old-timer odds of the visible kinds, each with its grade multiplier and §3.4 slope) and carries §3.4's held selection per hypothesis class: a weight, a shift of `m` and a smaller `V_m` (D-4.16 written out). — The public prior must equal §3's generation as seen through visible facts (D-4.16): valley-bottom ground hides deep muck, and held claims were selected, so barren creeks are rarely held. Reading the template constants in §4 is a stopgap; `claimPriors` is the cleaner home.
+- **D-4.50** — A known old-timer footprint is likelihood on the paystreak configuration: worked blocks off the streak (`geology.estWorkedOffStreakLik` 0.1, was 1e-3), a visible dredge's per-block footprint over the row misfit, the worked count (`estWorkedCountSlackBlocks` 2) and the exchangeable worked set (`estWorkedSetTemper` 1); and the block field is truncated on worked and passed-over blocks. — Old-timers worked only paystreak blocks, their richest share. Without the count terms wide paystreaks won (arid dry-washed: 14.5 expected paystreak blocks against 10.4); a hard 1e-3 overstated worked claims by 0.1–0.2; the rigid dredge test overstated north dredged ground by +0.11 at fences; the untruncated field added about +0.13 on dry-washed claims.
+- **D-4.51** — Hand-cut workings follow §3's cover rule: the worked offset is the value measured on §3's engine generator (−0.47 → −0.84), hand-cut terms on unworked blocks apply × P(cover eligible), and each known hand-cut block bounds its depth by a weak thin-cover site (`geology.estThinCoverSiteWeight` 0.05). — §3 hand-cuts by cover, not grade, so the formula's selection (+0.58) was more than twice the generator's (+0.20 to +0.25). The bound moved the visibly hand-cut north cell's prior bias from +0.180 to +0.009; the low weight stands in for a joint model of cover, eligibility and configuration, which is not built.
+- **D-4.52** — A visible dredge shapes the geometry block by block: the overburden prior is 0 and the boulder prior × 0.3 only on the blocks it worked, and the pay-column prior's `f` moments follow the footprint-weighted configurations. — Follows §3.6 as reviewed (D-3.58): the valley fill beside a dredge keeps its cover, and pits there stop in it (25–31% reach bedrock), so nothing else would correct a wrong prior.
+- **D-4.53** — Measurement refinements that follow how §3 draws: a claim-shared sample error (`geology.estClaimSharedLogSd` 0.05); the upper-pay profile error shared across a claim's upper-pay rows; the penetration's logging error in the upper-pay quadrature; the records row carries the visible deposit and status multipliers with `σ_claim` only; one claim-level bedrock-type posterior; `a_b` carries the old-timers' coarse removal. — §3 draws one `λg`, one bedrock type and one capture per claim, and logs the cover with error; without the shared error a 160-block pit grid held truth in 0.66 of bands; without the multipliers records read benches 0.8× and deep muck 1.3× off; on dredged ground the coarse share falls from about 25% to 9%.
+- **D-4.54** — Pockets split each hypothesis into "no undetected pocket" (weight e^{−Λ}) and "at least one" (the compound Poisson's conditional moments); the pocket rate counts only the unmined share, and §3's virgin floor applies before old-timer removal. — A pocket is an all-or-nothing jump; one moment-matched lognormal pulled P10 far below the base on small-base ground (93–98% coverage on arid fans, dredged and mined-out claims).
+- **D-4.55** — The calibration valve `geology.estPriorMedianAdj` is north 0 and arid −0.05, set by centring the visible cells' prior biases weighted 1/SE² on §3's engine generator; the drift removal mismatch is not tuned in P0 (OQ-4.3). — One lever per template, set where the gated cells centre; tuning a valve to a reported-only hidden cell would bias the visible ones.
+- **D-4.56** — Calibration reports carry world-cluster bootstrap SEs (200 resamples), and the fast test takes at most 2 claims per world per cell in a seeded random order (150 claims, 60 at bulk and sonic, widened bands); the nightly CLI keeps its id-order protocol until the owner rules (OQ-4.4). — Claims of a district share its grade effects: the id-order 40-claim test failed a calibrated estimator in about 80% of draws, this design in about 0.5%, and a big cell's ±0.10 band is under 2 SE.
+- **D-4.57** — The 4.9 worked examples stay as prototype illustrations; the engine tests their qualitative progression on north valley-bottom claims, and reproduces exactly the closed-form fixtures (4.4.7, 4.8, the Gamma prior at α0 11.60, β0 33.92 after correcting the printed rounding). The deep-muck fixture (P3) uses an engine-generated claim. — §3's engine generator deals different worlds from seed 104; the progression is what 4.9 claims, and an engine fixture cannot depend on a prototype's draws.
+- **D-4.58** — P0 speed-ups that change no result beyond 1e-10: per-record memoized content hashes in the evidence hash, the minable-set summary cached per statistical layer and set, and safeguarded Newton mixture quantiles from the moment-matched normal skipping components beyond |z| 8.5 (replacing D-4.30's bisection). The remaining misses (20 blocks 11.4 ms cached against 10; 160 blocks 61.2 against 60; refresh 14.7 ms per week against 1.5) wait for the incremental path, a P1 risk. — Quantiles were about 60% of the statistical layer and evidence hashing re-serialized every sample; the per-week refresh needs the incremental path either way.
 
 ### 4.24 Open questions
 
@@ -5430,6 +5561,15 @@ Method rows (4.2.A, 4.2.B) are tuning data in `data/prospecting/methods.ts`, add
   - *Default:* D-4.35. Pits are the best value on shallow thawed or rippable ground; drilling wins beyond excavator reach, in winter, on 160-acre claims and in short pre-purchase windows. On the 4.9 claim, 20 frozen pits (≈ $17k) reach indicated while 30 sonic holes (≈ $185k) stay inferred; under deep muck the pits learn nothing and 20 sonic holes earn ≈ $560k of EVSI.
   - *Alternative:* tune drilling to dominate generally (cheaper sonic and mobilization, slower frozen pits, a drilling bonus to the coarse gate).
   - *Why it matters:* it sets the whole prospecting balance (the cost of reaching each class, the value of information, the owner-geologist edge, lender classes in §11), and every calibration and BALANCE target would have to be re-run to reverse it.
+- **OQ-4.3 — Two calibration misfits left from P0 (P1).** *Open; nothing retuned in P0.*
+  - *Arid recent-operator ground:* at sonic + bulk the P10–P90 band holds truth in 0.886 ± 0.011 of claims against the 0.88 ceiling (AT-RISK, the only gated miss in P0). The bands are slightly too wide on data-rich evidence (0.86–0.87 from fences to bulk, about 0.83 in the other arid cells) while bias and block z sd are in band, so the extra width is in a claim-level term. Candidates: the configuration mixture around recent operators' cuts (the soft worked-off-streak term with a fixed `q`) and the pre-stripped blocks treated as neutral.
+  - *Drift removal:* §3's drift workings remove −1.34 in log terms against §4's `ℓ` −0.87 (worked offset −1.05 against −0.45; passed-over −0.29 against −0.38), behind the reported-only `north.ot.drift` +0.22 at the prior.
+  - *Default:* P1 closes both, one lever at a time, keeping every gated cell in band; for drift, either §4's table moves to the generator or §3's drift extraction is re-checked against R3.
+  - *Why it matters:* recent operators worked a fifth to a third of creek parcels in both districts, and drift miners, hidden from the air, about a third of northern creek parcels (§3 3.2); a miscalibrated band there misleads exactly the players who buy worked ground.
+- **OQ-4.4 — Calibration protocol: at most k claims per world per cell.** *Open; a protocol change for the owner (4.22, D-4.56).*
+  - *Default:* the nightly calibration keeps filling each cell with claims in id order and prints world-cluster SEs beside each figure.
+  - *Alternative:* the full CLI takes at most k claims per world per cell in a seeded random order, as the fast test does (k = 2), using more worlds.
+  - *Why it matters:* a big cell's 1,000 claims come from 27–36 worlds, so its ±0.10 bias band is under 2 SE: the gate can pass a biased estimator or fail a correct one on district noise. Changing it changes which runs fail BALANCE's estimator gate.
 
 ### 4.25 Sources
 
@@ -18608,7 +18748,7 @@ These shape several systems at once. Changing one means touching every section l
 | D-3.60 | `previouslyDisturbed` = pre-game disturbance or `historicAcres > 0` | The flag no longer reveals a hidden kind |
 | D-3.61 | Water right recorded to 0.1 gpm, then capped at the unrounded `lowFlowGpm` | A surface right never exceeds §6's grant cap |
 
-#### §4 Prospecting and Resource Estimation (D-4.1 – D-4.47)
+#### §4 Prospecting and Resource Estimation (D-4.1 – D-4.58)
 
 | ID | Decision | Rationale |
 |---|---|---|
@@ -18659,6 +18799,17 @@ These shape several systems at once. Changing one means touching every section l
 | D-4.45 | Verdict line: one plain sentence from the decision context, P10–P90, P(≥ breakeven), biggest unknown | A first-purchase answer |
 | D-4.46 | Planning wash cost carries §3's frozen add (0.40 × frozen share) | Planning agrees with the engine |
 | D-4.47 | Calibration cells gate by what the evidence sees: visible-information cells at every mix; hidden-kind and hidden-deep-muck cells reported to fences, gated from the pit grid | A Bayesian estimator is calibrated over the population sharing its information |
+| D-4.48 | Paystreak configurations approximate §3's row processes: rich stretch in Σ_e, half-width nodes ±√3 on the claim-level spread, row-misfit quadrature (`estStreakMisfitScale` 0.5) | 160-acre coverage 0.66–0.68 → 0.73–0.77 |
+| D-4.49 | The prior mixes hidden deposit types behind the visible setting and carries §3.4's held selection per hypothesis class | The prior equals §3's generation as seen (D-4.16) |
+| D-4.50 | A known old-timer footprint is likelihood on the paystreak (off-streak 0.1, dredge footprint, worked count, worked set); the block field is truncated on worked and passed blocks | Wide paystreaks and worked ground were overstated |
+| D-4.51 | Hand-cut follows §3's cover rule: worked offset −0.84 (measured), passed terms × P(eligible), weak thin-cover depth site (0.05) | §3 hand-cuts by cover, not grade |
+| D-4.52 | A visible dredge sets OB 0 and boulders × 0.3 only on its blocks; pay-column prior follows the footprint-weighted configurations | Follows §3.6 as reviewed |
+| D-4.53 | Measurement refinements: claim-shared sample error (0.05), shared upper-pay profile error, penetration logging error, records multipliers, claim-level bedrock type, coarse removal in `a_b` | Each is how §3 draws |
+| D-4.54 | Pockets split each hypothesis into "none undetected" and "at least one" | An all-or-nothing jump, not a smear |
+| D-4.55 | Valve `estPriorMedianAdj` north 0, arid −0.05 (1/SE²-weighted centring of the visible cells); drift mismatch left to P1 | Tune to the gated cells only |
+| D-4.56 | Calibration prints world-cluster SEs; the fast test takes ≤ 2 claims per world per cell; the nightly protocol awaits the owner (OQ-4.4) | Claims within a district are clustered |
+| D-4.57 | 4.9's figures stay prototype illustrations; the engine tests the progression and the closed-form fixtures (Gamma prior 11.60 / 33.92) | The engine generator deals different worlds |
+| D-4.58 | P0 speed-ups with identical results (evidence hash, minable-set cache, Newton quantiles); remaining budget misses wait for the incremental path (P1 risk) | Within 1e-10; the weekly refresh needs P1's path |
 
 #### §5 Land Acquisition, Tenure, and Negotiation (D-5.1 – D-5.60)
 
