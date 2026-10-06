@@ -72,6 +72,14 @@ describe('Cents helpers', () => {
     expect(usdToCents(13.6)).toBe(1360); // 13.6 × 100 = 1360.0000000000002
     expect(usdToCents(-45123.07)).toBe(-4512307);
     expect(usdToCents(0.005)).toBe(1);
+    // Decimal ties whose float product lands just below the tie (1.005 × 100 = 100.49999999999999) round away from
+    // zero like §13.2's display rule, so the ledger and the screen agree.
+    expect(usdToCents(1.005)).toBe(101);
+    expect(usdToCents(10.075)).toBe(1008);
+    expect(usdToCents(-1.005)).toBe(-101);
+    expect(usdToCents(1.0049)).toBe(100);
+    expect(toMilliOz(1.0005)).toBe(1001);
+    expect(toMilliOz(2.0045)).toBe(2005);
     expect(centsToUsd(cents(99950))).toBe(999.5);
   });
 

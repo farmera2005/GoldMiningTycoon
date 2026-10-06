@@ -46,9 +46,27 @@ export function roundCents(x: number): Cents {
   return cents(roundHalfAway(x));
 }
 
-/** Dollars (float) → Cents: one rounding of usd × 100, half away from zero on the binary value. */
+/**
+ * Rounds x × 10^k half away from zero, treating a product within 1e-11 (relative) of a half-unit tie as the tie.
+ * Decimal amounts such as $1.005 are not exact in binary (1.005 × 100 = 100.49999999999999), so rounding the float
+ * product would send them down while §13.2's display rule (Intl halfExpand on the shortest decimal) sends them up;
+ * snapping keeps the ledger and the screen in agreement, as floorMilliOz does for weighing (D-2.2).
+ */
+function roundScaledHalfAway(x: number, scale: number): number {
+  if (!Number.isFinite(x)) throw new RangeError(`roundScaledHalfAway: non-finite ${x}`);
+  const m = x * scale;
+  const am = Math.abs(m);
+  const tie = Math.floor(am) + 0.5;
+  if (Math.abs(am - tie) <= 1e-11 * Math.max(1, am)) {
+    const r = Math.floor(am) + 1;
+    return m < 0 ? -r : r;
+  }
+  return roundHalfAway(m);
+}
+
+/** Dollars (float) → Cents: one rounding of usd × 100, half away from zero, decimal ties snapped (see above). */
 export function usdToCents(usd: number): Cents {
-  return roundCents(usd * 100);
+  return cents(roundScaledHalfAway(usd, 100));
 }
 
 /** Cents → float dollars (for formulas; never store the result). */
@@ -78,9 +96,9 @@ export function sumCents(values: readonly Cents[]): Cents {
   return cents(total);
 }
 
-/** Troy oz → MilliOz, rounded half away from zero (transfers of an already-weighed amount, in-kind splits). */
+/** Troy oz → MilliOz, rounded half away from zero, decimal ties snapped (transfers of a weighed amount, in-kind splits). */
 export function toMilliOz(oz: number): MilliOz {
-  return milliOz(roundHalfAway(oz * 1000));
+  return milliOz(roundScaledHalfAway(oz, 1000));
 }
 
 /**
