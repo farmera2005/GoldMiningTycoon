@@ -3,6 +3,7 @@
 // quantity from the player's knowledge) or by a `Not observable` row, and its subtree, note and source are dropped.
 // Only the dev reveal (compiled out of production) asks for the raw tree.
 import type { CalcNode, Unit } from '../../engine';
+import type { FmtOptions } from '../format';
 
 export type CalcOp = NonNullable<CalcNode['op']>;
 export type CalcSource = NonNullable<CalcNode['source']>;
@@ -17,6 +18,8 @@ export interface ViewNode {
   /** Text shown instead of the formatted value. */
   readonly valueText?: string;
   readonly unit: Unit;
+  /** How to format `value` beyond its unit: ledger amounts carry `{ money: 'ledger' }`, exact cents (13.2). */
+  readonly fmt?: FmtOptions;
   readonly op?: CalcOp;
   readonly children: readonly ViewNode[];
   readonly source?: CalcSource;

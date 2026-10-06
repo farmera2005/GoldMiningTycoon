@@ -9,7 +9,7 @@ import { accountMatches, describeLedgerFilter, findTxn, queryLedger } from './le
 import { NOT_OBSERVABLE, redact, walkView, type ViewNode } from './redact';
 import { cashPostingsRef, cashRef, netWorthRef, relatedLedger } from './refs';
 import { resolveExplain, type ResolveContext } from './resolve';
-import { treeAsText } from './textTree';
+import { treeAsText, valueText } from './textTree';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -180,6 +180,25 @@ describe('ledger view (cash → ledger)', () => {
       unregister();
     }
   });
+
+  it('explains ledger amounts in exact cents, above $1,000 too (13.2 ledger rule, D-13.13)', () => {
+    const unregister = registerTestActions();
+    try {
+      const r = applyAction(freshState(), asAction({ type: 'test/transfer', cents: 4_512_307 }));
+      if (!r.ok) throw new Error(r.error.message);
+      const ledger = resolveExplain(
+        { kind: 'ledger', filter: { book: 'company', accounts: ['cash.operating'] } },
+        { state: r.state, calcReports: [], reveal: false },
+      );
+      expect(valueText(ledger.root)).toBe('$354,876.93');
+      expect(ledger.root.children.map((c) => valueText(c))).toEqual(['$400,000.00', '−$45,123.07']);
+      const text = treeAsText(ledger.root);
+      expect(text).toContain('Company ledger · cash.operating  $354,876.93  Σ');
+      expect(text).toContain('Test transfer  −$45,123.07');
+    } finally {
+      unregister();
+    }
+  });
 });
 
 describe('resolveExplain', () => {
@@ -214,7 +233,10 @@ describe('resolveExplain', () => {
     const week = advanceWeek(s0, { explain: true });
     const s1 = week.state;
     const ledger = resolveExplain(cashPostingsRef(0), ctx(s1));
-    expect(ledger).toMatchObject({ kind: 'ledger', root: { value: 400_000, unit: 'usd' } });
+    expect(ledger).toMatchObject({
+      kind: 'ledger',
+      root: { value: 40_000_000, unit: 'cents', fmt: { money: 'ledger' } },
+    });
     const history = resolveExplain({ kind: 'history', metric: 'cashCents', turn: 1 }, ctx(s1));
     expect(history.root).toMatchObject({ label: 'Cash on hand at week end', value: 40_000_000, unit: 'cents' });
     expect(resolveExplain({ kind: 'history', metric: 'cashCents', turn: 999 }, ctx(s1))).toMatchObject({

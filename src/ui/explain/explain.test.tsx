@@ -2,12 +2,19 @@
 // returned to the number, the drawer's tree expanded to ui.explainDefaultDepth, ledger and tuning chips, breadcrumbs,
 // Copy as text, and redaction of hidden nodes in the rendered DOM.
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CalcNode, WeekReport } from '../../engine';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { asAction, registerTestActions } from '../../engine/actions/testActions';
+import type { CalcNode, ExplainRef, WeekReport } from '../../engine';
 import { App } from '../app/App';
 import { createHarness, loadState, type Harness } from '../testing/harness';
 
 vi.setConfig({ testTimeout: 60_000 });
+
+let unregister: () => void = () => undefined;
+beforeAll(() => {
+  unregister = registerTestActions();
+});
+afterAll(() => unregister());
 
 function setup(): Harness {
   const h = createHarness();
@@ -122,6 +129,44 @@ describe('the drawer', () => {
     await within(drawer).findByText('Copied to the clipboard.');
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Cash on hand  $400,000  Σ'));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[ledger: txn_000001]'));
+  });
+
+  it('opens a new explanation at ui.explainDefaultDepth, whatever was collapsed in the last one', () => {
+    setup();
+    const position = screen.getByRole('region', { name: 'Position' });
+    const openNetWorth = (): HTMLElement => {
+      fireEvent.click(within(position).getByRole('button', { name: '$520,000' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Open breakdown' }));
+      return screen.getByRole('dialog', { name: 'Owner net worth (scoring)' });
+    };
+    const freshNodes = openNetWorth().querySelectorAll('[data-explain-node]').length;
+    expect(freshNodes).toBeGreaterThan(1);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Owner net worth (scoring)' }), { key: 'Escape' });
+
+    const cash = openCashDrawer();
+    fireEvent.click(within(cash).getByRole('button', { name: 'Collapse Cash on hand' }));
+    expect(cash.querySelectorAll('[data-explain-node]')).toHaveLength(1);
+    const nw = openNetWorth();
+    const toggle = within(nw).getByRole('button', { name: /Owner net worth \(scoring\)$/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(nw.querySelectorAll('[data-explain-node]')).toHaveLength(freshNodes);
+  });
+
+  it('shows ledger amounts in exact cents in the popover and drawer headers, as the ledger table does', () => {
+    const h = setup();
+    act(() => {
+      h.client.apply(asAction({ type: 'test/transfer', cents: 4_512_307 }));
+    });
+    const ref: ExplainRef = { kind: 'ledger', filter: { book: 'company', accounts: ['cash.operating'] } };
+    act(() => h.store.getState().openPopover({ ref, anchor: null }));
+    const popover = screen.getByRole('dialog', { name: 'Company ledger · cash.operating' });
+    expect(within(popover).getByText('$354,876.93')).toBeTruthy();
+    expect(within(popover).getByText('$400,000.00')).toBeTruthy();
+    expect(within(popover).getByText('−$45,123.07')).toBeTruthy();
+    act(() => h.store.getState().openDrawer(ref, null));
+    const drawer = screen.getByRole('dialog', { name: 'Company ledger · cash.operating' });
+    expect(drawer.querySelector('tfoot td')?.textContent).toBe('$354,876.93');
+    expect(within(drawer).getAllByText('$354,876.93')).toHaveLength(2);
   });
 
   it('closes on Esc and returns focus to the number that opened the popover', () => {

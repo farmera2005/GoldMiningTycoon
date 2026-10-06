@@ -15,6 +15,7 @@ import { historyValue } from '../../explain/resolve';
 import { yearWeek } from '../../format';
 import { useUi } from '../../store/store';
 import { useSel } from '../../store/useSel';
+import { errorText } from '../saves/messages';
 
 /** Last week's cash movement: the net of the week's cash postings, which is exactly what its explanation lists. */
 function weekCashMovementCents(state: GameState): number {
@@ -103,8 +104,11 @@ function TitleScreen() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    void saves.latestAutosave().then((slot) => {
-      if (live) setLatest(slot);
+    void saves.latestAutosave().then((result) => {
+      if (!live) return;
+      // A storage failure keeps Continue disabled and shows its typed error, instead of failing silently (13.16).
+      if (result.ok) setLatest(result.value);
+      else setError(errorText(result.error));
     });
     return () => {
       live = false;
@@ -113,7 +117,7 @@ function TitleScreen() {
 
   const onContinue = (): void => {
     if (latest === null) return;
-    void client.loadSlot(latest).then((r) => setError(r.ok ? null : r.message));
+    void client.loadSlot(latest).then((r) => setError(r.ok ? null : errorText(r.error)));
   };
 
   return (

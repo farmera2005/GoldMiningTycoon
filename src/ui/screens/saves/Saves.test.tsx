@@ -1,8 +1,9 @@
 // The Saves screen on the real engine codec (DESIGN §13.16, 13.21 ui/save, ui/load, ui/deleteSlot, ui/export,
 // ui/import): slots table columns from SaveFile.summary, save/load/rename/delete/export, and import by picker and by
 // drag-and-drop with the typed errors and notices (SAVE_CORRUPT, SAVE_FORMAT, SAVE_TOO_NEW, SAVE_MIGRATED,
-// TUNING_DIFFERS). A refused file changes nothing.
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+// TUNING_DIFFERS). A refused file changes nothing. Storage failures show their error and never leave the screen busy;
+// keyboard focus follows Rename and Delete and never drops to <body> (13.19).
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CURRENT_SCHEMA_VERSION,
@@ -16,7 +17,7 @@ import {
 } from '../../../engine';
 import { createMemoryKv } from '../../../persistence';
 import { App } from '../../app/App';
-import { createHarness, freshState, loadState, type Harness } from '../../testing/harness';
+import { createHarness, faultyKv, freshState, loadState, type Harness } from '../../testing/harness';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -198,5 +199,163 @@ describe('import (13.16 validation order)', () => {
     expect(screen.getByRole('status', { name: 'Notices' }).textContent).toContain(
       'Updated from save version 1 to 2 (v1→v2 synthetic).',
     );
+  });
+});
+
+describe('storage failures (13.16): the error shows and the screen never stays busy', () => {
+  const problems = (): string => screen.getByRole('alert', { name: 'Problems' }).textContent ?? '';
+  const isInert = (b: HTMLElement): boolean =>
+    (b as HTMLButtonElement).disabled || b.getAttribute('aria-disabled') === 'true';
+
+  it('shows a read failure instead of “Reading saves…” forever', async () => {
+    const f = faultyKv();
+    f.breakAll();
+    const h = createHarness({ kv: f.kv });
+    renderSaves(h);
+    await waitFor(() =>
+      expect(problems()).toMatch(/^Saved games could not be read \(UnknownError: .*\)\. The browser may be blocking/),
+    );
+    expect(screen.queryByText('Reading saves…')).toBeNull();
+    expect(screen.getByText('Saved games could not be read.')).toBeTruthy();
+    expect(screen.getByText('Autosaves could not be read.')).toBeTruthy();
+  });
+
+  it('reports failed save, load and import operations and re-enables the controls; recovers with storage', async () => {
+    const f = faultyKv();
+    const h = createHarness({ kv: f.kv });
+    loadState(h.client);
+    await h.client.saveToSlot({ slotName: 'Camp' });
+    renderSaves(h);
+    await screen.findByRole('rowheader', { name: 'Camp' });
+    const before = f.memory.snapshot();
+    f.breakAll();
+
+    const save = screen.getByRole('button', { name: 'Save to new slot' });
+    fireEvent.click(save);
+    await waitFor(() => expect(problems()).toMatch(/The save could not be written \(UnknownError/));
+    await waitFor(() => expect(isInert(save)).toBe(false));
+
+    const load = screen.getByRole('button', { name: 'Load Camp' });
+    fireEvent.click(load);
+    await waitFor(() => expect(problems()).toMatch(/The save could not be read \(UnknownError/));
+    await waitFor(() => expect(isInert(load)).toBe(false));
+
+    pick(new File([saveText()], 'friend.gmt.json'));
+    await waitFor(() => expect(problems()).toMatch(/The file could not be stored \(UnknownError/));
+    expect(f.memory.snapshot()).toEqual(before);
+    expect(h.store.getState().game.state?.company.name).toBe('Ruby Creek Placers');
+
+    f.breakAll(false);
+    fireEvent.click(save);
+    await screen.findByText('Saved to “Ruby Creek Placers”.');
+    expect(problems()).toBe('');
+  });
+
+  it('keeps the typed error of a failed load: a missing slot and a save from a newer build', async () => {
+    const kv = createMemoryKv();
+    const h = createHarness({ kv });
+    loadState(h.client);
+    const gone = await h.client.saveToSlot({ slotName: 'Gone' });
+    const newer = await h.client.saveToSlot({ slotName: 'Newer' });
+    if (!gone.ok || !newer.ok) throw new Error('save failed');
+    const key = `slot/${newer.value.slotId}/text`;
+    const text = (await kv.get(key)) as string;
+    await kv.setMany([[key, JSON.stringify({ ...JSON.parse(text), schemaVersion: CURRENT_SCHEMA_VERSION + 1 })]]);
+    renderSaves(h);
+    await screen.findByRole('rowheader', { name: 'Gone' });
+    await kv.delMany([`slot/${gone.value.slotId}/text`]);
+    act(() => {
+      h.client.advance();
+    });
+    const state = h.store.getState().game.state;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load Gone' }));
+    await waitFor(() => expect(problems()).toBe('That save slot no longer exists.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Load Newer' }));
+    await waitFor(() =>
+      expect(problems()).toMatch(
+        /^This save was made by a newer version of the game .* Update the game to load it\. Nothing was changed\.$/,
+      ),
+    );
+    expect(problems()).not.toMatch(/could not be read/);
+    expect(h.store.getState().game.state).toBe(state);
+  });
+});
+
+describe('keyboard focus (13.19): never dropped to <body>', () => {
+  async function twoSlots(): Promise<Harness> {
+    const h = createHarness();
+    loadState(h.client);
+    await h.client.saveToSlot({ slotName: 'Older' });
+    await h.client.saveToSlot({ slotName: 'Newer' });
+    renderSaves(h);
+    await screen.findByRole('rowheader', { name: 'Older' });
+    return h;
+  }
+
+  it('moves focus into Rename and back to its trigger after Cancel, Esc or a rename', async () => {
+    await twoSlots();
+    const trigger = (name: string): HTMLElement => screen.getByRole('button', { name: `Rename ${name}` });
+    trigger('Older').focus();
+    fireEvent.click(trigger('Older'));
+    const input = screen.getByRole('textbox', { name: 'New name for Older' });
+    expect(document.activeElement).toBe(input);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(document.activeElement).toBe(trigger('Older'));
+
+    fireEvent.click(trigger('Older'));
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'New name for Older' }), { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger('Older'));
+
+    fireEvent.click(trigger('Older'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'New name for Older' }), { target: { value: 'Oldest' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    // While the rename is written the trigger keeps focus (inert, not disabled).
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Rename Older');
+    await screen.findByRole('rowheader', { name: 'Oldest' });
+    expect(document.activeElement).toBe(trigger('Oldest'));
+  });
+
+  it('moves focus into the delete confirmation, back on Cancel, and to the next row after a delete', async () => {
+    await twoSlots();
+    const del = (name: string): HTMLElement => screen.getByRole('button', { name: `Delete ${name}` });
+    const confirm = (name: string): HTMLElement =>
+      within(screen.getByRole('group', { name: `Delete ${name}?` })).getByRole('button', { name: 'Delete' });
+    del('Newer').focus();
+    fireEvent.click(del('Newer'));
+    const cancel = within(screen.getByRole('group', { name: 'Delete Newer?' })).getByRole('button', { name: 'Cancel' });
+    expect(document.activeElement).toBe(cancel);
+    fireEvent.keyDown(cancel, { key: 'Escape' });
+    expect(document.activeElement).toBe(del('Newer'));
+
+    // Newer is listed first; once it is gone, focus lands on the row that took its place.
+    fireEvent.click(del('Newer'));
+    fireEvent.click(confirm('Newer'));
+    expect(document.activeElement).not.toBe(document.body);
+    await waitFor(() => expect(screen.queryByRole('rowheader', { name: 'Newer' })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Load Older' })));
+
+    fireEvent.click(del('Older'));
+    fireEvent.click(confirm('Older'));
+    await screen.findByText('No saved games yet.');
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Saved games list' }));
+  });
+
+  it('offers Delete on autosaves too, so an abandoned game’s autosaves can be cleared', async () => {
+    const h = createHarness();
+    loadState(h.client);
+    h.client.advance();
+    h.idle.flush();
+    await h.client.settled();
+    renderSaves(h);
+    await screen.findByRole('rowheader', { name: /Autosave · Ruby Creek Placers/ });
+    const autosaves = screen.getByRole('region', { name: 'Autosaves table' });
+    fireEvent.click(within(autosaves).getByRole('button', { name: 'Delete Ruby Creek Placers' }));
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Delete Ruby Creek Placers?' })).getByRole('button', { name: 'Delete' }),
+    );
+    await screen.findByText('Autosaves appear after the first week is played.');
+    const listed = await h.saves.list();
+    expect(listed.ok && listed.value).toEqual([]);
   });
 });

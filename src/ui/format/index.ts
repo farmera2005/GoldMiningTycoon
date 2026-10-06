@@ -10,9 +10,9 @@ import { goldPrice, unitCost, usd, usdFromCents, type MoneyStyle } from './money
 import { fixed, trimmed } from './numbers';
 import { bcy, count, hoursMeter, hoursWeekly, lcy, pct, pp, rate, score } from './units';
 
-export { MINUS, fixed, groupDigits, roundHalfAway, trimmed } from './numbers';
+export { MINUS, fixed, groupDigits, roundHalfAway, roundScaled, trimmed } from './numbers';
 export { dollarsToCents, goldPrice, unitCost, usd, usdFromCents, type MoneyOptions, type MoneyStyle } from './money';
-export { gold, type OzKind } from './gold';
+export { gold, type GoldOptions, type OzKind } from './gold';
 export { grade, gradeMetric, gradeWithMetric, gramsPerM3 } from './grade';
 export { acres, bcy, count, gpm, hoursMeter, hoursWeekly, kilobytes, lcy, pct, pp, rate, score } from './units';
 export { dayRange, gameDate, monthAbbr, wallClock, weekShort, yearWeek } from './dates';
@@ -79,7 +79,7 @@ export function formatValue(value: number, unit: Unit, fmt: FmtOptions = {}, ctx
     case 'fineOz':
       return gold(value, 'fine', { plus });
     case 'milliOz':
-      return gold(value / 1000, 'raw', { plus });
+      return gold(value, 'raw', { plus, milli: true });
     case 'ozPerBcy':
       return grade(value);
     case 'gPerM3':

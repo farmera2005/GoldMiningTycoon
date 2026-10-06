@@ -1,8 +1,8 @@
 // USD formatting (DESIGN §13.2 money rows, D-13.13). State money is integer cents; explanation trees carry float
-// dollars. Both are rounded to whole cents once (half away from zero, as the engine's roundCents) and then formatted
-// with integer arithmetic, so a ledger amount always prints its exact cents.
+// dollars, which are rounded to whole cents once by 13.2's rule (half away from zero on the decimal value, as Intl's
+// halfExpand) and then formatted with integer arithmetic, so a ledger amount always prints its exact cents.
 import { uiConfig } from '../../data/tuning/ui';
-import { MINUS, fixed, groupDigits, roundHalfAway } from './numbers';
+import { MINUS, fixed, groupDigits, roundHalfAway, roundScaled } from './numbers';
 
 /** general: cents hidden at or above ui.fmt.centsHiddenAboveUsd · statement: whole dollars, negatives in
  *  parentheses · ledger: exact cents · compact: KPI tiles and chart axes, k/M above ui.fmt.compactAboveUsd. */
@@ -14,9 +14,12 @@ export interface MoneyOptions {
   readonly plus?: boolean;
 }
 
-/** Float dollars → integer cents, half away from zero (the ledger-posting rounding, §2.4). */
+/**
+ * Float dollars → integer cents, half away from zero on the decimal value (13.2): 1.005 → 101¢, where rounding the
+ * float product 1.005 × 100 = 100.49999999999999 would give 100¢.
+ */
 export function dollarsToCents(usd: number): number {
-  return roundHalfAway(usd * 100);
+  return roundScaled(usd, 2);
 }
 
 function sign(negative: boolean, plus: boolean | undefined, zero: boolean): string {
@@ -37,14 +40,25 @@ function wholeDollars(absCents: number): string {
   return `$${groupDigits(String(Math.floor((absCents + 50) / 100)))}`;
 }
 
-/** Three significant digits with k or M (`$1.23M`, `$412k`); |dollars| ≥ 1,000 (no sign). */
-function compactDollars(absDollars: number): string {
-  const sig3 = (v: number): string => fixed(v, v >= 100 ? 0 : v >= 10 ? 1 : 2);
-  const k = absDollars / 1_000;
-  if (Number(sig3(k).replace(/,/g, '')) < 1_000) return `$${sig3(k)}k`;
-  const m = absDollars / 1_000_000;
-  const mText = Number(sig3(m).replace(/,/g, '')) < 1_000 ? sig3(m) : fixed(m, 0);
-  return `$${mText}M`;
+/**
+ * |cents| × 10^shift to three significant digits. The decimals follow the rounded value, not the raw one, so a carry
+ * over a power of ten drops a decimal instead of printing a fourth digit (9.996 → `10.0`, 99.95 → `100`); from
+ * 1,000 up every integer digit shows (`1,000`).
+ */
+function threeSignificant(absCents: number, shift: number): string {
+  for (let dp = 2; dp > 0; dp--) {
+    const text = fixed(absCents, dp, { shift });
+    if (Number(text.replace(/,/g, '')) < 10 ** (3 - dp)) return text;
+  }
+  return fixed(absCents, 0, { shift });
+}
+
+/** Three significant digits with k or M (`$1.23M`, `$412k`, `$10.0M`); the k/M choice also follows the rounding. */
+function compactDollars(absCents: number): string {
+  // The shifts are exact on the decimal digits: thousands of dollars are cents × 10^−5, millions cents × 10^−8.
+  const k = threeSignificant(absCents, -5);
+  if (Number(k.replace(/,/g, '')) < 1_000) return `$${k}k`;
+  return `$${threeSignificant(absCents, -8)}M`;
 }
 
 /** USD from integer cents in one of the 13.2 styles. */
@@ -63,7 +77,7 @@ export function usdFromCents(cents: number, options: MoneyOptions = {}): string 
     }
     case 'compact':
       if (abs >= uiConfig['ui.fmt.compactAboveUsd'] * 100) {
-        return `${sign(neg, options.plus, zero)}${compactDollars(abs / 100)}`;
+        return `${sign(neg, options.plus, zero)}${compactDollars(abs)}`;
       }
       return usdFromCents(c, { ...options, style: 'general' });
     case 'general': {

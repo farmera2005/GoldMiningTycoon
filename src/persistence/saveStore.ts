@@ -2,6 +2,14 @@
 // week, and a year-start snapshot at week 1 of each year. Each slot stores the save's JSON text and an index entry
 // (SlotMeta) so the Saves screen can list slots without parsing whole games. Operations run one at a time, and every
 // write of a slot's text and index entry is a single transaction, so a failure leaves the previous slot intact.
+//
+// Autosaves belong to a game (`gameId`, the UI's stable game identity): each game keeps its own
+// `ui.autosaveRotatingSlots` rotating autosaves and its own last `ui.autosaveYearlyKeep` year-start snapshots, and
+// writing or pruning one game's autosaves never touches another game's, so starting a second game cannot erase the
+// first one's only copies.
+//
+// Every operation resolves to a Result: a storage failure (IndexedDB blocked, evicted, closed or full) is a typed
+// `SAVE_READ_FAILED` / `SAVE_WRITE_FAILED`, never a rejection, so callers always show it (13.16).
 import { uiConfig } from '../data/tuning/ui';
 import type { KvStore } from './kv';
 import {
@@ -36,6 +44,8 @@ export interface SlotMeta {
   readonly summary: SaveSummary;
   readonly sizeBytes: number;
   readonly status: RunStatus;
+  /** The game this slot belongs to; always set on autosaves, absent on index entries written before it existed. */
+  readonly gameId?: string;
 }
 
 export interface SaveTarget {
@@ -44,6 +54,13 @@ export interface SaveTarget {
   readonly slotName?: string;
   /** Ironman games have no manual slots (13.16). */
   readonly ironman?: boolean;
+  /** The game being saved, recorded in the slot's index entry. */
+  readonly gameId?: string;
+}
+
+export interface AutosaveTarget {
+  /** The game being autosaved: rotation and year-start retention run within it. */
+  readonly gameId: string;
 }
 
 export interface ImportedSlot {
@@ -53,7 +70,7 @@ export interface ImportedSlot {
 
 export interface SaveStore {
   /** Every slot, most recently written first. */
-  list(): Promise<SlotMeta[]>;
+  list(): Promise<Result<SlotMeta[]>>;
   save(save: SaveEnvelope, target?: SaveTarget): Promise<Result<SlotMeta>>;
   load(slotId: string): Promise<Result<LoadedSave>>;
   rename(slotId: string, slotName: string): Promise<Result<SlotMeta>>;
@@ -61,10 +78,10 @@ export interface SaveStore {
   exportSlot(slotId: string, options?: ExportOptions): Promise<Result<ExportedFile>>;
   /** Validates a file and, only if it is valid, stores it as a new manual slot. */
   importFile(input: Uint8Array | string, options?: { readonly slotName?: string }): Promise<Result<ImportedSlot>>;
-  /** Writes the rotating autosave and, at week 1, the year-start snapshot; returns the slots written. */
-  autosave(save: SaveEnvelope): Promise<Result<SlotMeta[]>>;
-  /** The newest autosave or year-start snapshot (the title screen's Continue). */
-  latestAutosave(): Promise<SlotMeta | null>;
+  /** Writes the game's rotating autosave and, at week 1, its year-start snapshot; returns the slots written. */
+  autosave(save: SaveEnvelope, target: AutosaveTarget): Promise<Result<SlotMeta[]>>;
+  /** The newest autosave or year-start snapshot of any game (the title screen's Continue), or null. */
+  latestAutosave(): Promise<Result<SlotMeta | null>>;
 }
 
 export interface SaveStoreOptions {
@@ -81,8 +98,10 @@ const textKey = (slotId: string): string => `slot/${slotId}/text`;
 const metaKey = (slotId: string): string => `slot/${slotId}/meta`;
 const META_KEY = /^slot\/(.+)\/meta$/;
 
-export const autosaveSlotId = (index: number): string => `auto-${index}`;
-export const yearlySlotId = (year: number): string => `year-${year}`;
+/** A game's rotating autosave slot `index` (1-based). */
+export const autosaveSlotId = (gameId: string, index: number): string => `auto-${gameId}-${index}`;
+/** A game's year-start snapshot: one per game and year, so the same game reaching a year again replaces it. */
+export const yearlySlotId = (gameId: string, year: number): string => `year-${gameId}-${year}`;
 
 const SLOT_KINDS: readonly SlotKind[] = ['manual', 'autosave', 'yearly'];
 
@@ -109,6 +128,7 @@ function isSlotMeta(v: unknown): v is SlotMeta {
     typeof m['rulesVersion'] === 'string' &&
     isInt(m['sizeBytes']) &&
     (m['status'] === 'active' || m['status'] === 'ended') &&
+    (m['gameId'] === undefined || typeof m['gameId'] === 'string') &&
     isSummary(m['summary'])
   );
 }
@@ -117,25 +137,39 @@ function bySeqDesc(a: SlotMeta, b: SlotMeta): number {
   return b.seq - a.seq;
 }
 
-/** The rotating slot to write next: an unused one first, otherwise the least recently written. */
-export function nextAutosaveSlot(existing: readonly SlotMeta[], rotatingSlots: number): string {
-  const autos = existing.filter((m) => m.kind === 'autosave');
-  for (let i = 1; i <= rotatingSlots; i++) {
-    const id = autosaveSlotId(i);
-    if (!autos.some((m) => m.slotId === id)) return id;
-  }
-  const inRange = autos.filter((m) => /^auto-(\d+)$/.test(m.slotId) && Number(m.slotId.slice(5)) <= rotatingSlots);
-  const oldest = [...inRange].sort((a, b) => a.seq - b.seq)[0];
-  return oldest ? oldest.slotId : autosaveSlotId(1);
+function rotatingIds(gameId: string, rotatingSlots: number): string[] {
+  return Array.from({ length: Math.max(0, rotatingSlots) }, (_, i) => autosaveSlotId(gameId, i + 1));
 }
 
-/** Slots to delete so that at most `yearlyKeep` year-start snapshots and `rotatingSlots` autosaves remain. */
-export function autosavesToPrune(existing: readonly SlotMeta[], rotatingSlots: number, yearlyKeep: number): string[] {
-  const yearly = existing.filter((m) => m.kind === 'yearly').sort(bySeqDesc);
-  const extraAutos = existing.filter(
-    (m) => m.kind === 'autosave' && !(Number(m.slotId.slice(5)) >= 1 && Number(m.slotId.slice(5)) <= rotatingSlots),
-  );
-  return [...yearly.slice(yearlyKeep), ...extraAutos].map((m) => m.slotId);
+/** The game's rotating slot to write next: an unused one first, otherwise its least recently written. */
+export function nextAutosaveSlot(existing: readonly SlotMeta[], gameId: string, rotatingSlots: number): string {
+  const ids = rotatingIds(gameId, rotatingSlots);
+  const autos = existing.filter((m) => m.kind === 'autosave' && m.gameId === gameId && ids.includes(m.slotId));
+  const unused = ids.find((id) => !autos.some((m) => m.slotId === id));
+  if (unused !== undefined) return unused;
+  const oldest = [...autos].sort((a, b) => a.seq - b.seq)[0];
+  return oldest ? oldest.slotId : autosaveSlotId(gameId, 1);
+}
+
+/**
+ * The game's slots to delete so that it keeps at most `yearlyKeep` year-start snapshots (the newest) and only its
+ * `rotatingSlots` rotating autosaves. Other games' slots are never candidates.
+ */
+export function autosavesToPrune(
+  existing: readonly SlotMeta[],
+  gameId: string,
+  rotatingSlots: number,
+  yearlyKeep: number,
+): string[] {
+  const mine = existing.filter((m) => m.gameId === gameId);
+  const yearly = mine.filter((m) => m.kind === 'yearly').sort(bySeqDesc);
+  const ids = rotatingIds(gameId, rotatingSlots);
+  const extraAutos = mine.filter((m) => m.kind === 'autosave' && !ids.includes(m.slotId));
+  return [...yearly.slice(Math.max(0, yearlyKeep)), ...extraAutos].map((m) => m.slotId);
+}
+
+function reason(e: unknown): string {
+  return e instanceof Error ? `${e.name === 'Error' ? '' : `${e.name}: `}${e.message}` : String(e);
 }
 
 export function createSaveStore(options: SaveStoreOptions): SaveStore {
@@ -150,6 +184,24 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
     const run = queue.then(op, op);
     queue = run.catch(() => undefined);
     return run;
+  }
+
+  /**
+   * Runs `op` exclusively and turns anything it throws (a storage read or write rejecting) into a typed failure, so
+   * the operation always resolves to a Result.
+   */
+  function guarded<T>(
+    code: 'SAVE_READ_FAILED' | 'SAVE_WRITE_FAILED',
+    what: string,
+    op: () => Promise<Result<T>>,
+  ): Promise<Result<T>> {
+    return exclusive(async () => {
+      try {
+        return await op();
+      } catch (e) {
+        return fail<T>(code, `${what} (${reason(e)}).`);
+      }
+    });
   }
 
   async function readMetas(): Promise<SlotMeta[]> {
@@ -168,27 +220,42 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
     return (typeof seq === 'number' && Number.isSafeInteger(seq) ? seq : 0) + 1;
   }
 
-  function metaFor(slotId: string, kind: SlotKind, seq: number, save: SaveEnvelope, text: string): SlotMeta {
+  async function readText(slotId: string): Promise<string | null> {
+    const text = await kv.get(textKey(slotId));
+    return typeof text === 'string' ? text : null;
+  }
+
+  interface Entry {
+    readonly slotId: string;
+    readonly kind: SlotKind;
+    readonly save: SaveEnvelope;
+    readonly text: string;
+    readonly gameId: string | undefined;
+  }
+
+  function metaFor(e: Entry, seq: number): SlotMeta {
     return {
-      slotId,
-      kind,
-      slotName: save.slotName,
-      savedAt: save.savedAt,
+      slotId: e.slotId,
+      kind: e.kind,
+      slotName: e.save.slotName,
+      savedAt: e.save.savedAt,
       seq,
-      schemaVersion: save.schemaVersion,
-      rulesVersion: save.rulesVersion,
-      summary: save.summary,
-      sizeBytes: utf8ByteLength(text),
-      status: codec.runStatusOf?.(save) ?? 'active',
+      schemaVersion: e.save.schemaVersion,
+      rulesVersion: e.save.rulesVersion,
+      summary: e.save.summary,
+      sizeBytes: utf8ByteLength(e.text),
+      status: codec.runStatusOf?.(e.save) ?? 'active',
+      ...(e.gameId === undefined ? {} : { gameId: e.gameId }),
     };
   }
 
+  /** Writes the entries in one transaction; a rejected write is SAVE_WRITE_FAILED and changes nothing. */
   async function write(
-    entries: readonly { slotId: string; kind: SlotKind; save: SaveEnvelope; text: string }[],
+    entries: readonly Entry[],
     seqStart: number,
     deletions: readonly string[] = [],
   ): Promise<Result<SlotMeta[]>> {
-    const metas = entries.map((e, i) => metaFor(e.slotId, e.kind, seqStart + i, e.save, e.text));
+    const metas = entries.map((e, i) => metaFor(e, seqStart + i));
     const kvEntries: [string, unknown][] = entries.flatMap((e, i) => [
       [textKey(e.slotId), e.text] as [string, unknown],
       [metaKey(e.slotId), metas[i]] as [string, unknown],
@@ -197,7 +264,7 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
     try {
       await kv.setMany(kvEntries);
     } catch (e) {
-      return fail('SAVE_WRITE_FAILED', `The save could not be written: ${e instanceof Error ? e.message : String(e)}`);
+      return fail('SAVE_WRITE_FAILED', `The save could not be written (${reason(e)}).`);
     }
     if (deletions.length > 0) {
       // Pruning is best-effort: the new save is already safe, and the next autosave recomputes what to prune.
@@ -210,22 +277,19 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
     return ok(metas);
   }
 
-  async function readText(slotId: string): Promise<string | null> {
-    const text = await kv.get(textKey(slotId));
-    return typeof text === 'string' ? text : null;
-  }
-
   function first(result: Result<SlotMeta[]>): Result<SlotMeta> {
     if (!result.ok) return result;
     const meta = result.value[0];
     return meta ? ok(meta) : fail('SAVE_WRITE_FAILED', 'Nothing was written.');
   }
 
+  const SLOT_GONE = 'That save slot no longer exists.';
+
   return {
-    list: () => exclusive(readMetas),
+    list: () => guarded('SAVE_READ_FAILED', 'Saved games could not be read', async () => ok(await readMetas())),
 
     save: (save, target = {}) =>
-      exclusive(async () => {
+      guarded('SAVE_WRITE_FAILED', 'The save could not be written', async () => {
         if (target.ironman)
           return fail('IRONMAN_MANUAL_SAVE', 'Ironman games keep one save and cannot use manual slots.');
         let slotId: string;
@@ -233,72 +297,64 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
         const seq = await nextSeq();
         if (target.slotId !== undefined) {
           const existing = await readMeta(target.slotId);
-          if (!existing || existing.kind !== 'manual')
-            return fail('SLOT_NOT_FOUND', 'That save slot no longer exists.');
+          if (!existing || existing.kind !== 'manual') return fail('SLOT_NOT_FOUND', SLOT_GONE);
           slotId = existing.slotId;
           slotName = target.slotName ?? existing.slotName;
         } else {
           slotId = `m${seq}`;
         }
         const stamped: SaveEnvelope = { ...save, savedAt: now(), slotName };
-        return first(await write([{ slotId, kind: 'manual', save: stamped, text: serializeSave(stamped) }], seq));
+        const entry: Entry = {
+          slotId,
+          kind: 'manual',
+          save: stamped,
+          text: serializeSave(stamped),
+          gameId: target.gameId,
+        };
+        return first(await write([entry], seq));
       }),
 
     load: (slotId) =>
-      exclusive(async () => {
+      guarded('SAVE_READ_FAILED', 'The save could not be read', async () => {
         const text = await readText(slotId);
-        if (text === null) return fail('SLOT_NOT_FOUND', 'That save slot no longer exists.');
+        if (text === null) return fail('SLOT_NOT_FOUND', SLOT_GONE);
         return readSave(text, codec);
       }),
 
     rename: (slotId, slotName) =>
-      exclusive(async () => {
+      guarded('SAVE_WRITE_FAILED', 'The slot could not be renamed', async () => {
         const meta = await readMeta(slotId);
         const text = await readText(slotId);
-        if (!meta || text === null) return fail('SLOT_NOT_FOUND', 'That save slot no longer exists.');
+        if (!meta || text === null) return fail('SLOT_NOT_FOUND', SLOT_GONE);
         const loaded = readSave(text, codec);
         if (!loaded.ok) return loaded;
         const renamed: SaveEnvelope = { ...loaded.value.save, slotName };
         const renamedText = serializeSave(renamed);
         const updated: SlotMeta = { ...meta, slotName, sizeBytes: utf8ByteLength(renamedText) };
-        try {
-          await kv.setMany([
-            [textKey(slotId), renamedText],
-            [metaKey(slotId), updated],
-          ]);
-        } catch (e) {
-          return fail(
-            'SAVE_WRITE_FAILED',
-            `The slot could not be renamed: ${e instanceof Error ? e.message : String(e)}`,
-          );
-        }
+        await kv.setMany([
+          [textKey(slotId), renamedText],
+          [metaKey(slotId), updated],
+        ]);
         return ok(updated);
       }),
 
     remove: (slotId) =>
-      exclusive(async () => {
-        if (!(await readMeta(slotId))) return fail('SLOT_NOT_FOUND', 'That save slot no longer exists.');
-        try {
-          await kv.delMany([textKey(slotId), metaKey(slotId)]);
-        } catch (e) {
-          return fail(
-            'SAVE_WRITE_FAILED',
-            `The slot could not be deleted: ${e instanceof Error ? e.message : String(e)}`,
-          );
-        }
+      guarded('SAVE_WRITE_FAILED', 'The slot could not be deleted', async () => {
+        if (!(await readMeta(slotId))) return fail('SLOT_NOT_FOUND', SLOT_GONE);
+        await kv.delMany([textKey(slotId), metaKey(slotId)]);
         return ok(null);
       }),
 
     exportSlot: (slotId, exportOptions = {}) =>
-      exclusive(async () => {
+      guarded('SAVE_READ_FAILED', 'The save could not be read for export', async () => {
         const meta = await readMeta(slotId);
         const text = await readText(slotId);
-        if (!meta || text === null) return fail('SLOT_NOT_FOUND', 'That save slot no longer exists.');
+        if (!meta || text === null) return fail('SLOT_NOT_FOUND', SLOT_GONE);
         return ok(exportSaveText(text, meta.slotName, exportOptions));
       }),
 
     importFile: (input, importOptions = {}) =>
-      exclusive(async () => {
+      guarded('SAVE_WRITE_FAILED', 'The file could not be stored', async () => {
         const loaded = readSave(input, codec);
         if (!loaded.ok) return loaded;
         let { save, text } = loaded.value;
@@ -307,30 +363,39 @@ export function createSaveStore(options: SaveStoreOptions): SaveStore {
           text = serializeSave(save);
         }
         const seq = await nextSeq();
-        const written = first(await write([{ slotId: `m${seq}`, kind: 'manual', save, text }], seq));
+        const written = first(await write([{ slotId: `m${seq}`, kind: 'manual', save, text, gameId: undefined }], seq));
         return written.ok ? ok({ meta: written.value, notices: loaded.value.notices }) : written;
       }),
 
-    autosave: (save) =>
-      exclusive(async () => {
+    autosave: (save, target) =>
+      guarded('SAVE_WRITE_FAILED', 'The autosave could not be written', async () => {
+        const { gameId } = target;
         // The replay log never goes into autosaves (§2.9).
         const { actionLog: _log, ...rest } = save;
         const stamped: SaveEnvelope = { ...rest, savedAt: now() };
         const text = serializeSave(stamped);
         const existing = await readMetas();
-        const entries: { slotId: string; kind: SlotKind; save: SaveEnvelope; text: string }[] = [
-          { slotId: nextAutosaveSlot(existing, rotatingSlots), kind: 'autosave', save: stamped, text },
+        const entries: Entry[] = [
+          { slotId: nextAutosaveSlot(existing, gameId, rotatingSlots), kind: 'autosave', save: stamped, text, gameId },
         ];
         if (save.summary.week === 1) {
-          entries.push({ slotId: yearlySlotId(save.summary.year), kind: 'yearly', save: stamped, text });
+          entries.push({
+            slotId: yearlySlotId(gameId, save.summary.year),
+            kind: 'yearly',
+            save: stamped,
+            text,
+            gameId,
+          });
         }
         const seq = await nextSeq();
-        const written = entries.map((e, i) => metaFor(e.slotId, e.kind, seq + i, e.save, e.text));
+        const written = entries.map((e, i) => metaFor(e, seq + i));
         const after = [...existing.filter((m) => !written.some((w) => w.slotId === m.slotId)), ...written];
-        return write(entries, seq, autosavesToPrune(after, rotatingSlots, yearlyKeep));
+        return write(entries, seq, autosavesToPrune(after, gameId, rotatingSlots, yearlyKeep));
       }),
 
     latestAutosave: () =>
-      exclusive(async () => (await readMetas()).find((m) => m.kind === 'autosave' || m.kind === 'yearly') ?? null),
+      guarded('SAVE_READ_FAILED', 'Autosaves could not be read', async () =>
+        ok((await readMetas()).find((m) => m.kind === 'autosave' || m.kind === 'yearly') ?? null),
+      ),
   };
 }

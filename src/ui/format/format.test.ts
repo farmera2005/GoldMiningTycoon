@@ -1,10 +1,12 @@
 // T1 Formatting (DESIGN §13.27 T1, §13.2): the 13.2 table as a table-driven test, the date labels from the engine's
 // own calendar, and identical output when the default locale is de-DE or ar (D-13.12).
+import fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultNewGameSetup, newGame, select, type DateView } from '../../engine';
 import {
   bcy,
   dayRange,
+  dollarsToCents,
   formatValue,
   gameDate,
   gold,
@@ -22,7 +24,7 @@ import {
   weekShort,
   yearWeek,
 } from '.';
-import { fixed, groupDigits, roundHalfAway, trimmed } from './numbers';
+import { MINUS, fixed, groupDigits, roundHalfAway, trimmed } from './numbers';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -93,10 +95,18 @@ describe('money rules (13.2, D-13.13)', () => {
     expect(usd(999.994)).toBe('$999.99');
   });
 
-  it('rounds dollars to cents half away from zero, as the engine posts them', () => {
+  it('rounds dollars to cents half away from zero on the decimal value (13.2)', () => {
     expect(usd(0.125)).toBe('$0.13');
     expect(usd(-0.125)).toBe('−$0.13');
     expect(usd(-0.004)).toBe('$0.00');
+    // 1.005 × 100 is 100.49999999999999 in binary; 13.2's halfExpand rounds the decimal 1.005 up.
+    expect(usd(1.005)).toBe('$1.01');
+    expect(dollarsToCents(1.005)).toBe(101);
+    expect(dollarsToCents(-1.005)).toBe(-101);
+    expect(usd(10.075)).toBe('$10.08');
+    expect(usd(1.255)).toBe('$1.26');
+    expect(usd(1.9649999999999999)).toBe('$1.96');
+    expect(formatValue(69.835, 'usdPerBcy')).toBe('$69.84/bcy');
   });
 
   it('writes statements in whole dollars with parentheses and the ledger in exact cents', () => {
@@ -114,6 +124,33 @@ describe('money rules (13.2, D-13.13)', () => {
     expect(usd(1_200_000, { style: 'compact' })).toBe('$1.20M');
   });
 
+  it.each([
+    [999_499, '$999k'],
+    [999_500, '$1.00M'],
+    [9_994_999, '$9.99M'],
+    [9_995_000, '$10.0M'],
+    [9_999_600, '$10.0M'],
+    [99_949_999, '$99.9M'],
+    [99_950_000, '$100M'],
+    [999_499_999, '$999M'],
+    // From $1,000M up the whole millions show (the k/M scale has no larger unit).
+    [999_500_000, '$1,000M'],
+    [1_234_567_890, '$1,235M'],
+  ])('carries over a power of ten without a fourth significant digit: $%i → %s', (dollars, text) => {
+    expect(usd(dollars, { style: 'compact' })).toBe(text);
+    expect(usd(-dollars, { style: 'compact' })).toBe(`−${text}`);
+  });
+
+  it('never shows more than three significant digits below $1,000M in compact form', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 100_000_00, max: 999_499_999_99 }), (cents) => {
+        const text = usdFromCents(cents, { style: 'compact' });
+        expect(text).toMatch(/^\$\d[\d.]*[kM]$/);
+        expect(text.replace(/[^\d]/g, '').replace(/^0+/, '')).toHaveLength(3);
+      }),
+    );
+  });
+
   it('signs deltas: + on gains, a true minus on losses, nothing on zero', () => {
     expect(formatValue(46_900, 'usd', { delta: true })).toBe('+$46,900');
     expect(formatValue(-46_900, 'usd', { delta: true })).toBe('−$46,900');
@@ -129,6 +166,21 @@ describe('gold, grade, volume and rates', () => {
     expect(gold(0.001, 'fine')).toBe('0.001 fine oz');
     expect(formatValue(52.901, 'oz')).toBe('52.901 raw oz');
     expect(formatValue(46_553, 'milliOz')).toBe('46.553 raw oz');
+  });
+
+  it('rounds milli-ounces at 100 oz and up from the integer, half away from zero', () => {
+    expect(formatValue(128_015, 'milliOz')).toBe('128.02 raw oz');
+    expect(formatValue(100_005, 'milliOz')).toBe('100.01 raw oz');
+    expect(formatValue(99_999, 'milliOz')).toBe('99.999 raw oz');
+    expect(formatValue(-128_015, 'milliOz', { delta: true })).toBe('−128.02 raw oz');
+    expect(formatValue(128_015, 'milliOz', { delta: true })).toBe('+128.02 raw oz');
+    fc.assert(
+      fc.property(fc.integer({ min: 100_000, max: 2 ** 40 }), (m) => {
+        const h = Math.floor((m + 5) / 10);
+        const want = `${groupDigits(String(Math.floor(h / 100)))}.${String(h % 100).padStart(2, '0')} raw oz`;
+        expect(formatValue(m, 'milliOz')).toBe(want);
+      }),
+    );
   });
 
   it('converts grade with ui.fmt.ozPerYd3PerGPerM3 (0.012 oz/bcy = 0.49 g/m³)', () => {
@@ -173,6 +225,86 @@ describe('number primitives', () => {
 
   it('stays exact for amounts beyond 2^53 cents scaling', () => {
     expect(fixed(1e17, 2)).toBe('100,000,000,000,000,000.00');
+    expect(fixed(1e21, 0)).toBe('1,000,000,000,000,000,000,000');
+    expect(fixed(1.5e-7, 4)).toBe('0.0000');
+    expect(fixed(5e-5, 4)).toBe('0.0001');
+    expect(fixed(9.9995, 3)).toBe('10.000');
+  });
+});
+
+/**
+ * What 13.2's rule (`Intl.NumberFormat` `roundingMode: 'halfExpand'`) does, established against Intl itself: it rounds
+ * the number's shortest round-trip decimal (what `String(x)` prints) half away from zero. It does not round the exact
+ * binary value (1.005 is 1.00499999999999989… in binary, yet Intl gives 1.01) nor the float product x × 10^dp.
+ */
+describe('13.2 rounding is Intl halfExpand on the decimal value', () => {
+  /** ES2023 options (`roundingMode`, `signDisplay: 'negative'`) that this TypeScript lib does not type yet. */
+  const en = (options: Record<string, string | number | boolean>): Intl.NumberFormat =>
+    new Intl.NumberFormat('en-US', options as Intl.NumberFormatOptions);
+  const intl = (dp: number): Intl.NumberFormat =>
+    en({
+      roundingMode: 'halfExpand',
+      minimumFractionDigits: dp,
+      maximumFractionDigits: dp,
+      useGrouping: false,
+      signDisplay: 'negative',
+    });
+  /** fixed() with Intl's ASCII minus, for comparison. */
+  const ours = (x: number, dp: number): string => fixed(x, dp, { group: false }).replace(MINUS, '-');
+
+  it('gives the Intl results for decimal ties and for near-ties', () => {
+    const cases: [number, number, string][] = [
+      [1.005, 2, '1.01'],
+      [0.125, 2, '0.13'],
+      [1.255, 2, '1.26'],
+      [2.675, 2, '2.68'],
+      [10.075, 2, '10.08'],
+      [69.835, 2, '69.84'],
+      [1.9649999999999999, 2, '1.96'],
+      [-1.005, 2, '-1.01'],
+      [1.0005, 3, '1.001'],
+      [0.00005, 4, '0.0001'],
+      [2.5, 0, '3'],
+      [-0.5, 0, '-1'],
+      [0.49999999999999994, 0, '0'],
+    ];
+    for (const [x, dp, want] of cases) {
+      expect(intl(dp).format(x), `Intl ${x} at ${dp} dp`).toBe(want);
+      expect(ours(x, dp), `fixed ${x} at ${dp} dp`).toBe(want);
+    }
+  });
+
+  it('matches Intl for any double and every decimal tie (0–4 dp)', () => {
+    const tie = fc
+      .tuple(fc.integer({ min: -10_000_000, max: 10_000_000 }), fc.integer({ min: 0, max: 4 }))
+      .map(([k, dp]) => [(2 * k + 1) / (2 * 10 ** dp), dp] as const);
+    const any = fc.tuple(
+      fc.double({ min: -1e15, max: 1e15, noNaN: true, noDefaultInfinity: true }),
+      fc.integer({ min: 0, max: 4 }),
+    );
+    fc.assert(
+      fc.property(fc.oneof(tie, any), ([x, dp]) => {
+        expect(ours(x, dp)).toBe(intl(dp).format(x));
+      }),
+      { numRuns: 5_000 },
+    );
+  });
+
+  it('shifts percentages exactly, as Intl’s percent style does', () => {
+    const percent = en({
+      style: 'percent',
+      roundingMode: 'halfExpand',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    // 0.0045 × 100 is 0.44999999999999996 in binary.
+    expect(pct(0.0045)).toBe('0.5%');
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 100_000 }), (n) => {
+        const fraction = n / 100_000;
+        expect(pct(fraction)).toBe(percent.format(fraction));
+      }),
+    );
   });
 });
 

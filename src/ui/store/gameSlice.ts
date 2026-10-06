@@ -27,7 +27,10 @@ export interface GameSlice {
   readonly calcReports: readonly WeekReport[];
   /** This week only, newest last, ≤ ui.undoMaxEntries (D-13.11). */
   readonly undo: readonly UndoEntry[];
-  /** Set when the last action was not undoable: undoing past it would re-roll or un-see (13.26). */
+  /**
+   * Set by a non-undoable action since the last advance (D-13.77): undoing past it would re-roll or un-see (13.26),
+   * so once the stack is empty again `ui/undo` refuses with this code. Only Advance, a new game or a load clear it.
+   */
   readonly undoBlock: UndoBlock;
   readonly actionLog: readonly LoggedAction[];
   /** The manual slot this game was last saved to or loaded from (Ctrl+S target), or null. */

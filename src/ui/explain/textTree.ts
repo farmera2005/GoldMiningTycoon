@@ -6,7 +6,7 @@ import type { CalcSource, ViewNode } from './redact';
 
 export function valueText(node: ViewNode, ctx: FormatContext = {}): string {
   if (node.valueText !== undefined) return node.valueText;
-  return node.value === null ? '' : formatValue(node.value, node.unit, {}, ctx);
+  return node.value === null ? '' : formatValue(node.value, node.unit, node.fmt ?? {}, ctx);
 }
 
 export function sourceText(source: CalcSource): string {

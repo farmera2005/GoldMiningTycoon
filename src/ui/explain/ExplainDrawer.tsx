@@ -125,7 +125,9 @@ export function ExplainDrawer() {
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-4 py-2">
-        <Body resolved={resolved} label={root.label} />
+        {/* Keyed by the explanation: a new one opens fresh at ui.explainDefaultDepth, while the same one keeps its
+            disclosure state when the game moves on (13.13). */}
+        <Body key={refKey(top)} resolved={resolved} label={root.label} />
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-2">
         <Button

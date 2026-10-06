@@ -4,9 +4,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { uiConfig } from '../../data/tuning/ui';
 import { asAction, registerTestActions } from '../../engine/actions/testActions';
-import { hashState, select, toSaveFile, type GameState } from '../../engine';
-import { createMemoryKv, type KvStore } from '../../persistence';
-import { createHarness, freshState, loadState } from '../testing/harness';
+import { CURRENT_SCHEMA_VERSION, hashState, select, toSaveFile, type GameState } from '../../engine';
+import { createMemoryKv, type KvStore, type SlotMeta } from '../../persistence';
+import { legacyGameId } from '../store/gameId';
+import { UI_PERSISTED_VERSION } from '../store/persisted';
+import { createHarness, faultyKv, freshState, loadState, type Harness } from '../testing/harness';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -18,6 +20,12 @@ afterAll(() => unregister());
 
 const transfer = (cents: number) => asAction({ type: 'test/transfer', cents });
 
+async function listed(h: Harness): Promise<SlotMeta[]> {
+  const r = await h.saves.list();
+  if (!r.ok) throw new Error(`list failed: ${r.error.code}`);
+  return r.value;
+}
+
 describe('new game and Advance', () => {
   it('starts a game from the wizard input and writes the first autosave (with the year-1 snapshot)', async () => {
     const h = createHarness();
@@ -28,10 +36,12 @@ describe('new game and Advance', () => {
     expect(state.meta.seed).toBe('ABCDEFGHJKMNPQRSTVWXYZ0123');
     expect(h.store.getState().game.dirty).toBe(true);
     await h.client.settled();
-    const slots = await h.saves.list();
-    expect(slots.map((s) => [s.kind, s.slotId]).sort()).toEqual([
-      ['autosave', 'auto-1'],
-      ['yearly', 'year-1'],
+    const gameId = h.store.getState().persisted.gameId;
+    expect(gameId).toMatch(/^g[0-9a-z]{16}$/);
+    const slots = await listed(h);
+    expect(slots.map((s) => [s.kind, s.slotId, s.gameId]).sort()).toEqual([
+      ['autosave', `auto-${gameId}-1`, gameId],
+      ['yearly', `year-${gameId}-1`, gameId],
     ]);
     expect(h.store.getState().game).toMatchObject({ dirty: false, savedTurn: 0 });
   });
@@ -100,6 +110,25 @@ describe('new game and Advance', () => {
   });
 });
 
+describe('one week per Advance (13.15)', () => {
+  it('never re-enters Advance while a week resolves', () => {
+    const h = createHarness();
+    loadState(h.client);
+    const nested: unknown[] = [];
+    const stop = h.store.subscribe((s, prev) => {
+      // A listener that reacts to the week landing by asking for another one (a held key, a stray click).
+      if (s.game.state !== prev.game.state && nested.length === 0) nested.push(h.client.advance());
+    });
+    expect(h.client.advance().ok).toBe(true);
+    stop();
+    expect(nested).toEqual([{ ok: false, code: 'RUN_IN_PROGRESS' }]);
+    expect(h.store.getState().game.state?.clock.turn).toBe(1);
+    // The guard is released once the week is done.
+    expect(h.client.advance().ok).toBe(true);
+    expect(h.store.getState().game.state?.clock.turn).toBe(2);
+  });
+});
+
 describe('undo (D-13.11, 13.21 ui/undo)', () => {
   it('restores a deep-equal previous state and pops the action log', () => {
     const h = createHarness();
@@ -130,6 +159,19 @@ describe('undo (D-13.11, 13.21 ui/undo)', () => {
       expect(h.client.undo()).toEqual({ ok: false, code: 'UNDO_NOT_ALLOWED' });
       expect(h.store.getState().game.actionLog).toHaveLength(2);
     }
+  });
+
+  it('keeps refusing with UNDO_NOT_ALLOWED after undoing back to a non-undoable action, until Advance (D-13.77)', () => {
+    const h = createHarness();
+    loadState(h.client);
+    expect(h.client.apply(asAction({ type: 'test/reveal' }))).toEqual({ ok: true, undoable: false });
+    expect(h.client.undo()).toEqual({ ok: false, code: 'UNDO_NOT_ALLOWED' });
+    expect(h.client.apply(transfer(500_00))).toEqual({ ok: true, undoable: true });
+    expect(h.client.undo()).toEqual({ ok: true });
+    expect(h.client.undo()).toEqual({ ok: false, code: 'UNDO_NOT_ALLOWED' });
+    expect(h.store.getState().game.actionLog).toHaveLength(1);
+    h.client.advance();
+    expect(h.client.undo()).toEqual({ ok: false, code: 'NOTHING_TO_UNDO' });
   });
 
   it('is cleared by Advance and refused in Ironman', () => {
@@ -173,11 +215,11 @@ describe('autosave (13.16, D-13.25)', () => {
       h.client.advance();
     }
     // Nothing is written until the browser is idle.
-    expect(await h.saves.list()).toEqual([]);
+    expect(await listed(h)).toEqual([]);
     expect(h.idle.pending()).toBe(5);
     h.idle.flush();
     await h.client.settled();
-    const autos = (await h.saves.list()).filter((s) => s.kind === 'autosave');
+    const autos = (await listed(h)).filter((s) => s.kind === 'autosave');
     expect(autos).toHaveLength(uiConfig['ui.autosaveRotatingSlots']);
     expect(autos.map((s) => s.summary.week)).toEqual([6, 5, 4]);
     expect(h.store.getState().game).toMatchObject({ dirty: false, savedTurn: 5 });
@@ -196,8 +238,9 @@ describe('autosave (13.16, D-13.25)', () => {
         await h.client.settled();
       }
     }
-    const yearly = (await h.saves.list()).filter((s) => s.kind === 'yearly');
-    expect(yearly.map((s) => s.slotId)).toEqual(['year-4', 'year-3']);
+    const yearly = (await listed(h)).filter((s) => s.kind === 'yearly');
+    const gameId = legacyGameId(freshState());
+    expect(yearly.map((s) => s.slotId)).toEqual([`year-${gameId}-4`, `year-${gameId}-3`]);
     expect(yearly.map((s) => s.summary)).toMatchObject([
       { year: 4, week: 1 },
       { year: 3, week: 1 },
@@ -243,6 +286,60 @@ describe('autosave (13.16, D-13.25)', () => {
     const file = h.client.exportCurrent();
     expect(file?.fileName).toBe('ruby-creek-placers.gmt.json.gz');
   });
+
+  it('shows the same toast when storage cannot even be read, for a week and for a new game’s first autosave', async () => {
+    const f = faultyKv();
+    const h = createHarness({ kv: f.kv });
+    loadState(h.client);
+    f.broken.keys = true;
+    f.broken.get = true;
+    h.client.advance();
+    h.idle.flush();
+    await h.client.settled();
+    expect(h.store.getState().toasts).toMatchObject([
+      { severity: 'critical', action: 'exportNow', message: expect.stringMatching(/^Autosave failed: .*UnknownError/) },
+    ]);
+    expect(h.store.getState().game.dirty).toBe(true);
+    expect(f.memory.snapshot()).toEqual({});
+
+    h.client.newGame({ companyName: 'Second Try', seed: 'ui-test' });
+    await h.client.settled();
+    expect(h.store.getState().toasts).toHaveLength(2);
+    expect(h.store.getState().toasts[1]).toMatchObject({ severity: 'critical', action: 'exportNow' });
+  });
+
+  it('keeps each game’s autosaves apart, and a loaded game keeps writing into its own (13.16)', async () => {
+    const h = createHarness({ yearlyKeep: 5 });
+    const alpha = freshState('alpha-seed', 'Alpha Placers');
+    const bravo = freshState('bravo-seed', 'Bravo Gold');
+    loadState(h.client, alpha);
+    for (let i = 0; i < 4; i++) h.client.advance();
+    h.idle.flush();
+    await h.client.settled();
+    const saved = await h.client.saveToSlot({ slotName: 'Alpha camp' });
+    if (!saved.ok) throw new Error(saved.error.message);
+
+    loadState(h.client, bravo);
+    for (let i = 0; i < 5; i++) h.client.advance();
+    h.idle.flush();
+    await h.client.settled();
+    const autosOf = async (company: string) =>
+      (await listed(h))
+        .filter((s) => s.kind === 'autosave' && s.summary.company === company)
+        .map((s) => s.summary.week);
+    expect(await autosOf('Alpha Placers')).toEqual([5, 4, 3]);
+    expect(await autosOf('Bravo Gold')).toEqual([6, 5, 4]);
+
+    // Back to Alpha from its manual slot: same game, so its own rotation continues.
+    const loaded = await h.client.loadSlot(saved.value);
+    expect(loaded.ok).toBe(true);
+    expect(h.store.getState().persisted.gameId).toBe(legacyGameId(alpha));
+    h.client.advance();
+    h.idle.flush();
+    await h.client.settled();
+    expect(await autosOf('Alpha Placers')).toEqual([6, 5, 4]);
+    expect(await autosOf('Bravo Gold')).toEqual([6, 5, 4]);
+  });
 });
 
 describe('saving and loading through the client', () => {
@@ -270,15 +367,76 @@ describe('saving and loading through the client', () => {
 
   it('quick-saves over the current manual slot, and declines without one', async () => {
     const h = createHarness();
+    expect(await h.client.quickSave()).toEqual({ kind: 'noGame' });
     loadState(h.client);
-    expect(await h.client.quickSave()).toBe(false);
+    expect(await h.client.quickSave()).toEqual({ kind: 'noSlot' });
     const first = await h.client.saveToSlot({ slotName: 'Camp' });
     h.client.advance();
-    expect(await h.client.quickSave()).toBe(true);
-    const slots = (await h.saves.list()).filter((s) => s.kind === 'manual');
+    expect(await h.client.quickSave()).toMatchObject({ kind: 'saved', slot: { slotName: 'Camp' } });
+    const slots = (await listed(h)).filter((s) => s.kind === 'manual');
     expect(slots).toHaveLength(1);
     expect(first.ok && slots[0]?.slotId === first.value.slotId).toBe(true);
     expect(slots[0]?.summary.week).toBe(2);
+  });
+
+  it('reports a failed quick save with the critical toast and Export now, keeping the slot as it was', async () => {
+    const f = faultyKv();
+    const h = createHarness({ kv: f.kv });
+    loadState(h.client);
+    const first = await h.client.saveToSlot({ slotName: 'Camp' });
+    if (!first.ok) throw new Error(first.error.message);
+    h.client.advance();
+    const before = f.memory.snapshot();
+    f.broken.setMany = true;
+    const outcome = await h.client.quickSave();
+    expect(outcome).toMatchObject({ kind: 'failed', error: { code: 'SAVE_WRITE_FAILED' } });
+    expect(h.store.getState().toasts).toMatchObject([
+      {
+        severity: 'critical',
+        action: 'exportNow',
+        message: expect.stringMatching(/^Quick save failed: .*UnknownError/),
+      },
+    ]);
+    expect(h.store.getState().game).toMatchObject({ dirty: true, slotId: first.value.slotId });
+    expect(f.memory.snapshot()).toEqual(before);
+  });
+
+  it('forgets a slot deleted elsewhere: the quick save fails with SLOT_NOT_FOUND, and the next one has no slot', async () => {
+    const h = createHarness();
+    loadState(h.client);
+    const first = await h.client.saveToSlot({ slotName: 'Camp' });
+    if (!first.ok) throw new Error(first.error.message);
+    await h.saves.remove(first.value.slotId);
+    expect(await h.client.quickSave()).toMatchObject({ kind: 'failed', error: { code: 'SLOT_NOT_FOUND' } });
+    expect(h.store.getState().toasts[0]?.message).toContain('That save slot no longer exists.');
+    expect(h.store.getState().game.slotId).toBeNull();
+    expect(await h.client.quickSave()).toEqual({ kind: 'noSlot' });
+  });
+
+  it('keeps the typed error of a failed load (SLOT_NOT_FOUND, SAVE_TOO_NEW, SAVE_READ_FAILED) and changes nothing', async () => {
+    const f = faultyKv();
+    const h = createHarness({ kv: f.kv });
+    loadState(h.client);
+    const saved = await h.client.saveToSlot({ slotName: 'Camp' });
+    if (!saved.ok) throw new Error(saved.error.message);
+    const slot = saved.value;
+    h.client.advance();
+    const state = h.store.getState().game.state;
+
+    expect(await h.client.loadSlot({ slotId: 'm999', kind: 'manual' })).toMatchObject({
+      ok: false,
+      error: { code: 'SLOT_NOT_FOUND' },
+    });
+    const key = `slot/${slot.slotId}/text`;
+    const text = (await f.memory.get(key)) as string;
+    await f.memory.setMany([[key, JSON.stringify({ ...JSON.parse(text), schemaVersion: CURRENT_SCHEMA_VERSION + 1 })]]);
+    expect(await h.client.loadSlot(slot)).toMatchObject({
+      ok: false,
+      error: { code: 'SAVE_TOO_NEW', message: expect.stringContaining('newer version of the game') },
+    });
+    f.broken.get = true;
+    expect(await h.client.loadSlot(slot)).toMatchObject({ ok: false, error: { code: 'SAVE_READ_FAILED' } });
+    expect(h.store.getState().game.state).toBe(state);
   });
 
   it('builds the SaveFile from the engine with the action log in manual saves only', () => {
@@ -290,7 +448,7 @@ describe('saving and loading through the client', () => {
     expect(save).toMatchObject({ format: 'gmt-save', slotName: 'Ruby Creek Placers' });
     expect(save?.state).toBe(state);
     expect(save?.actionLog).toHaveLength(1);
-    expect(save?.ui).toMatchObject({ uiVersion: 1, ironman: false });
+    expect(save?.ui).toMatchObject({ uiVersion: UI_PERSISTED_VERSION, ironman: false, gameId: legacyGameId(state) });
     expect(toSaveFile(state, { slotName: 'x', savedAt: 'y' }).summary).toEqual(save?.summary);
   });
 });
