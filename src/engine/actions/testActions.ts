@@ -178,7 +178,7 @@ const liquidateDef: ActionDef<TestLiquidateAction> = {
   fromPhase: 0,
   validate: () => null,
   handle(draft) {
-    draft.finance.distress.liquidation = { cause: 'p1Counter', turn: draft.clock.turn };
+    draft.finance.distress.liquidation = { cause: 'p1Counter', turn: draft.clock.turn, caseId: null };
   },
 };
 

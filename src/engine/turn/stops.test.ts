@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { blankCleanupResult, blankWeekOpsResult } from '../systems/ops/blank';
 import type { ClaimId, DecId, DistrictId, LineId, MsgId } from '../core/ids';
 import type { Cents } from '../core/money';
 import { applyAction } from '../actions/apply';
@@ -168,8 +169,8 @@ describe('evaluateStops (DESIGN §13 13.9, §2.7; T5)', () => {
 
   it('everyCleanup names each claim once with its lines; machineFailure reads this week’s signals', () => {
     const s = fresh();
-    const result = (claimId: string) => ({ claimId: claimId as ClaimId, turn: 1, payWashedBcy: 0 });
-    const cleanup = (lineId: LineId) => ({ turn: 1, lineId, rawOzWeighed: 1 });
+    const result = (claimId: string) => blankWeekOpsResult(claimId as ClaimId, 1);
+    const cleanup = (lineId: LineId) => ({ ...blankCleanupResult(1, lineId), rawOzWeighed: 1 });
     const ops = {
       ['clm_000002' as ClaimId]: { result: result('clm_000002'), cleanups: [cleanup('L1'), cleanup('L2')] },
       ['clm_000001' as ClaimId]: { result: result('clm_000001'), cleanups: [] },

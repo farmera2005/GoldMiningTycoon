@@ -19,30 +19,48 @@ async function sim(argv: string[]): Promise<{ code: number; out: string; err: st
 }
 
 describe('npm run sim', () => {
-  it('runs the P0 exit command shape (passive, 1 year) and exits 0', async () => {
+  it('runs the exit command shape (passive, 1 year) under the build’s P1 rules and exits 0', async () => {
     const r = await sim(['--games', '2', '--strategy', 'passive', '--years', '1', '--workers', '1']);
     expect(r.code).toBe(0);
-    expect(r.out).toContain('passive · bootstrapper · standard · none · llc · p0');
+    expect(r.out).toContain('P1 build');
+    expect(r.out).toContain('passive · bootstrapper · standard · none · llc · p1');
+    expect(r.out).toContain('seed base 11000');
     expect(r.out).toMatch(/S_N\s+B_N\s+RS_N\s+retreated/);
     expect(r.out).toContain('bot defects: 0 rejected actions, 0 aborted games');
   });
 
+  it('still runs the P0 exit command under --rules p0 (D-2.18)', async () => {
+    const r = await sim(['--games', '2', '--strategy', 'passive', '--years', '1', '--workers', '1', '--rules', 'p0']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('passive · bootstrapper · standard · none · llc · p0');
+    expect(r.out).toContain('seed base 1000 ');
+    expect(r.out).toContain('bot defects: 0 rejected actions, 0 aborted games');
+  });
+
+  const notYet = 'P1 work not implemented in this build yet';
   const refusals: [string[], RegExp][] = [
-    [['--strategy', 'cautious', '--games', '1'], /--strategy cautious: available from P1/],
+    [['--strategy', 'cautious', '--games', '1'], new RegExp(`--strategy cautious: ${notYet}`)],
     [['--strategy', 'noMaintenance', '--games', '1'], /available from P3/],
     [['--strategy', 'brandOnly(yellowIron)', '--games', '1'], /available from P3/],
     [
       ['--strategy', 'passive', '--start', 'backedEquity', '--games', '1'],
-      /--start backedEquity .*START_NOT_IN_PHASE.*available from P1/,
+      new RegExp(`--start backedEquity .*START_NOT_IN_PHASE.*${notYet}`),
     ],
-    [['--strategy', 'passive', '--start', 'inheritor', '--games', '1'], /available from P1/],
-    [['--fixture', 'refSmallNorth'], /--fixture refSmallNorth: available from P1/],
+    [['--strategy', 'passive', '--start', 'inheritor', '--games', '1'], new RegExp(notYet)],
+    [['--fixture', 'refSmallNorth'], new RegExp(`--fixture refSmallNorth: ${notYet}`)],
     [['--market-only'], /--market-only: available from P5/],
     [['--events-only'], /--events-only: available from P3/],
-    [['--world-only', '--econ', 'refSmallNorth'], /--econ refSmallNorth: available from P1/],
-    [['--world-only', '--calendar'], /--calendar: available from P1/],
+    [['--world-only', '--econ', 'refSmallNorth'], new RegExp(`--econ refSmallNorth: ${notYet}`)],
+    [['--world-only', '--calendar'], new RegExp(`--calendar: ${notYet}`)],
     [['--rules', 'p2', '--strategy', 'passive'], /phase-2 rules are available from P2/],
     [['--strategy', 'undercap', '--start', 'inheritor'], /plays only bootstrapper/],
+    // Under --rules p0 every P1 option needs the P1 rules.
+    [['--rules', 'p0', '--strategy', 'cautious', '--games', '1'], /--strategy cautious: needs phase-1 rules/],
+    [['--rules', 'p0', '--fixture', 'refSmallNorth'], /--fixture refSmallNorth: needs phase-1 rules/],
+    [
+      ['--rules', 'p0', '--strategy', 'passive', '--start', 'inheritor', '--games', '1'],
+      /--start inheritor .*START_NOT_IN_PHASE.*needs phase-1 rules/,
+    ],
   ];
   for (const [argv, message] of refusals) {
     it(`refuses ${argv.join(' ')} with exit 2`, async () => {
@@ -135,9 +153,9 @@ describe('npm run sim', () => {
     expect(summary.cells).toEqual([]);
     expect(summary.blocks.world.worlds).toBe(3);
     expect(summary.blocks.world.collectors.default.seeds.map((s: { seed: string }) => s.seed)).toEqual([
-      '1000',
-      '1001',
-      '1002',
+      '11000',
+      '11001',
+      '11002',
     ]);
     expect(readFileSync(join(out, 'games.csv'), 'utf8').split('\r\n')).toHaveLength(2);
   });

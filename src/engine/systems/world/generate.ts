@@ -553,6 +553,7 @@ export function generateWorld(seed: string, opts: WorldGenOptions, tuning: Tunin
     watch: { districtIds: [], claimIds: [] },
     supplyQueue: [],
     familyRunClaimIds: familyRun,
+    foundTells: {},
   };
 }
 

@@ -1,8 +1,9 @@
 // effective() query builders and the hook base rule (S12-7, S12-14; P1 contract §1.9).
 import { describe, expect, it } from 'vitest';
 import type { HookDef } from '../../../data/events/hooks';
-import { ContractStubError } from '../../core/assert';
 import type { BlockId, ClaimId, DistrictId, EmployeeId, MachineId } from '../../core/ids';
+import type { Cents } from '../../core/money';
+import { produceState } from '../../state/immutability';
 import { newGame } from '../../state/newGame';
 import { defaultNewGameSetup } from '../../state/setup';
 import { EffectiveError, effective, hookBase } from './effective';
@@ -26,9 +27,47 @@ describe('query builders (S12-7)', () => {
     expect(() => qClaim(STATE, 'constructor' as ClaimId)).toThrow(EffectiveError);
   });
 
-  it('machine and employee reads wait for the §9 and §8 slices (creation-style stubs fail loudly)', () => {
-    expect(() => qMachine(STATE, 'mch_000001' as MachineId)).toThrow(ContractStubError);
-    expect(() => qEmployee(STATE, 'emp_owner' as EmployeeId)).toThrow(ContractStubError);
+  it('machine and employee reads carry location, model, brand and assignment, and throw on an unknown id', () => {
+    expect(() => qMachine(STATE, 'mch_000001' as MachineId)).toThrow(EffectiveError);
+    expect(() => qEmployee(STATE, 'emp_000001' as EmployeeId)).toThrow(EffectiveError);
+    const homeDistrict = claim.districtId;
+    const mid = 'mch_000001' as MachineId;
+    const eid = 'emp_000001' as EmployeeId;
+    const s = produceState(STATE, (d) => {
+      d.fleet.machines[mid] = {
+        id: mid,
+        modelId: 'ex30',
+        classId: 'excavator',
+        sizeClass: 'ex30',
+        brandId: 'caldera',
+        modelYear: 2020,
+        hours: 0,
+        components: {},
+        grade: 'A',
+        status: 'idle',
+        location: { kind: 'claim', id: claimId },
+        acquisition: 'owned',
+        options: [],
+        purchase: { turn: 0, costCents: 0 as Cents, channel: 'dealerNew', capitalizedCents: 0 as Cents },
+        book: { accumDepCents: 0 as Cents, unpostedDepCents: 0 as Cents },
+        weekly: [],
+      };
+      d.fleet.machineIds.push(mid);
+      d.staff.employees[eid] = { homeDistrictId: homeDistrict, assignment: { kind: 'office' } } as never;
+      d.staff.employeeIds.push(eid);
+    });
+    expect(qMachine(s, mid)).toEqual({
+      districtId: claim.districtId,
+      claimId,
+      machineId: mid,
+      modelId: 'ex30',
+      brandId: 'caldera',
+    });
+    expect(qEmployee(s, eid)).toEqual({ districtId: homeDistrict, employeeId: eid });
+    const assigned = produceState(s, (d) => {
+      d.staff.employees[eid]!.assignment = { kind: 'claim', claimId };
+    });
+    expect(qEmployee(assigned, eid)).toEqual({ districtId: claim.districtId, claimId, employeeId: eid });
   });
 
   it('a claim query reads a tuning key as its base when no modifier acts', () => {

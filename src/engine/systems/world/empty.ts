@@ -18,5 +18,6 @@ export function emptyWorldSlice(): WorldSlice {
     watch: { districtIds: [], claimIds: [] },
     supplyQueue: [],
     familyRunClaimIds: [],
+    foundTells: {},
   };
 }

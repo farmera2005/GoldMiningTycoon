@@ -91,7 +91,8 @@ describe('newGame (DESIGN §2.2, §2.6 turn semantics, D-2.13)', () => {
   it('refuses an invalid setup, an empty seed and a rules phase later than the build', () => {
     expect(() => newGame({ ...SETUP, companyName: '' }, 'x')).toThrow(SetupError);
     expect(() => newGame(SETUP, '')).toThrow(RangeError);
-    expect(() => newGame(SETUP, 'x', undefined, { rulesPhase: 1 })).toThrow(RangeError);
+    expect(() => newGame(SETUP, 'x', undefined, { rulesPhase: 2 })).toThrow(RangeError);
+    expect(newGame(SETUP, 'x').meta.rulesPhase).toBe(1);
     expect(newGame(SETUP, 'x', undefined, { rulesPhase: 0 }).meta.rulesPhase).toBe(0);
   });
 

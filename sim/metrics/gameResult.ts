@@ -283,7 +283,13 @@ export class GameObserver {
    * ended (`endedYear`) the income through its last turn (BALANCE §5.6); null for a year never reached.
    */
   private netIncomeOf(state: GameState, year: number, carried: boolean, endedYear: number | null): number | null {
-    if (!carried) return yearNetIncomeCents(state, year);
+    // P1 rules write year Y's rollup in week 1 of year Y + 1 (s02 #9), after this week-52 close: until then the year
+    // is read from §11's period net income through this turn (D-2.57).
+    if (!carried) {
+      return (
+        yearNetIncomeCents(state, year) ?? netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn)
+      );
+    }
     if (year !== endedYear) return null;
     return netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn);
   }

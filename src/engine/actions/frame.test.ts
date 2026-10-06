@@ -21,7 +21,10 @@ beforeAll(() => {
 });
 afterAll(() => unregister());
 
-const BASE = newGame(defaultNewGameSetup({ companyName: 'Frame Actions' }), 'frame-actions');
+// A P0-rules game (the phase gate's subject) and the same game under P1 rules.
+const BASE = newGame(defaultNewGameSetup({ companyName: 'Frame Actions' }), 'frame-actions', undefined, {
+  rulesPhase: 0,
+});
 const P1 = produceState(BASE, (d) => {
   d.meta.rulesPhase = 1;
 });

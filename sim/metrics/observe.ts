@@ -1,14 +1,18 @@
 // What the harness reads from a game (BALANCE §5 intro: every metric comes from engine selectors, never from bot-side
-// estimates). One adapter, so each read is named once and its source documented. Where §2.11 has no selector yet the
-// read is of a non-hidden state field and marked "no selector".
+// estimates). One adapter, so each read is named once and its source documented (P1 contract §11.1 wires every P1
+// input to its owner's selector; until an owner's package lands the selector is a contract stub with a neutral value).
 // Systems that a phase has not shipped are observed as absent (null); once a later rules phase runs, an input that is
 // not wired to its owner's selector throws instead of silently reading zero.
 import {
   rulesAtLeast,
   select,
+  type Cents,
+  type ClaimId,
+  type DistressStatusP1,
   type EndReason,
   type GameState,
   type LiquidationPath,
+  type PayCategory,
   type RulesPhase,
   type RunStatus,
 } from '../../src/engine';
@@ -92,11 +96,32 @@ export function observeWeek(state: GameState): WeekObservation {
     // §7 writes these snapshot fields from P1; under P0 rules there are no operations, so they are not measured.
     washedBcy: opsShipped ? (snap?.payWashedBcy ?? 0) : null,
     weighedRawOz: opsShipped ? (snap?.weighedRawOz ?? 0) : null,
-    fineOz: absentBefore(state, 1, 'fineOz (§10 recovered fine oz)', null),
-    claimsHeld: absentBefore(state, 1, 'claimsHeld (§5 tenures)', null),
-    fleetWashBcyHr: absentBefore(state, 1, 'fleetWashBcyHr (§9 fleet capacity)', null),
-    distressFleetSale: absentBefore(state, 1, 'distressFleetSale (§9 dealer sale under distress)', null),
+    // §2 snapshot: weighed raw × the lot's estimated fineness, cleanups and sample lots (s01 #21).
+    fineOz: opsShipped ? (snap?.fineOzRecovered ?? 0) : null,
+    claimsHeld: opsShipped ? select.controlledClaimCount(state) : null,
+    fleetWashBcyHr: opsShipped ? select.fleetWashCapacityBcyHr(state) : null,
+    distressFleetSale: opsShipped ? select.distressFleetSale(state, date.turn) : null,
   };
+}
+
+/** §11 distress status (P1: the insolvency counter and the stub stage; s02 #18). */
+export function observeDistress(state: GameState): DistressStatusP1 {
+  return select.distressStatus(state);
+}
+
+/** §11 spend by payment category over turns fromTurn…toTurn, optionally one claim's (O-08, M-CLAIMPROFIT; s02 #14). */
+export function spendByCategory(
+  state: GameState,
+  fromTurn: number,
+  toTurn: number,
+  claimId?: ClaimId,
+): Partial<Record<PayCategory, Cents>> {
+  return select.spendByCategory(state, fromTurn, toTurn, claimId);
+}
+
+/** §9 the machines on a claim (M-CLAIMPROFIT's fleet attribution; s02 #14). */
+export function machinesOnClaim(state: GameState, claimId: ClaimId): readonly string[] {
+  return select.machinesOnClaim(state, claimId);
 }
 
 export function runOutcome(state: GameState): RunOutcome {
@@ -120,23 +145,10 @@ export const EXPENSE_CODE_PREFIXES: readonly string[] = ['exp.'];
 /**
  * Company-book net income over turns fromTurn…toTurn inclusive (income less expenses, §11 11.19), the figure the
  * §2.5 annual rollup records for a full year. BALANCE §5.6 measures the year in which a run ended before week 52
- * through its last turn, like any other year (no selector yet: §2.11 exposes only completed years, so this reads the
- * company journal, a non-hidden field). The window always lies within the journal's 52-week detail (§11 11.1), since
- * it is the run's last, partial year.
+ * through its last turn, like any other year: §11's `periodNetIncome` selector (P1 contract §11.1).
  */
 export function netIncomeThroughCents(state: GameState, fromTurn: number, toTurn: number): number {
-  let net = 0;
-  for (const txn of state.finance.books.company.txns) {
-    if (txn.date < fromTurn || txn.date > toTurn) continue;
-    for (const line of txn.lines) {
-      const signed = (line.debit ?? 0) - (line.credit ?? 0);
-      const isPnl =
-        INCOME_CODE_PREFIXES.some((p) => line.account.startsWith(p)) ||
-        EXPENSE_CODE_PREFIXES.some((p) => line.account.startsWith(p));
-      if (isPnl) net -= signed;
-    }
-  }
-  return net;
+  return select.periodNetIncome(state, fromTurn, toTurn);
 }
 
 /** §11's reorganization case: none can exist before P4 (D-11.73), so the case facts are all empty. */
@@ -150,9 +162,9 @@ export function observeReorg(state: GameState): ReorgObservation {
   });
 }
 
-/** BALANCE §5.6: change in unsold gold at the best visible net price; no gold exists before P1. */
+/** BALANCE §5.6: change in unsold gold at the best visible net price (§10 `heldGoldValue`); no gold exists before P1. */
 export function unsoldGoldValueCents(state: GameState): number | null {
-  return absentBefore(state, 1, 'unsold gold value (§10 lots)', 0);
+  return rulesAtLeast(state, 1) ? select.heldGoldValue(state).expectedNetCents : 0;
 }
 
 /** A claim the company holds (owned, leased, staked or inherited) and its district. */
@@ -162,9 +174,14 @@ export interface HeldClaim {
 }
 
 /**
- * The claims the company holds now (§5 tenures), for O-16's first-claim district. None can be held before P1 (no
- * tenures), so P0 reads an empty list; P1 wires §5's selector here.
+ * The claims the company holds now (§5 tenures that are active), for O-16's first-claim district. None can be held
+ * before P1 (no tenures), so P0 reads an empty list.
  */
 export function heldClaims(state: GameState): readonly HeldClaim[] {
-  return absentBefore<readonly HeldClaim[]>(state, 1, 'held claims (§5 tenures)', []);
+  if (!rulesAtLeast(state, 1)) return [];
+  // A claim's district is public (§3 claim record; no selector).
+  return select.heldClaimIds(state).map((claimId) => ({
+    claimId,
+    districtId: state.world.claims[claimId]?.districtId ?? '',
+  }));
 }

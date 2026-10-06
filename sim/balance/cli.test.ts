@@ -20,15 +20,16 @@ describe('npm run sim:balance', () => {
   it('parses its flags', () => {
     expect(parseBalanceArgs([])).toEqual({
       ok: true,
-      options: { phase: 0, quick: false, workers: 0, out: null, baseline: null },
+      options: { phase: 1, quick: false, workers: 0, out: null, baseline: null },
     });
     expect(parseBalanceArgs(['--phase', 'p0', '--quick'])).toMatchObject({
       ok: true,
       options: { phase: 0, quick: true },
     });
-    expect(parseBalanceArgs(['--phase', '1'])).toMatchObject({
+    expect(parseBalanceArgs(['--phase', '1'])).toMatchObject({ ok: true, options: { phase: 1 } });
+    expect(parseBalanceArgs(['--phase', '2'])).toMatchObject({
       ok: false,
-      message: expect.stringMatching(/available from P1/),
+      message: expect.stringMatching(/available from P2/),
     });
     expect(parseBalanceArgs(['--phase', '9'])).toMatchObject({ ok: false });
     expect(parseBalanceArgs(['--frob'])).toMatchObject({ ok: false });

@@ -6,7 +6,7 @@ import type { GameState, RulesPhase } from './types';
 export const RULES_VERSION = '0.2.0';
 
 /** The phase this build implements. A game may run any phase up to it. */
-export const BUILD_RULES_PHASE: RulesPhase = 0;
+export const BUILD_RULES_PHASE: RulesPhase = 1;
 
 export function isRulesPhase(n: unknown): n is RulesPhase {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 6;

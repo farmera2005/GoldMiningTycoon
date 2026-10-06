@@ -18,6 +18,9 @@ const identity = (years: number) => ({
   startNwCents: 52_000_000,
 });
 
+/** A P0-rules game (the P0 measurement contract) and the build's P1 game. */
+const p0Game = (seed: string): GameState => newGame(setupForCell(CELL), seed, undefined, { rulesPhase: 0 });
+
 function withCash(state: GameState, cents: number): GameState {
   const s = JSON.parse(JSON.stringify(state)) as GameState;
   const company = s.finance.books.company;
@@ -27,7 +30,7 @@ function withCash(state: GameState, cents: number): GameState {
 
 describe('GameObserver', () => {
   it('closes each year at week 52 and records a quiet P0 year', () => {
-    let s = newGame(setupForCell(CELL), '1');
+    let s = p0Game('1');
     const obs = new GameObserver(identity(2), s);
     for (let w = 0; w < 103; w++) {
       s = advanceWeek(s).state;
@@ -57,6 +60,29 @@ describe('GameObserver', () => {
     expect([bN(r, 1), bN(r, 2), sN(r, 2)]).toEqual([true, true, false]);
   });
 
+  it('records a quiet P1 year: production measured as zero, net income before the rollup is written (s02 #9)', () => {
+    let s = newGame(setupForCell(CELL), '1');
+    expect(s.meta.rulesPhase).toBe(1);
+    const obs = new GameObserver({ ...identity(1), rules: 1 }, s);
+    for (let w = 0; w < 51; w++) {
+      s = advanceWeek(s).state;
+      obs.week(s, []);
+    }
+    const r = obs.finish(s, null);
+    expect(s.history.annual).toHaveLength(0);
+    expect(r.byYear[0]).toMatchObject({
+      year: 1,
+      turn: 51,
+      ownerNwCents: 52_000_000,
+      netIncomeCents: 0,
+      washedBcy: 0,
+      weighedRawOz: 0,
+      fineOz: 0,
+      claimsHeld: 0,
+      fleetWashBcyHr: 0,
+    });
+  });
+
   it('counts stops, kinds and the longest quiet run, and tracks minimum cash', () => {
     let s = newGame(setupForCell(CELL), '1');
     const obs = new GameObserver(identity(1), s);
@@ -74,7 +100,7 @@ describe('GameObserver', () => {
   });
 
   it('records a liquidation by its cause and carries the last state through the remaining years', () => {
-    let s = newGame(setupForCell(CELL), '1');
+    let s = p0Game('1');
     const obs = new GameObserver(identity(3), s);
     for (let w = 1; w <= 60; w++) {
       s = advanceWeek(s).state;

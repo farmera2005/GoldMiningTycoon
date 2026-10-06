@@ -25,6 +25,9 @@ afterAll(() => unregister());
 // newGame is deterministic and states are immutable, so one start state serves every test (world generation is slow).
 const BASE = newGame(defaultNewGameSetup({ companyName: 'Advance Test' }), 'adv');
 const fresh = (): GameState => BASE;
+const BASE_P0 = produceState(BASE, (d) => {
+  d.meta.rulesPhase = 0;
+});
 
 function weeks(s: GameState, n: number): GameState {
   let out = s;
@@ -64,14 +67,22 @@ describe('the weekly pipeline (DESIGN §2.6)', () => {
     expect(report).toEqual({ turn: 1, alerts: [], stopCandidates: [], ops: {}, records: emptyWeekRecords() });
   });
 
-  it('rolls the year after week 52 and writes the year rollup in week 52', () => {
+  it('rolls the year after week 52; P1 rules write year 1’s rollup in week 1 of year 2 (s02 #9)', () => {
     const s = weeks(fresh(), 51);
     expect(s.clock).toMatchObject({ turn: 51, year: 1, week: 52 });
-    expect(s.history.annual).toHaveLength(1);
-    expect(s.history.annual[0]).toMatchObject({ year: 1, cashEndCents: 40_000_000, ownerNwEndCents: 52_000_000 });
+    expect(s.history.annual).toHaveLength(0);
     const next = advanceWeek(s).state;
     expect(next.clock).toMatchObject({ turn: 52, year: 2, week: 1 });
     expect(next.history.annual).toHaveLength(1);
+    expect(next.history.annual[0]).toMatchObject({ year: 1, cashEndCents: 40_000_000, ownerNwEndCents: 52_000_000 });
+  });
+
+  it('keeps the P0 timing under rules p0: the year rollup in week 52', () => {
+    const s = weeks(BASE_P0, 51);
+    expect(s.clock).toMatchObject({ turn: 51, year: 1, week: 52 });
+    expect(s.history.annual).toHaveLength(1);
+    expect(s.history.annual[0]).toMatchObject({ year: 1, cashEndCents: 40_000_000, ownerNwEndCents: 52_000_000 });
+    expect(advanceWeek(s).state.history.annual).toHaveLength(1);
   });
 
   it('keeps the history ring at 157 entries, ascending, ending at the current turn', () => {

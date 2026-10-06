@@ -32,8 +32,19 @@ import {
 } from './run';
 import { checkSetup, setupForCell, type CellSetup } from './setup';
 
-function notAvailable(what: string, phase: number): CliExit {
-  return new CliExit(EXIT_USAGE, `${what}: available from P${phase} (this is a P${BUILD_RULES_PHASE} build)`);
+/**
+ * D-2.51: an option of a later phase is "available from Pn"; one of a phase later than the run's `--rules` needs those
+ * rules; one of this build's phase that its package has not delivered yet (the P1 Wave-0 build registers P1 before
+ * implementing it) says so.
+ */
+function notAvailable(what: string, phase: number, rulesPhase: RulesPhase): CliExit {
+  if (phase > BUILD_RULES_PHASE) {
+    return new CliExit(EXIT_USAGE, `${what}: available from P${phase} (this is a P${BUILD_RULES_PHASE} build)`);
+  }
+  if (phase > rulesPhase) {
+    return new CliExit(EXIT_USAGE, `${what}: needs phase-${phase} rules (this run plays --rules p${rulesPhase})`);
+  }
+  return new CliExit(EXIT_USAGE, `${what}: P${phase} work not implemented in this build yet`);
 }
 
 function cellOf(opts: SimOptions): CellSetup {
@@ -41,13 +52,13 @@ function cellOf(opts: SimOptions): CellSetup {
 }
 
 /** The setup this build can run, or the reason it cannot (DESIGN §1 1.6 codes via the engine's validateSetup). */
-function checkedSetup(cell: CellSetup) {
+function checkedSetup(cell: CellSetup, rulesPhase: RulesPhase) {
   const setup = setupForCell(cell);
-  const verdict = checkSetup(setup);
+  const verdict = checkSetup(setup, rulesPhase);
   if (verdict.issues.length === 0) return setup;
   const codes = verdict.issues.map((i) => `${i.field} ${i.code}`).join(', ');
   if (verdict.availableFrom !== null) {
-    throw notAvailable(`--start ${cell.start} (${codes})`, verdict.availableFrom);
+    throw notAvailable(`--start ${cell.start} (${codes})`, verdict.availableFrom, rulesPhase);
   }
   throw new CliExit(EXIT_USAGE, `invalid setup for this cell: ${codes}`);
 }
@@ -81,14 +92,14 @@ function checkedStrategy(opts: SimOptions): BotSpec {
   if (entry.starts !== null && !entry.starts.includes(opts.start)) {
     throw new CliExit(EXIT_USAGE, `--strategy ${spec.id} plays only ${entry.starts.join(', ')} (DESIGN §2.12.1)`);
   }
-  if (implementedBot(spec) === null) throw notAvailable(`--strategy ${botLabel(spec)}`, entry.phase);
+  if (implementedBot(spec) === null) throw notAvailable(`--strategy ${botLabel(spec)}`, entry.phase, opts.rulesPhase);
   return spec;
 }
 
 async function runBots(opts: SimOptions, io: CliIo, pool: SimPool, sha: string, seedBase: number): Promise<number> {
   const spec = checkedStrategy(opts);
   const cell = cellOf(opts);
-  const setup = checkedSetup(cell);
+  const setup = checkedSetup(cell, opts.rulesPhase);
   const overrides = loadOverrides(opts.tuningPath, io.cwd);
   checkOverrides(setup, overrides, opts.tuningPath);
 
@@ -133,7 +144,7 @@ async function runBots(opts: SimOptions, io: CliIo, pool: SimPool, sha: string, 
 }
 
 async function runWorlds(opts: SimOptions, io: CliIo, pool: SimPool, sha: string, seedBase: number): Promise<number> {
-  const setup = checkedSetup(cellOf(opts));
+  const setup = checkedSetup(cellOf(opts), opts.rulesPhase);
   const overrides = loadOverrides(opts.tuningPath, io.cwd);
   checkOverrides(setup, overrides, opts.tuningPath);
   const result = await runWorldOnly(pool, {
@@ -178,8 +189,7 @@ export async function runSimCli(argv: readonly string[], io: CliIo = processIo):
   try {
     const later = modeAvailableFrom(opts);
     if (later !== null) {
-      if (later.phase > BUILD_RULES_PHASE) throw notAvailable(later.what, later.phase);
-      throw new CliExit(EXIT_USAGE, `${later.what}: not implemented in this build`);
+      throw notAvailable(later.what, later.phase, opts.rulesPhase);
     }
     const rules: RulesPhase = opts.rulesPhase;
     const seedBase = opts.seedBase ?? seedBaseForPhase(rules);
@@ -188,7 +198,7 @@ export async function runSimCli(argv: readonly string[], io: CliIo = processIo):
     io.out(header(opts, sha, seedBase, workers));
     // Validate everything that can fail before the pool starts its threads.
     if (opts.mode === 'bots') checkedStrategy(opts);
-    checkedSetup(cellOf(opts));
+    checkedSetup(cellOf(opts), opts.rulesPhase);
     pool = createPool(workers);
     return opts.mode === 'worldOnly'
       ? await runWorlds(opts, io, pool, sha, seedBase)

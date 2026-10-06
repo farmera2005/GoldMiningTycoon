@@ -5,6 +5,8 @@ import type { Cents } from '../../core/money';
 import type { BlockId, ClaimId, CompetitorId, CreekId, DistrictId, HolderId } from '../../core/ids';
 
 export * from './enums';
+export * from './listingTypes';
+import type { SellerTell } from './listingTypes';
 export { emptyWorldSlice } from './empty';
 import type {
   Access,
@@ -761,6 +763,11 @@ export interface WorldSlice {
   readonly supplyQueue: readonly SupplyQueueEntry[];
   /** The reserved Inheritor family run (§3.4, §3.6.1): three consecutive 20-ac valley parcels, or [] when none. */
   readonly familyRunClaimIds: readonly ClaimId[];
+  /**
+   * Found seller tells, visible (D-3.66, s03 #6), keyed by the composite `'<listingId>/<tellKind>'` (not a minted id);
+   * misses leave no trace. Pruned with their listing (D-3.72).
+   */
+  readonly foundTells: Readonly<Record<string, SellerTell>>;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,8 @@
-// §12 competitors pipeline parts (DESIGN §2.6; P1 contract §3): this folder's entries in the part table that
-// turn/parts.ts concatenates. Each part names its step, its position in the step's §2.6 sub-order and the first rules
-// phase it runs under; the table test pins the order.
+// §12 competitors pipeline parts (DESIGN §12 12.19, §2.6; P1 contract §3): the P5 reduced-form step (5.1), registered
+// empty so the order is fixed now.
+import { emptyPart } from '../../state/partKit';
 import type { PipelinePart } from '../../turn/types';
 
-export const COMPETITORS_PARTS: readonly PipelinePart[] = [];
+export const COMPETITORS_PARTS: readonly PipelinePart[] = [
+  emptyPart({ id: 'competitors.step', step: 5, order: 1, section: 12, fromPhase: 5 }),
+];

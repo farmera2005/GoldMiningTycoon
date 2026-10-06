@@ -113,7 +113,7 @@ describe('worker-count invariance and determinism (D-2.12)', () => {
       seedBase: 10,
       games: 2,
     });
-    const direct = newGame(setupForCell(CELL), '11');
+    const direct = newGame(setupForCell(CELL), '11', undefined, { rulesPhase: 0 });
     const seeds = (r.collectors['default'] as { seeds: { seed: string; stateHash: string }[] }).seeds;
     expect(seeds[1]).toMatchObject({ seed: '11', stateHash: hashState(direct) });
   });

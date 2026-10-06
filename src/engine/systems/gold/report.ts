@@ -1,10 +1,10 @@
-// §10 gold's week scratch and week record (P1 contract §1.3, s02 #10). The scratch carries the lots created and the
-// sales made in step 12; the record shows the player the week's lots and what was sold (estimated fine oz, net cash).
+// §10 gold's week scratch and week record (P1 contract §1.3, §4.10, s02 #10). The scratch carries the lots created and
+// the sales made in step 12; the record shows the player the week's lots and what was sold (estimated fine oz, net cash).
 import type { LotId } from '../../core/ids';
 import { ZERO_CENTS, type Cents } from '../../core/money';
+import type { GoldSaleRow } from './types';
 
-/** One sale of the week. Placeholder until §10's `GoldSaleRow` (contract §4.10) replaces it. */
-export type GoldSaleRow = Readonly<Record<string, unknown>>;
+export type { GoldSaleRow } from './types';
 
 export interface GoldWeekScratch {
   lotsCreated: LotId[];

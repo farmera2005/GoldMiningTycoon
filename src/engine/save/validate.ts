@@ -8,6 +8,7 @@ import { isIdPrefix } from '../core/ids';
 import { idsMatchRecord, isSortedIds, sortedKeysByCodeUnit } from '../core/iter';
 import { turnToYearWeek } from '../core/calendar';
 import { isRulesPhase } from '../state/rules';
+import { CURRENT_SCHEMA_VERSION } from '../state/schema';
 import { SLICE_KEYS } from '../state/types';
 import { climateSliceProblem } from '../systems/climate/validate';
 import { companySliceProblem } from '../systems/company/validate';
@@ -113,9 +114,12 @@ export function stateProblem(state: unknown, schemaVersion: number): string | nu
   if (state['hardRock'] !== undefined && !isRec(state['hardRock'])) return 'hardRock slice';
   const company = state['company'] as Rec;
   if (!['active', 'won', 'lost', 'retired'].includes(company['runStatus'] as string)) return 'company.runStatus';
+  // The owners' slice checks describe the current schema; a codec reading an older schema (a P0 build's) applies only
+  // the generic rules above.
+  const ownersApply = schemaVersion === CURRENT_SCHEMA_VERSION;
   for (const key of SLICE_KEYS) {
     const slice = state[key] as Rec;
-    const p = idsMirrorProblem(key, slice) ?? SLICE_VALIDATORS[key](slice);
+    const p = idsMirrorProblem(key, slice) ?? (ownersApply ? SLICE_VALIDATORS[key](slice) : null);
     if (p !== null) return p;
   }
   return null;
