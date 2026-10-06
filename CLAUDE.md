@@ -15,10 +15,9 @@ Single-player browser business simulation: the player founds and runs a small **
 
 ## Current status
 
-- **Phase:** Phase 0 (Foundation) implemented on 2026-10-06 and awaiting the owner's review. **Do not start Phase 1 until the owner has reviewed P0 and said to go on.** If a new expensive-to-reverse question arises, add it to DESIGN §0 and implement its stated default until the owner answers.
-- **P0 headline numbers:** 1,119 unit and property tests, 20 e2e tests; advanceWeek 0.43 ms mean / 0.62 ms p95 per simulated week (stub pipeline); §3 world calibration passes every gating band on 500 worlds per template; §4 estimator calibration (1,000 claims per cell) passes every gated cell × evidence mix but one: arid recent-cat ground at sonic + bulk, coverage 0.886 ± 0.011 against 0.88 (AT-RISK). Report: `docs/balance/phase-0.md`.
-- **For the owner's review:** the §4 calibration-cell definition (D-4.47: gated cells are defined by player-visible information; hidden-attribute cells gate only from the pit grid on), which interprets the P0 exit gate below; the AT-RISK cell above; a possible calibration-protocol change (at most k claims per world per cell); and the open questions in DESIGN §0.
-- **Known gaps:** no gameplay economics (P1); the estimator is not yet in the weekly pipeline and is over its §2.13 time budget until the incremental path (P1); BALANCE T-01 (a)/(b) sit at their lines (P1 gates).
+- **Phase:** Phase 1 (Core loop) in progress since 2026-10-06. Phase 0 was reviewed and approved on 2026-10-06 (DESIGN §0 rulings 0.13–0.17: D-4.47's calibration cells confirmed; P0's one estimator miss accepted and carried to P1 as OQ-4.3; the full estimator calibration caps claims per world at 2 per cell from P1; D-14.41 confirmed; BALANCE T-01 (a) aligned with §3.18 at p90 ≤ 0.045). If a new expensive-to-reverse question arises, add it to DESIGN §0 and implement its stated default until the owner answers.
+- **P0 result:** 1,119 unit and property tests and 20 e2e tests green; advanceWeek 0.43 ms mean per simulated week (stub pipeline); §3 world calibration and §4 estimator calibration as in `docs/balance/phase-0.md`.
+- **Carried into P1:** OQ-4.3 (arid recent-operator over-coverage; drift removal mismatch), OQ-3.4 (hand-cut parcels that work no block), the estimator's incremental path (§4.19; the estimator is ≈ 10× over its §2.13 time budget without it), BALANCE T-01 (b) arid at its 40% line.
 - Update this block at the end of every phase (phase, date, sim headline numbers, known gaps).
 
 ## Working rules

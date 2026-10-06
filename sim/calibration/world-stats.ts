@@ -469,8 +469,8 @@ export function bandChecks(
       statusMultListed + 0.03,
       false,
     );
-    // BALANCE T-01 (a) is stricter than §3.18 (p90 ≤ 0.035 vs 0.045); a P1 gate, reported here.
-    add('T-01a', tpl, 'mined-block grade p90 (oz/bcy), BALANCE band', s.minedBlockGrade.p90, 0, 0.035, false);
+    // BALANCE T-01 (a), aligned with §3.18 by the owner's ruling of 2026-10-06 (p90 ≤ 0.045); a P1 gate, reported here.
+    add('T-01a', tpl, 'mined-block grade p90 (oz/bcy), BALANCE band', s.minedBlockGrade.p90, 0, 0.045, false);
     add(
       'T-01b',
       tpl,

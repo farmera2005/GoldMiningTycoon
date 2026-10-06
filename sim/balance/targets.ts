@@ -118,7 +118,7 @@ const CALIBRATION: TargetClause[] = [
     '2.2',
     'bcy-weighted grade of economically mined blocks, p90, per template',
     'M-GRADE',
-    gAll(atMost(0.035, '≤ 0.035 oz/bcy')),
+    gAll(atMost(0.045, '≤ 0.045 oz/bcy')),
   ),
   clause(
     'T-01b.north',
