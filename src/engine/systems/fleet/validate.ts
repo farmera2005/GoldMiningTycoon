@@ -22,7 +22,7 @@ const ID_KEYED = [
   'sales',
 ];
 const RECORDS = ['parts', 'shopPolicy', 'shopBays', 'dealers', 'market'];
-const LOCATION_KINDS = new Set(['claim', 'yard', 'dealer', 'auctionSite', 'town', 'transit']);
+const LOCATION_KINDS: readonly string[] = ['claim', 'yard', 'dealer', 'auctionSite', 'town', 'transit'];
 
 export function fleetSliceProblem(slice: Readonly<Rec>): string | null {
   for (const store of ID_KEYED) {
@@ -38,7 +38,7 @@ export function fleetSliceProblem(slice: Readonly<Rec>): string | null {
   const machines = slice['machines'] as Rec;
   for (const id of sortedKeysByCodeUnit(machines)) {
     const loc = (machines[id] as Rec)['location'];
-    if (!isRec(loc) || !LOCATION_KINDS.has(String(loc['kind'])) || typeof loc['id'] !== 'string') {
+    if (!isRec(loc) || !LOCATION_KINDS.includes(String(loc['kind'])) || typeof loc['id'] !== 'string') {
       return `fleet.machines.${id}.location`;
     }
   }

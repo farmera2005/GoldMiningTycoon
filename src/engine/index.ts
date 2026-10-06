@@ -59,6 +59,8 @@ export {
   type StartType,
 } from './state/setup';
 export { TuningError, resolveTuning, tuningHashOf, type TuningOverrides } from './state/tuning';
+export { templatesAvailable } from './state/setup';
+export { previewStart, startsAvailable } from './systems/company/start';
 export { BUILD_RULES_PHASE, RULES_VERSION, rulesAtLeast } from './state/rules';
 export { hashState } from './state/hash';
 export { setEngineAutoFreeze } from './state/immutability';
@@ -151,6 +153,7 @@ export type {
   SuggestedAction,
 } from './systems/inbox/types';
 export { ALERT_KINDS } from './systems/inbox/types';
+export { ALERT_TAXONOMY, alertKindsInPhase, type AlertTaxonomyRow } from './systems/inbox/taxonomy';
 export type { CompanySlice, EndReason, LiquidationPath, RunStatus } from './systems/company/types';
 export type { Book, FinanceSlice, LedgerFilter, PostingEntry, PostingLine, Txn } from './systems/finance/types';
 export type { NetWorthMode } from './systems/finance/netWorth';
@@ -168,5 +171,79 @@ export type { ClimateSlice, SeasonPhase } from './systems/climate/types';
 export type { EffectModifier, EffectQuery, EffectScope, EventsSlice, HookKey } from './systems/events/types';
 export type { CalcNode, Unit } from './core/calc';
 export type { Cents, MilliOz } from './core/money';
-export type { DecId, EntityKind, EntityRef, Id, IdPrefix, MsgId } from './core/ids';
+export type {
+  BillId,
+  BlockId,
+  CandidateId,
+  ClaimId,
+  ClaimListingId,
+  DecId,
+  DistrictId,
+  EmployeeId,
+  EntityKind,
+  EntityRef,
+  EquipListingId,
+  Id,
+  IdPrefix,
+  LineId,
+  LoanId,
+  LocalBuyerId,
+  LotId,
+  MachineId,
+  MsgId,
+  ObligationId,
+  ProgramId,
+  TenureId,
+} from './core/ids';
+
+// Owners' public types (P1 contract §1.10, §4)
+export type {
+  EndReport,
+  InvestorAgreement,
+  Owner,
+  OwnerAssignment,
+  ReputationKind,
+  StartPreview,
+} from './systems/company/types';
+export type { AccessMode, CalendarMode, Outlook, SeasonView, TempBand, WeatherWeek } from './systems/climate/types';
+export type { ClaimAccess, DistrictMap, ListingInfo, SellerTell, SiteVisitQuote } from './systems/world/types';
+export type { ClaimEstimate, KnowledgeSlice } from './systems/knowledge/types';
+export type { ProspectProgram, ProspectReport, SellerCheck } from './systems/knowledge/programTypes';
+export type { Listing, ProductionInterest, Settlement, Tenure } from './systems/land/types';
+export type { ListingView, TenureView } from './systems/land/select';
+export type { Obligation, ObligationKind } from './systems/permits/types';
+export type {
+  ClaimOps,
+  MinePlan,
+  OpsRole,
+  PlantLine,
+  ProductionForecast,
+  SiteStatus,
+  WhatIfHint,
+} from './systems/ops/types';
+export type { Assignment, Candidate, Employee, ForemanInfo, Role, SupervisorKind } from './systems/staff/types';
+export type { CandidateView, EmployeeView, RosterRow } from './systems/staff/select';
+export type { PayOffer } from './systems/staff/actions';
+export type {
+  BrandId,
+  ClassId,
+  EquipmentListing,
+  Grade,
+  Machine,
+  MachineOption,
+  ModelId,
+} from './systems/fleet/types';
+export type { EquipmentListingView, MachineView } from './systems/fleet/select';
+export type { ChannelQuote, GoldLot, LocalBuyer, StandingSaleOrder } from './systems/gold/types';
+export type { GoldLotView, LocalBuyerView } from './systems/gold/select';
+export type {
+  Bill,
+  DistressStatusP1,
+  FinancePeriod,
+  Forecast13Week,
+  Loan,
+  PayCategory,
+  PayrollLine,
+} from './systems/finance/types';
+export type { EventInstance } from './systems/events/types';
 export { compareIds } from './core/ids';

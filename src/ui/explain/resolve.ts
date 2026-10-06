@@ -51,16 +51,16 @@ function message(label: string, text: string): ViewNode {
   return { label, value: null, valueText: text, unit: 'none', children: [] };
 }
 
-/** The engine explainer for a `live` ref. P0's explainers take only the state (netWorth is always 'scoring'). */
-export function runExplainer(state: GameState, name: ExplainerName): CalcNode {
-  switch (name) {
-    case 'cash':
-      return explain.cash(state);
-    case 'netWorth':
-      return explain.netWorth(state);
-    default:
-      return assertNever(name);
-  }
+type AnyExplainer = (state: GameState, ...args: readonly unknown[]) => CalcNode;
+
+/**
+ * The engine explainer for a `live` ref, called generically as `explain[name](state, ...args)` over the typed registry
+ * (S13-5): every owner's explainer is reachable without a UI-side table. The args are the ref's, as the screen built
+ * them through the owner's selectors.
+ */
+export function runExplainer(state: GameState, name: ExplainerName, args: readonly unknown[] = []): CalcNode {
+  const fn = explain[name] as AnyExplainer;
+  return fn(state, ...args);
 }
 
 /** Label and unit of a history series: §2's table (S13-8), never a copy of it. */

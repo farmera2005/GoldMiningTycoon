@@ -2,12 +2,14 @@
 // entity × rules phase (BALANCE §3.0); the setup carries the first five's game-side part and newGame's options the
 // sixth. The engine's validateSetup is the authority on what this build can run.
 import {
+  BUILD_RULES_PHASE,
   defaultNewGameSetup,
   validateSetup,
   type Difficulty,
   type EntityType,
   type NewGameSetup,
   type OwnerBackground,
+  type RulesPhase,
   type SetupIssue,
 } from '../src/engine';
 
@@ -64,8 +66,9 @@ export interface SetupVerdict {
   readonly availableFrom: number | null;
 }
 
-export function checkSetup(setup: NewGameSetup): SetupVerdict {
-  const issues = validateSetup(setup);
+/** The setup checked against the rules phase the run plays (§1 1.6: starts and templates are per phase). */
+export function checkSetup(setup: NewGameSetup, rulesPhase: RulesPhase = BUILD_RULES_PHASE): SetupVerdict {
+  const issues = validateSetup(setup, rulesPhase);
   if (issues.length === 0) return { issues, availableFrom: null };
   const phases = issues.map((i) => LATER_PHASE[i.code] ?? null);
   const allLater = phases.every((p) => p !== null);

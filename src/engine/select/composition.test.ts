@@ -37,8 +37,10 @@ describe('per-folder composition (s02 #11)', () => {
   });
 
   it('keeps the P0 selector names, now owned by their sections', () => {
-    expect(Object.keys(SELECTOR_SOURCES.finance)).toEqual(['cashOnHand', 'netWorth', 'companyNetWorth']);
-    expect(Object.keys(SELECTOR_SOURCES.gold)).toEqual(['market', 'spotUsdPerFineOz']);
+    expect(Object.keys(SELECTOR_SOURCES.finance)).toEqual(
+      expect.arrayContaining(['cashOnHand', 'netWorth', 'companyNetWorth', 'periodNetIncome']),
+    );
+    expect(Object.keys(SELECTOR_SOURCES.gold)).toEqual(expect.arrayContaining(['market', 'spotUsdPerFineOz']));
     expect(Object.keys(SELECTOR_SOURCES.land)).toContain('heldDistrictIds');
     expect(Object.keys(SELECTOR_SOURCES.history)).toEqual(['weeklyHistory', 'annualHistory']);
     expect(select.cashOnHand(STATE)).toBe(40_000_000);

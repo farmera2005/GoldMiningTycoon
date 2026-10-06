@@ -29,7 +29,7 @@ describe('applyAction / validateAction (DESIGN §2.2)', () => {
     const s = fresh();
     const bad = [null, 5, [], {}, { type: 7 }] as unknown as Action[];
     for (const a of bad) expect(validateAction(s, a)).toMatchObject({ ok: false, error: { code: 'ACTION_MALFORMED' } });
-    const unknown = { type: 'land/acceptAsk' } as unknown as Action;
+    const unknown = { type: 'land/neverRegistered' } as unknown as Action;
     expect(validateAction(s, unknown)).toMatchObject({ ok: false, error: { code: 'ACTION_UNKNOWN' } });
     const r = applyAction(s, unknown);
     expect(r).toMatchObject({ ok: false, error: { code: 'ACTION_UNKNOWN' } });

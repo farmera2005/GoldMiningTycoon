@@ -84,13 +84,15 @@ export default tseslint.config(
     },
   },
   // These files name hook keys by design: the registry itself, event and preparation effects (§12 12.3), tuning and
-  // difficulty tables, and scenario tuning overrides (§2.10 resolution order).
+  // difficulty tables, scenario tuning overrides (§2.10 resolution order), and each owner's published hook list
+  // (systems/<folder>/hooks.ts, S12-5), which the registry test compares with the registry.
   {
     files: [
       'src/data/events/**/*.ts',
       'src/data/tuning/**/*.ts',
       'src/data/difficulty.ts',
       'src/data/scenarios/**/*.ts',
+      'src/engine/systems/*/hooks.ts',
     ],
     rules: { 'gmt/no-raw-hook-read': 'off' },
   },

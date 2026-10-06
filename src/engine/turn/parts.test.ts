@@ -185,7 +185,7 @@ describe('rules-phase gating (s02 #8, D-2.18)', () => {
     expect(ids(p0, 9)).toEqual([]);
     expect(ids(p1, 9)).toEqual(['framework.operations']);
     expect(ids(p0, 12)).toEqual([]);
-    expect(ids(p1, 12)).toEqual(['framework.cleanupChain', 'framework.sampleChain']);
+    expect(ids(p1, 12)).toEqual(['framework.cleanupChain', 'framework.sampleChain', 'gold.standingOrders']);
     for (const step of PIPELINE) {
       const all = partsOfStep(step.index);
       expect(ids(p0, step.index)).toEqual(all.filter((p) => p.fromPhase === 0).map((p) => p.id));

@@ -74,13 +74,14 @@ describe('eslint.config.js wiring of the gmt rules', () => {
     }
   });
 
-  it('lets the registry, event, tuning, difficulty and scenario data name hook keys', async () => {
+  it('lets the registry, event, tuning, difficulty and scenario data and the owners’ hook lists name hook keys', async () => {
     for (const file of [
       'src/data/events/hooks.ts',
       'src/data/events/catalog.ts',
       'src/data/tuning/ops.ts',
       'src/data/difficulty.ts',
       'src/data/scenarios/goldRush.ts',
+      'src/engine/systems/staff/hooks.ts',
     ]) {
       expect(severity(await ruleEntry(file, 'gmt/no-raw-hook-read')), file).toBe(0);
       expect(severity(await ruleEntry(file, 'gmt/rng-stream-literal')), file).toBe(2);

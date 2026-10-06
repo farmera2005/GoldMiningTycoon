@@ -1,6 +1,7 @@
 // §2 history (DESIGN §2.5; P1 contract §1.8): the snapshot reads the week's handoffs and the owners' selectors, the
 // rollup moves to week 1 under P1 rules (s02 #9), and every metric has a label and unit (S13-8).
 import { describe, expect, it } from 'vitest';
+import { blankCleanupResult, blankWeekOpsResult } from '../ops/blank';
 import type { ClaimId, LotId } from '../../core/ids';
 import type { Cents } from '../../core/money';
 import { produceState } from '../../state/immutability';
@@ -26,19 +27,19 @@ const C2 = 'clm_000002' as ClaimId;
 /** A week in which two claims operated, two cleanups weighed and one sample lot was made. */
 function busyWeek() {
   const week = emptyWeekScratch();
-  week.ops.results[C2] = { claimId: C2, turn: 1, payWashedBcy: 1_200 };
-  week.ops.results[C1] = { claimId: C1, turn: 1, payWashedBcy: 800 };
+  week.ops.results[C2] = { ...blankWeekOpsResult(C2, 1), payWashedBcy: 1_200 };
+  week.ops.results[C1] = { ...blankWeekOpsResult(C1, 1), payWashedBcy: 800 };
   week.cleanup.results.push(
     {
       claimId: C1,
-      result: { turn: 1, lineId: 'L1', rawOzWeighed: 52.901 },
+      result: { ...blankCleanupResult(1, 'L1'), rawOzWeighed: 52.901 },
       fineOzRecovered: 52.901 * 0.85,
       inKindFineOz: 6.348 * 0.85,
       inKindValueCents: 2_000_000 as Cents,
     },
     {
       claimId: C1,
-      result: { turn: 1, lineId: 'L2', rawOzWeighed: 10 },
+      result: { ...blankCleanupResult(1, 'L2'), rawOzWeighed: 10 },
       fineOzRecovered: 8.5,
       inKindFineOz: 0,
       inKindValueCents: 0 as Cents,
