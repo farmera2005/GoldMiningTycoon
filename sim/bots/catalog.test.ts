@@ -20,7 +20,8 @@ import { createPool } from '../runner';
 import { setupForCell } from '../setup';
 import { BOT_CATALOG, BOT_VERSION, botEntry, botsActiveIn, implementedBot, parseBotSpec } from './catalog';
 import { chosenOptionId } from './decisions';
-import { scrambleHidden } from './scramble';
+import { scrambleHidden, withoutHidden } from './scramble';
+import type { Bot } from './types';
 import { buildBotView } from './view';
 
 const CELL = { start: 'bootstrapper', difficulty: 'standard', background: 'none', entity: 'llc' } as const;
@@ -100,10 +101,8 @@ describe('shared decision answering (BALANCE §4.0)', () => {
   });
 });
 
-/** Every implemented bot's decisions over a game, week by week, from a state and its scrambled twin. */
-function decisionTrace(botId: string, seed: string, years: number): { plain: Action[][]; scrambled: Action[][] } {
-  const bot = implementedBot({ id: botId as never, param: null });
-  if (bot === null) throw new Error(`${botId} is not implemented`);
+/** A bot's decisions over a game, week by week, from a state and its scrambled twin (the game advances on the truth). */
+function decisionTrace(bot: Bot, seed: string, years: number): { plain: Action[][]; scrambled: Action[][] } {
   let s: GameState = newGame(setupForCell(CELL), seed);
   const rules = simStopRules();
   let stops: StopReason[] = [];
@@ -152,15 +151,111 @@ describe('every implemented catalog bot', () => {
     }, 60_000);
 
     it(`${e.id}: identical decisions under scrambled hidden state (§2.14)`, () => {
+      const bot = implementedBot({ id: e.id, param: null });
+      if (bot === null) throw new Error(`${e.id} is not implemented`);
       for (const seed of ['7001', '7002']) {
-        const { plain, scrambled } = decisionTrace(e.id, seed, 1);
+        const { plain, scrambled } = decisionTrace(bot, seed, 1);
         expect(scrambled).toEqual(plain);
       }
     });
   }
+});
 
-  it('scrambleHidden leaves a P0 state equal (no hidden fields yet)', () => {
-    const s = newGame(setupForCell(CELL), '42');
-    expect(scrambleHidden(s, 'x')).toEqual(s);
+describe('the scrambled-truth twin (DESIGN §2.12 Visibility, §3.1 hidden world truth)', () => {
+  const s = newGame(setupForCell(CELL), '42');
+  const twin = scrambleHidden(s, 'scramble-42');
+  const w = s.world;
+  const tw = twin.world;
+  const each = <V>(rec: Readonly<Record<string, V>>): [string, V][] => Object.entries(rec);
+  const at = <V>(rec: Readonly<Record<string, V>>, id: string): V => rec[id] as V;
+
+  it('changes every hidden field of every claim, creek, district and holder', () => {
+    expect(w.claimIds.length).toBeGreaterThan(50);
+    for (const [id, c] of each(w.claims)) {
+      const t = at(tw.claims, id);
+      for (const f of ['depositType', 'oldTimerKind', 'oldTimerEra', 'truthPack', 'truthHash', 'econClass'] as const) {
+        expect(t.hidden[f], `${id}.hidden.${f}`).not.toEqual(c.hidden[f]);
+      }
+      expect(t.hidden.trueHistory, `${id} trueHistory`).not.toEqual(c.hidden.trueHistory);
+      expect(t.hidden.publicRecord, `${id} publicRecord`).not.toEqual(c.hidden.publicRecord);
+      expect(t.hidden.permitStub.status, `${id} permitStub`).not.toBe(c.hidden.permitStub.status);
+      expect(t.water.hidden.wellYieldGpm, `${id} well`).not.toBe(c.water.hidden.wellYieldGpm);
+      expect(t.water.hidden.depthToWaterFt, `${id} depth`).not.toBe(c.water.hidden.depthToWaterFt);
+    }
+    for (const [id, c] of each(w.creeks)) {
+      const h = at(tw.creeks, id).hidden;
+      expect(h.goldBearing, id).toBe(!c.hidden.goldBearing);
+      expect([h.gradeFactor, h.obFactor, h.payFactor], id).not.toEqual([
+        c.hidden.gradeFactor,
+        c.hidden.obFactor,
+        c.hidden.payFactor,
+      ]);
+      expect(h.history, id).not.toEqual(c.hidden.history);
+    }
+    for (const [id, d] of each(w.districts)) {
+      const h = at(tw.districts, id).hidden;
+      expect(h.gradeFactor, id).not.toBe(d.hidden.gradeFactor);
+      expect(h.obFactor, id).not.toBe(d.hidden.obFactor);
+      expect(h.finenessMean, id).not.toBe(d.hidden.finenessMean);
+    }
+    expect(Object.keys(w.holders).length).toBeGreaterThan(10);
+    for (const [id, h] of each(w.holders)) expect(at(tw.holders, id).honesty, id).not.toBe(h.honesty);
+  });
+
+  it('keeps the packed truth decodable: each claim takes another claim’s pack of the same block grid', () => {
+    const grid = (c: { nAlong: number; nAcross: number }) => `${c.nAlong}x${c.nAcross}`;
+    const packOwner: Record<string, string> = {};
+    for (const [id, c] of each(w.claims)) packOwner[c.hidden.truthPack] = id;
+    let sameGrid = 0;
+    for (const [id, c] of each(tw.claims)) {
+      const donor = packOwner[c.hidden.truthPack] as string;
+      expect(donor, id).toBeDefined();
+      expect(at(w.claims, donor).hidden.truthHash, id).toBe(c.hidden.truthHash);
+      if (grid(at(w.claims, donor)) === grid(c)) sameGrid++;
+    }
+    expect(sameGrid).toBeGreaterThan(w.claimIds.length * 0.9);
+  });
+
+  it('changes nothing visible: with the hidden fields removed, state and twin are equal', () => {
+    expect(withoutHidden(twin)).toEqual(withoutHidden(s));
+    expect(JSON.stringify(withoutHidden(s))).not.toBe(JSON.stringify(s));
+  });
+
+  it('covers every `hidden` block in the state (a new one needs a scrambler)', () => {
+    const left: string[] = [];
+    const walk = (v: unknown, path: string): void => {
+      if (typeof v !== 'object' || v === null) return;
+      for (const [k, x] of Object.entries(v)) {
+        if (k === 'hidden') left.push(`${path}.${k}`);
+        walk(x, `${path}.${k}`);
+      }
+    };
+    walk(withoutHidden(s), 'state');
+    expect(left).toEqual([]);
+  });
+
+  it('is deterministic in its seed and leaves the input untouched', () => {
+    const before = JSON.stringify(s);
+    expect(scrambleHidden(s, 'scramble-42')).toEqual(twin);
+    expect(scrambleHidden(s, 'other')).not.toEqual(twin);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('catches a bot that reads hidden truth (the decision-identity test can fail)', () => {
+    // A deliberately leaky bot: it acts on the yardstick class of the first claim, a hidden field.
+    const leaky: Bot = {
+      id: 'passive',
+      decide: (state) => {
+        const first = state.world.claimIds[0] as string;
+        const econ = (state.world.claims as Record<string, { hidden: { econClass: string } }>)[first]?.hidden.econClass;
+        return [{ type: 'decision/answer', decisionId: 'dec_000001', optionId: String(econ) } as Action];
+      },
+    };
+    const { plain, scrambled } = decisionTrace(leaky, '7001', 1);
+    expect(scrambled).not.toEqual(plain);
+    // The honest bot passes the same check on the same seed.
+    const passive = implementedBot({ id: 'passive', param: null }) as Bot;
+    const honest = decisionTrace(passive, '7001', 1);
+    expect(honest.scrambled).toEqual(honest.plain);
   });
 });

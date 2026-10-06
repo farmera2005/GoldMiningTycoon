@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DecId } from '../core/ids';
 import { EngineGuardError } from '../core/assert';
@@ -135,6 +136,46 @@ describe('decision/answer (§13 13.21)', () => {
       ok: false,
       error: { code: 'ACTION_MALFORMED' },
     });
+  });
+});
+
+describe('decision/answer with untrusted ids (§2.2: validation is total)', () => {
+  // Object.prototype keys read through a plain lookup return inherited functions or objects, not undefined.
+  const PROTO_KEYS = ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf', 'isPrototypeOf'];
+
+  it.each(PROTO_KEYS)("returns DECISION_NOT_FOUND for decisionId '%s' (validate and apply, never a throw)", (key) => {
+    for (const s of [fresh(), decide(fresh(), true)]) {
+      expect(validateAction(s, answer(key, 'a'))).toEqual({
+        ok: false,
+        error: { code: 'DECISION_NOT_FOUND', message: `no decision ${key}` },
+      });
+      const r = applyAction(s, answer(key, 'a'));
+      expect(r).toMatchObject({ ok: false, error: { code: 'DECISION_NOT_FOUND' } });
+    }
+  });
+
+  it('does not mistake an inherited key of the closed records for a closed decision', () => {
+    const answered = applyAction(decide(fresh(), true), answer('dec_000001', 'a'));
+    if (!answered.ok) throw new Error(answered.error.code);
+    expect(validateAction(answered.state, answer('constructor', 'a'))).toMatchObject({
+      error: { code: 'DECISION_NOT_FOUND' },
+    });
+    expect(validateAction(answered.state, answer('dec_000001', 'a'))).toMatchObject({
+      error: { code: 'DECISION_CLOSED' },
+    });
+  });
+
+  it('validateAction never throws for any string decisionId and optionId (property)', () => {
+    const s = decide(fresh(), true);
+    const id = fc.oneof(fc.constantFrom(...PROTO_KEYS, 'dec_000001', 'dec_000002'), fc.string());
+    fc.assert(
+      fc.property(id, fc.oneof(fc.constantFrom(...PROTO_KEYS, 'a', 'b'), fc.string()), (decisionId, optionId) => {
+        const v = validateAction(s, answer(decisionId, optionId));
+        if (v.ok) expect(decisionId).toBe('dec_000001');
+        else expect(['DECISION_NOT_FOUND', 'OPTION_INVALID', 'INSUFFICIENT_FUNDS']).toContain(v.error.code);
+      }),
+      { numRuns: 300 },
+    );
   });
 });
 

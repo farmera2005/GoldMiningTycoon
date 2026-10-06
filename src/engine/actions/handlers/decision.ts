@@ -5,6 +5,7 @@ import { sortedKeysByCodeUnit } from '../../core/iter';
 import { cloneJson } from '../../state/immutability';
 import type { GameState } from '../../state/types';
 import { closeDecision } from '../decisions';
+import { hasOwn, ownValue } from '../own';
 import { validateWithRegistry } from '../registry';
 import type {
   ActionDef,
@@ -15,8 +16,6 @@ import type {
   HandlerContext,
   PendingDecision,
 } from '../types';
-
-const hasOwn = (obj: object, key: string): boolean => Object.prototype.hasOwnProperty.call(obj, key);
 
 /** Params are intent only: a flat record of strings, finite numbers and booleans that cannot replace `type`. */
 function isPlainParams(v: unknown): v is Record<string, string | number | boolean> {
@@ -52,9 +51,11 @@ export function answeredAction(option: DecisionOption, params: DecisionAnswerAct
 function validate(state: GameState, a: DecisionAnswerAction): ActionError | null {
   const bad = shapeError(a);
   if (bad !== null) return bad;
-  const d = state.inbox.decisions[a.decisionId];
+  // Own-property lookups: the id is untrusted input, and an inherited key ('constructor', '__proto__') must read as
+  // "no such decision", never as a record (§2.2: validation is total).
+  const d = ownValue(state.inbox.decisions, a.decisionId);
   if (d === undefined) {
-    return state.inbox.closedDecisions[a.decisionId] !== undefined
+    return ownValue(state.inbox.closedDecisions, a.decisionId) !== undefined
       ? { code: 'DECISION_CLOSED', message: `${a.decisionId} is already closed` }
       : { code: 'DECISION_NOT_FOUND', message: `no decision ${a.decisionId}` };
   }
@@ -68,7 +69,7 @@ function validate(state: GameState, a: DecisionAnswerAction): ActionError | null
 }
 
 function handle(draft: GameState, a: DecisionAnswerAction, ctx: HandlerContext): void {
-  const d = draft.inbox.decisions[a.decisionId] as PendingDecision;
+  const d = ownValue(draft.inbox.decisions, a.decisionId) as PendingDecision;
   const option = findOption(d, a.optionId) as DecisionOption;
   ctx.applyNested(answeredAction(option, a.params));
   closeDecision(draft, a.decisionId, ctx.origin === 'pipeline' ? 'defaulted' : 'answered', a.optionId);

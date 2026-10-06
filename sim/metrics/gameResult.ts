@@ -14,14 +14,17 @@ import type {
   StopReason,
   StopReasonKind,
 } from '../../src/engine';
+import { compareIds } from '../../src/engine';
 import type { SimStart } from '../setup';
 import {
-  firstClaimDistrict,
+  heldClaims,
+  netIncomeThroughCents,
   observeReorg,
   observeWeek,
   runOutcome,
   unsoldGoldValueCents,
   yearNetIncomeCents,
+  type HeldClaim,
   type ReorgObservation,
   type WeekObservation,
 } from './observe';
@@ -61,7 +64,11 @@ export interface YearEnd {
   washedBcy: number | null;
   weighedRawOz: number | null;
   fineOz: number | null;
-  /** Company-book net income of the year (§2.5 annual rollup); null for a year the run did not complete. */
+  /**
+   * Company-book net income of the year (§2.5 annual rollup). For the year in which a run ended before week 52, the
+   * income through its last turn (BALANCE §5.6 measures a lost run's year like any other); null for a year the run
+   * never reached and for the year of a harness abort (unmeasured).
+   */
   netIncomeCents: number | null;
   /** BALANCE §5.4 per producing season (§11 11.19.5); null until §11 reports cost per ounce. */
   cashCostUsdPerOz: number | null;
@@ -83,7 +90,7 @@ export interface GameResult {
   rules: RulesPhase;
   years: number;
   tuningHash: string;
-  /** The first claim's district (O-16); null with no claim. */
+  /** The district of the first claim the company acquired or inherited (O-16); null when it never held one. */
   district: string | null;
   /** BALANCE §5.3's start NW for this start and difficulty (NW ratio denominator); null when not derivable yet. */
   startNwCents: number | null;
@@ -99,7 +106,10 @@ export interface GameResult {
   distressFleetSaleTurn: number | null;
   /** Index N − 1 = year N, for N = 1..years. */
   byYear: YearEnd[];
-  /** BALANCE §5.6 term: change in unsold gold over year 1 at the best visible net price; null if not computable. */
+  /**
+   * BALANCE §5.6 term: change in unsold gold over year 1 at the best visible net price, to week 52 or to the last
+   * turn of a run that ended in year 1; null if not computable (or the harness aborted the run in year 1).
+   */
   unsoldGoldChangeY1Cents: number | null;
   minCashCents: number;
   minCashTurn: number;
@@ -167,13 +177,34 @@ function addNullable(total: number | null, x: number | null): number | null {
 }
 
 /**
+ * BALANCE O-16 / §6.6 `district`: the district of the first claim the company holds, recorded the first time an
+ * observation of its holdings is non-empty (an Inheritor's at setup; otherwise when a bot's purchase, lease or staking
+ * lands, at the player's hand or in the pipeline) and kept whatever happens to that claim later. Claims that appear in
+ * the same observation tie-break by claim id (§2.12.1). The harness observes after every applied action and every
+ * week, so an acquisition is never missed between observations.
+ */
+export class FirstClaimTracker {
+  private first: string | null = null;
+
+  observe(held: readonly HeldClaim[]): void {
+    if (this.first !== null || held.length === 0) return;
+    const earliest = [...held].sort((a, b) => compareIds(a.claimId, b.claimId))[0] as HeldClaim;
+    this.first = earliest.districtId;
+  }
+
+  get districtId(): string | null {
+    return this.first;
+  }
+}
+
+/**
  * Builds a GameResult by watching a game week by week: `start` at turn 0, `week` after each advanceWeek, `finish` at
  * the end. It reads the game only through sim/metrics/observe.ts.
  */
 export class GameObserver {
   private readonly id: GameIdentity;
   private readonly tuningHash: string;
-  private readonly district: string | null;
+  private readonly firstClaim = new FirstClaimTracker();
   private readonly startUnsoldGold: number | null;
   private unsoldGoldY1: number | null = null;
   private readonly years: YearEnd[] = [];
@@ -191,7 +222,7 @@ export class GameObserver {
   constructor(identity: GameIdentity, start: GameState) {
     this.id = identity;
     this.tuningHash = start.meta.tuningHash;
-    this.district = firstClaimDistrict(start);
+    this.firstClaim.observe(heldClaims(start));
     this.startUnsoldGold = unsoldGoldValueCents(start);
     this.last = observeWeek(start);
     this.minCashCents = this.last.cashCents;
@@ -214,9 +245,15 @@ export class GameObserver {
     this.rejectionsByCode[code] = (this.rejectionsByCode[code] ?? 0) + 1;
   }
 
+  /** After each bot action the engine applied (a cash purchase or lease takes effect at once, §2.2). */
+  actionApplied(state: GameState): void {
+    this.firstClaim.observe(heldClaims(state));
+  }
+
   /** After the week that produced `state`, with that week's stop reasons. */
   week(state: GameState, stops: readonly StopReason[]): void {
     const o = observeWeek(state);
+    this.firstClaim.observe(heldClaims(state));
     this.acc.washedBcy = addNullable(this.acc.washedBcy, o.washedBcy);
     this.acc.weighedRawOz = addNullable(this.acc.weighedRawOz, o.weighedRawOz);
     this.acc.fineOz = addNullable(this.acc.fineOz, o.fineOz);
@@ -241,7 +278,17 @@ export class GameObserver {
     }
   }
 
-  private closeYear(state: GameState, carried: boolean): void {
+  /**
+   * Year `year`'s company-book net income: the annual rollup for a completed year; for the year in which the run
+   * ended (`endedYear`) the income through its last turn (BALANCE §5.6); null for a year never reached.
+   */
+  private netIncomeOf(state: GameState, year: number, carried: boolean, endedYear: number | null): number | null {
+    if (!carried) return yearNetIncomeCents(state, year);
+    if (year !== endedYear) return null;
+    return netIncomeThroughCents(state, WEEKS_PER_YEAR * (year - 1), this.last.turn);
+  }
+
+  private closeYear(state: GameState, carried: boolean, endedYear: number | null = null): void {
     const o = this.last;
     const year = this.years.length + 1;
     this.years.push({
@@ -257,7 +304,7 @@ export class GameObserver {
       washedBcy: this.acc.washedBcy,
       weighedRawOz: this.acc.weighedRawOz,
       fineOz: this.acc.fineOz,
-      netIncomeCents: carried ? null : yearNetIncomeCents(state, year),
+      netIncomeCents: this.netIncomeOf(state, year, carried, endedYear),
       cashCostUsdPerOz: null,
       aiscUsdPerOz: null,
       stops: this.acc.stops,
@@ -269,14 +316,21 @@ export class GameObserver {
 
   finish(state: GameState, abort: { reason: AbortReason; turn: number } | null): GameResult {
     const out = runOutcome(state);
-    // A year still open when the run stopped keeps its partial totals; later years are carried forward from the end.
-    while (this.years.length < this.id.years) this.closeYear(state, true);
     const ended = out.runStatus !== 'active';
+    // A run that ended (not a harness abort) is measured through its last turn: the open year's net income, and for a
+    // year-1 end the unsold-gold change, so FSP keeps every lost run in its denominator (BALANCE §5.6, O-02).
+    const endedYear = ended && abort === null ? this.last.year : null;
+    if (endedYear === 1 && this.unsoldGoldY1 === null) {
+      const now = unsoldGoldValueCents(state);
+      this.unsoldGoldY1 = now === null || this.startUnsoldGold === null ? null : now - this.startUnsoldGold;
+    }
+    // A year still open when the run stopped keeps its partial totals; later years are carried forward from the end.
+    while (this.years.length < this.id.years) this.closeYear(state, true, endedYear);
     const lossCause = out.runStatus === 'lost' ? lossCauseOf(out.endReason) : null;
     return {
       ...this.id,
       tuningHash: this.tuningHash,
-      district: this.district,
+      district: this.firstClaim.districtId,
       finalTurn: this.last.turn,
       runStatus: out.runStatus,
       endReason: out.endReason,

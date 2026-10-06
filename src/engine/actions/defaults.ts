@@ -6,6 +6,7 @@ import type { DecId } from '../core/ids';
 import type { GameState } from '../state/types';
 import { applyValidated } from './apply';
 import { closeDecision, dueDefaultDecisions } from './decisions';
+import { ownValue } from './own';
 import { validateWithRegistry } from './registry';
 import type { DecisionAnswerAction } from './types';
 
@@ -15,7 +16,7 @@ import type { DecisionAnswerAction } from './types';
  * validator's code, and nothing else changes.
  */
 export function applyDecisionDefault(state: GameState, decId: DecId): GameState {
-  const d = state.inbox.decisions[decId];
+  const d = ownValue(state.inbox.decisions, decId);
   if (d === undefined || d.defaultOptionId === undefined) return state;
   const answer: DecisionAnswerAction = { type: 'decision/answer', decisionId: decId, optionId: d.defaultOptionId };
   const error = validateWithRegistry(state, answer);

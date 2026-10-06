@@ -3,8 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import { advanceWeek, newGame, type GameState, type StopReason } from '../../src/engine';
 import { setupForCell } from '../setup';
-import { GameObserver } from './gameResult';
-import { bN, bkN, liquidationCauseBy, sN } from './survival';
+import { FirstClaimTracker, GameObserver, type YearEnd } from './gameResult';
+import { aggregateCell } from './aggregate';
+import { bN, bkN, firstSeasonProfit, liquidationCauseBy, sN } from './survival';
 
 const CELL = { start: 'bootstrapper', difficulty: 'standard', background: 'none', entity: 'llc' } as const;
 const identity = (years: number) => ({
@@ -90,9 +91,10 @@ describe('GameObserver', () => {
       liquidationCause: 'p1Counter',
       runStatus: 'lost',
     });
+    // Year 2 is measured through the loss (turns 52…60: no P&L postings in P0); year 3 was never reached.
     expect(r.byYear.map((y) => [y.year, y.turn, y.carried, y.netIncomeCents])).toEqual([
       [1, 51, false, 0],
-      [2, 60, true, null],
+      [2, 60, true, 0],
       [3, 60, true, null],
     ]);
     expect([bN(r, 1), bN(r, 2), bN(r, 3)]).toEqual([true, false, false]);
@@ -116,5 +118,119 @@ describe('GameObserver', () => {
       rejectionsByCode: { OPTION_INVALID: 1 },
     });
     expect([bN(r, 1), bN(r, 2)]).toEqual([null, null]);
+  });
+
+  /** A company-book posting in the journal (P0 has no income or expense postings of its own). */
+  function withPnlTxn(state: GameState, date: number, account: string, cents: number): GameState {
+    const s = JSON.parse(JSON.stringify(state)) as GameState;
+    const book = s.finance.books.company;
+    const income = !account.startsWith('exp.');
+    book.txns.push({
+      book: 'company',
+      date,
+      lines: income
+        ? [
+            { account: 'cash.operating', debit: cents },
+            { account, credit: cents },
+          ]
+        : [
+            { account, debit: cents },
+            { account: 'cash.operating', credit: cents },
+          ],
+      memo: 'test',
+      refs: [],
+      source: 'test',
+      id: `txn_9${book.txns.length}`,
+      seq: book.txns.length + 1,
+    } as never);
+    return s;
+  }
+
+  function lostAt(turn: number, edit: (s: GameState) => GameState = (s) => s): ReturnType<GameObserver['finish']> {
+    let s = newGame(setupForCell(CELL), '1');
+    const obs = new GameObserver(identity(2), s);
+    for (let w = 1; w <= turn; w++) {
+      s = advanceWeek(s).state;
+      obs.week(s, []);
+    }
+    const lost = JSON.parse(JSON.stringify(edit(s))) as GameState;
+    lost.company.runStatus = 'lost';
+    lost.company.endReason = 'liquidated';
+    lost.company.liquidationPath = 'p1Counter';
+    return obs.finish(lost, null);
+  }
+
+  it('measures a run liquidated in year 1 through the loss, so FSP is a boolean (BALANCE §5.6)', () => {
+    const loss = lostAt(30, (s) => withPnlTxn(s, 20, 'exp.fuel', 250_000));
+    expect(loss.byYear[0]).toMatchObject({ year: 1, turn: 30, carried: true, netIncomeCents: -250_000 });
+    expect(loss.byYear[1]).toMatchObject({ year: 2, carried: true, netIncomeCents: null });
+    expect(loss.unsoldGoldChangeY1Cents).toBe(0);
+    expect(firstSeasonProfit(loss)).toBe(false);
+    // Income and expense both count.
+    const gain = lostAt(30, (s) => withPnlTxn(withPnlTxn(s, 25, 'rev.gold', 400_000), 28, 'exp.camp', 100_000));
+    expect(gain.byYear[0]?.netIncomeCents).toBe(300_000);
+    expect(firstSeasonProfit(gain)).toBe(true);
+    // In a cell, the loss stays in FSP's denominator next to a profitable survivor.
+    const survivor = { ...loss, runStatus: 'active' as const, lossCause: null, lostTurn: null, finalTurn: 103 };
+    survivor.byYear = [{ ...(loss.byYear[0] as YearEnd), carried: false, turn: 51, netIncomeCents: 1 }];
+    expect(aggregateCell([loss, survivor], 2, { cellKey: 'fsp', resamples: 20 }).fsp).toMatchObject({ k: 1, n: 2 });
+  });
+
+  it('leaves a year-1 harness abort unmeasured', () => {
+    let s = newGame(setupForCell(CELL), '1');
+    const obs = new GameObserver(identity(1), s);
+    for (let w = 1; w <= 12; w++) {
+      s = advanceWeek(s).state;
+      obs.week(s, []);
+    }
+    const r = obs.finish(s, { reason: 'blockingDecisionUnanswered', turn: 12 });
+    expect(r.byYear[0]?.netIncomeCents).toBeNull();
+    expect(r.unsoldGoldChangeY1Cents).toBeNull();
+    expect(firstSeasonProfit(r)).toBeNull();
+  });
+
+  it('observes holdings after actions and weeks; a P0 game holds no claim, so its district is null', () => {
+    let s = newGame(setupForCell(CELL), '1');
+    const obs = new GameObserver(identity(1), s);
+    obs.actionApplied(s);
+    s = advanceWeek(s).state;
+    obs.week(s, []);
+    expect(obs.finish(s, null).district).toBeNull();
+  });
+});
+
+describe('FirstClaimTracker (BALANCE O-16, §6.6 district)', () => {
+  const N = 'dst_000001';
+  const A = 'dst_000002';
+
+  it('records the district of the first claim acquired during play, not the turn-0 holdings', () => {
+    const t = new FirstClaimTracker();
+    t.observe([]); // setup: a Bootstrapper holds nothing
+    t.observe([]);
+    expect(t.districtId).toBeNull();
+    t.observe([{ claimId: 'clm_000040', districtId: A }]); // week 3: leases an arid claim
+    t.observe([
+      { claimId: 'clm_000040', districtId: A },
+      { claimId: 'clm_000007', districtId: N },
+    ]); // later buys a northern one (lower id)
+    t.observe([{ claimId: 'clm_000007', districtId: N }]); // and surrenders the arid lease
+    t.observe([]);
+    expect(t.districtId).toBe(A);
+  });
+
+  it('takes an Inheritor’s inherited claim at setup', () => {
+    const t = new FirstClaimTracker();
+    t.observe([{ claimId: 'clm_000011', districtId: N }]);
+    t.observe([{ claimId: 'clm_000002', districtId: A }]);
+    expect(t.districtId).toBe(N);
+  });
+
+  it('breaks a tie within one observation by claim id (§2.12.1)', () => {
+    const t = new FirstClaimTracker();
+    t.observe([
+      { claimId: 'clm_000100', districtId: N },
+      { claimId: 'clm_000099', districtId: A },
+    ]);
+    expect(t.districtId).toBe(A);
   });
 });

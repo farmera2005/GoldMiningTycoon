@@ -189,4 +189,36 @@ describe('BALANCE §5.3 NW ratio and §5.6 FSP', () => {
     expect(firstSeasonProfit(syntheticResult({}, 1, () => ({ netIncomeCents: null })))).toBeNull();
     expect(firstSeasonProfit(syntheticResult({ unsoldGoldChangeY1Cents: null }))).toBeNull();
   });
+
+  // A run liquidated at turn 30 (year 1 week 31): the observer carries year 1 with its income through the loss.
+  const lostInYear1 = (netIncomeCents: number, unsoldGoldChangeY1Cents = 0) =>
+    syntheticResult(
+      {
+        runStatus: 'lost',
+        endReason: 'liquidated',
+        lossCause: 'liquidated',
+        liquidationCause: 'p1Counter',
+        lostTurn: 30,
+        finalTurn: 30,
+        unsoldGoldChangeY1Cents,
+      },
+      2,
+      (n) => ({ carried: true, turn: 30, netIncomeCents: n === 1 ? netIncomeCents : null }),
+    );
+
+  it('FSP measures a run lost in year 1 on its year-1 figures through the loss (§5.6; O-02 counts every game)', () => {
+    expect(firstSeasonProfit(lostInYear1(-2_500_000))).toBe(false);
+    expect(firstSeasonProfit(lostInYear1(0))).toBe(false);
+    // Rare, but measured the same way: a profitable partial year (an ouster after a good season, say).
+    expect(firstSeasonProfit(lostInYear1(-100, 300))).toBe(true);
+  });
+
+  it('FSP is unmeasured only for a harness abort in year 1', () => {
+    const abortedY1 = syntheticResult({ abortReason: 'blockingDecisionUnanswered', abortedTurn: 30, finalTurn: 30 });
+    expect(firstSeasonProfit(abortedY1)).toBeNull();
+    const abortedY2 = syntheticResult({ abortReason: 'blockingDecisionUnanswered', abortedTurn: 60 }, 2, (n) =>
+      n === 1 ? { netIncomeCents: 10 } : {},
+    );
+    expect(firstSeasonProfit(abortedY2)).toBe(true);
+  });
 });

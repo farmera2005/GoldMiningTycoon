@@ -6,7 +6,7 @@
 import type { LiquidationPath, StopReasonKind } from '../../src/engine';
 import { simConfig } from '../config';
 import type { GameResult, LossCause } from './gameResult';
-import { STOP_KINDS } from './gameResult';
+import { STOP_KINDS, WEEKS_PER_YEAR } from './gameResult';
 import {
   bkN,
   bN,
@@ -82,7 +82,11 @@ export interface CellMetrics {
   ownerInjectionUsdP50: Estimate;
   /** Multi-claim options (D-2.32): the most plant lines on any claim, summed claim-weeks and mechanic-weeks. */
   options: { maxPlantLines: number; smallCrewClaimWeeks: number; poolMechanicWeeks: number };
-  /** Mean reasons per game year by stop kind. */
+  /**
+   * Stop reasons per game-year of exposure, by kind: every reason a run's weeks gave, over the game-years the runs
+   * covered (turn 0 through each run's final turn, so a lost run's partial year counts in both; a full Y-year run is
+   * exactly Y years). See `exposureYears`.
+   */
   stopReasonsPerYear: Record<StopReasonKind, number | null>;
   longestQuietWeeksMax: number;
   rejectedActions: number;
@@ -175,6 +179,15 @@ function yearMetrics(games: readonly GameResult[], n: number, key: string, resam
   };
 }
 
+/**
+ * The game-years a run covered (BALANCE §6.6 stop rates; O-13): game weeks from turn 0 (year 1 week 1) through its
+ * final turn, ÷ 52. Stop reasons accrue over exactly those weeks, a lost or aborted run's partial year included, so
+ * numerator and denominator cover the same weeks; a run that played all Y years covers Y (turns 0…52Y − 1).
+ */
+export function exposureYears(g: GameResult): number {
+  return (Math.min(g.finalTurn, WEEKS_PER_YEAR * g.years - 1) + 1) / WEEKS_PER_YEAR;
+}
+
 function roundOrNull(x: number | null): number | null {
   return x === null ? null : round6(x);
 }
@@ -205,11 +218,11 @@ export function aggregateCell(games: readonly GameResult[], years: number, opts:
     districtSplit[g.district] = (districtSplit[g.district] ?? 0) + 1;
   }
 
-  const playedYears = games.reduce((a, g) => a + g.byYear.filter((y) => !y.carried).length, 0);
+  const exposure = games.reduce((a, g) => a + exposureYears(g), 0);
   const stopReasonsPerYear = {} as Record<StopReasonKind, number | null>;
   for (const k of STOP_KINDS) {
     const total = games.reduce((a, g) => a + g.stopsByKind[k], 0);
-    stopReasonsPerYear[k] = playedYears === 0 ? null : round6(total / playedYears);
+    stopReasonsPerYear[k] = exposure === 0 ? null : round6(total / exposure);
   }
 
   const rejectionsByCode: Record<string, number> = {};

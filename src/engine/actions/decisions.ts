@@ -6,6 +6,7 @@ import { nextId, type DecId } from '../core/ids';
 import { insertSortedId, removeSortedId } from '../core/iter';
 import { cloneJson } from '../state/immutability';
 import type { GameState } from '../state/types';
+import { ownValue } from './own';
 import type { ActionErrorCode, ClosedDecision, PendingDecision } from './types';
 
 /** What an owner supplies; the id and createdTurn are assigned here. */
@@ -51,7 +52,7 @@ export function createDecision(draft: GameState, spec: DecisionSpec): DecId {
 export function openDecisions(state: GameState): PendingDecision[] {
   const out: PendingDecision[] = [];
   for (const id of state.inbox.decisionIds) {
-    const d = state.inbox.decisions[id];
+    const d = ownValue(state.inbox.decisions, id);
     if (d !== undefined) out.push(d);
   }
   return out;
@@ -69,7 +70,7 @@ export function closeDecision(
   optionId: string,
   errorCode?: ActionErrorCode,
 ): void {
-  const d = draft.inbox.decisions[id];
+  const d = ownValue(draft.inbox.decisions, id);
   if (d === undefined) throw new DecisionError(`closeDecision: ${id} is not open`);
   delete draft.inbox.decisions[id];
   removeSortedId(draft.inbox.decisionIds, id);
@@ -83,7 +84,7 @@ export function closeDecision(
 export function pruneClosedDecisions(draft: GameState, retentionWeeks: number): void {
   const cutoff = draft.clock.turn - retentionWeeks;
   for (const id of [...draft.inbox.closedDecisionIds]) {
-    const c = draft.inbox.closedDecisions[id];
+    const c = ownValue(draft.inbox.closedDecisions, id);
     if (c !== undefined && c.closedTurn < cutoff) {
       delete draft.inbox.closedDecisions[id];
       removeSortedId(draft.inbox.closedDecisionIds, id);

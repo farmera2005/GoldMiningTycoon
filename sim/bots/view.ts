@@ -1,5 +1,5 @@
 // The bot's view (DESIGN §2.12 "Visibility"): built only from the engine's public selectors, never from a state field,
-// so it can never carry a hidden value. The scrambled-truth test (sim/bots/scramble.test.ts) holds bots to it.
+// so it can never carry a hidden value. The scrambled-truth test (sim/bots/catalog.test.ts) holds bots to it.
 import { rulesAtLeast, select, type GameState, type RulesPhase, type StopReason } from '../../src/engine';
 import type { BotView } from './types';
 

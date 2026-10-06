@@ -126,8 +126,10 @@ export function playGame(spec: CellRunSpec, index: number, clock: Clock): GameRe
     // applyAction runs validateAction first (§2.2); a refused action leaves the state unchanged and is a bot defect.
     for (const action of bot.decide(state, buildBotView(state, stops))) {
       const r = applyAction(state, action);
-      if (r.ok) state = r.state;
-      else observer.rejected(r.error.code);
+      if (r.ok) {
+        state = r.state;
+        observer.actionApplied(state);
+      } else observer.rejected(r.error.code);
     }
     const refusal = canAdvance(state);
     if (refusal === 'GAME_OVER') break;
