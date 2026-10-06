@@ -101,3 +101,14 @@ export const alertTaxonomyRowSchema = z.object({
   phase: z.number().int().min(0).max(6),
   thresholdKeys: z.array(z.string().regex(/^[a-z]+\.[A-Za-z0-9.]+$/)),
 });
+
+/**
+ * The text catalogs for the coverage guard in tests/data/validation.test.ts (each file and what validates it); the
+ * schemas above run in src/data/text/text.test.ts with the template checks.
+ */
+export const TEXT_COVERAGE: Readonly<Record<string, string>> = {
+  'text/alerts.ts': 'alertTemplatesSchema + placeholder and T21 checks (src/data/text/text.test.ts)',
+  'text/decisions.ts': 'decisionTemplatesSchema, fundingConsequenceSchema (src/data/text/text.test.ts)',
+  'text/glossary.ts': 'glossarySchema (src/data/text/text.test.ts)',
+  'text/tutorial.ts': 'tutorialStepsSchema, startLettersSchema (src/data/text/text.test.ts)',
+};
